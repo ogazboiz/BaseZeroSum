@@ -2,11 +2,12 @@
 
 import { GamingNavigation } from "@/components/shared"
 import { CreateGameForm } from "@/components/game-creation"
-import { ProtectedRoute } from "@/components/protected-route"
+import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
+
 
 export default function CreateGamePage() {
   return (
-    <ProtectedRoute>
+
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 text-white">
         {/* Animated Background */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
@@ -14,12 +15,12 @@ export default function CreateGamePage() {
           <div className="absolute bottom-20 right-10 w-96 h-96 bg-gradient-to-r from-violet-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
         </div>
 
-        {/* Gaming Navigation */}
-        <GamingNavigation />
+        {/* Navigation Bar */}
+         <UnifiedGamingNavigation />
 
         {/* Create Game Form */}
         <CreateGameForm />
       </div>
-    </ProtectedRoute>
+
   )
 }

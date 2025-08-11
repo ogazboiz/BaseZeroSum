@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useParams, useSearchParams, useRouter } from "next/navigation"
+import { toast } from "react-hot-toast"
 
 export default function BattlePage() {
   const params = useParams()
@@ -73,22 +74,18 @@ export default function BattlePage() {
     id: battleId,
     mode: config.title,
     creator: "WarriorX",
-    opponent: "PlayerY",
+    opponent: null, // Will be set when opponent joins
     currentPlayer: "WarriorX",
     currentNumber: config.currentNumber,
     isHidden: config.isHidden,
     entryFee: "0.1",
     prizePool: "0.19",
-    status: "active", // waiting, active, completed
-    round: 5,
+    status: "waiting", // waiting, active, completed
+    round: 0,
     maxRounds: 15,
     timeLeft: 180, // 3 minutes in seconds
-    moves: [
-      { player: "WarriorX", move: 15, newNumber: config.isHidden ? "???" : 38, timestamp: "2m ago" },
-      { player: "PlayerY", move: 12, newNumber: config.isHidden ? "???" : 26, timestamp: "1m ago" },
-      { player: "WarriorX", move: 3, newNumber: config.currentNumber, timestamp: "30s ago" },
-    ],
-    spectators: 12,
+    moves: [],
+    spectators: 0,
     icon: config.icon,
     gradient: config.gradient,
   })
@@ -191,6 +188,19 @@ export default function BattlePage() {
     router.push(`/spectate/${battle.id}?mode=${mode}`)
   }
 
+  // Simulate opponent joining (in real app, this would be triggered by blockchain events)
+  const handleSimulateOpponentJoin = () => {
+    setBattle(prev => ({
+      ...prev,
+      status: "active",
+      opponent: "PlayerY",
+      currentNumber: Math.floor(Math.random() * 35) + 15, // Random starting number
+      round: 1,
+      timeLeft: 180,
+    }))
+    toast.success("Opponent joined! Battle starting...")
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 text-white">
       {/* Animated Background */}
@@ -211,7 +221,9 @@ export default function BattlePage() {
                 <span className="text-3xl font-black bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 bg-clip-text text-transparent">
                   ZEROSUM
                 </span>
-                <div className="text-xs text-slate-400 font-medium">BATTLE IN PROGRESS</div>
+                <div className="text-xs text-slate-400 font-medium">
+                  {battle.status === "waiting" ? "WAITING FOR OPPONENT" : "BATTLE IN PROGRESS"}
+                </div>
               </div>
             </Link>
 
@@ -269,7 +281,43 @@ export default function BattlePage() {
               </CardHeader>
             </Card>
 
+            {/* Waiting State */}
+            {battle.status === "waiting" && (
+              <Card className="bg-slate-800/60 backdrop-blur-sm border border-amber-500/30 shadow-2xl rounded-2xl">
+                <CardHeader>
+                  <CardTitle className="text-2xl font-black text-white flex items-center">
+                    <Clock className="w-6 h-6 mr-3 text-amber-400" />
+                    WAITING FOR OPPONENT
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-center space-y-6">
+                  <div className="w-24 h-24 bg-amber-500/20 border-2 border-amber-500/30 rounded-full flex items-center justify-center mx-auto">
+                    <Clock className="w-12 h-12 text-amber-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-white mb-2">Battle Created Successfully!</h3>
+                    <p className="text-slate-300 mb-4">
+                      Your {battle.mode} battle is waiting for an opponent to join.
+                    </p>
+                    <p className="text-slate-400 text-sm mb-6">
+                      Entry Fee: {battle.entryFee} ETH • Prize Pool: {battle.prizePool} ETH
+                    </p>
+                    
+                    {/* Development: Simulate opponent joining */}
+                    <Button
+                      onClick={handleSimulateOpponentJoin}
+                      className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold px-8 py-3 rounded-xl"
+                    >
+                      <Users className="w-5 h-5 mr-2" />
+                      Simulate Opponent Join (Dev)
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Current Game State */}
+            {battle.status === "active" && (
             <Card className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 shadow-2xl rounded-2xl">
               <CardHeader>
                 <CardTitle className="text-2xl font-black text-white flex items-center">
@@ -343,8 +391,10 @@ export default function BattlePage() {
                 )}
               </CardContent>
             </Card>
+            )}
 
             {/* Move History */}
+            {battle.status === "active" && (
             <Card className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 shadow-2xl rounded-2xl">
               <CardHeader>
                 <CardTitle className="text-xl font-black text-white">BATTLE HISTORY</CardTitle>
@@ -377,6 +427,7 @@ export default function BattlePage() {
                 </div>
               </CardContent>
             </Card>
+            )}
           </div>
 
           {/* Battle Info Sidebar */}
@@ -400,18 +451,32 @@ export default function BattlePage() {
 
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-slate-300">Round:</span>
-                    <span className="font-bold text-white">
-                      {battle.round}/{battle.maxRounds}
+                    <span className="text-slate-300">Status:</span>
+                    <span className={`font-bold ${
+                      battle.status === "waiting" ? "text-amber-400" : 
+                      battle.status === "active" ? "text-emerald-400" : "text-violet-400"
+                    }`}>
+                      {battle.status === "waiting" ? "Waiting" : 
+                       battle.status === "active" ? "Active" : "Completed"}
                     </span>
                   </div>
+                  {battle.status === "active" && (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-slate-300">Round:</span>
+                        <span className="font-bold text-white">
+                          {battle.round}/{battle.maxRounds}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-300">Turn Time:</span>
+                        <span className="font-bold text-white">3:00 minutes</span>
+                      </div>
+                    </>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-slate-300">Spectators:</span>
                     <span className="font-bold text-white">{battle.spectators}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-300">Turn Time:</span>
-                    <span className="font-bold text-white">3:00 minutes</span>
                   </div>
                 </div>
               </CardContent>
@@ -447,29 +512,47 @@ export default function BattlePage() {
                   )}
                 </div>
 
-                <div
-                  className={`p-4 rounded-xl border-2 ${
-                    battle.currentPlayer === battle.opponent
-                      ? "border-violet-500/50 bg-violet-900/20"
-                      : "border-slate-600/50 bg-slate-900/20"
-                  }`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-violet-400 to-purple-600 rounded-lg flex items-center justify-center">
-                      <span className="font-bold text-white">{battle.opponent[0]}</span>
+                {battle.opponent ? (
+                  <div
+                    className={`p-4 rounded-xl border-2 ${
+                      battle.currentPlayer === battle.opponent
+                        ? "border-violet-500/50 bg-violet-900/20"
+                        : "border-slate-600/50 bg-slate-900/20"
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-violet-400 to-purple-600 rounded-lg flex items-center justify-center">
+                        <span className="font-bold text-white">{battle.opponent[0]}</span>
+                      </div>
+                      <div>
+                        <p className="font-bold text-white">{battle.opponent}</p>
+                        <p className="text-sm text-slate-400">Challenger</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-bold text-white">{battle.opponent}</p>
-                      <p className="text-sm text-slate-400">Challenger</p>
+                    {battle.currentPlayer === battle.opponent && (
+                      <div className="flex items-center space-x-2 mt-2">
+                        <div className="w-2 h-2 bg-violet-400 rounded-full animate-pulse"></div>
+                        <span className="text-violet-400 font-bold text-sm">ACTIVE TURN</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-xl border-2 border-amber-500/30 bg-amber-900/20">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-600 rounded-lg flex items-center justify-center">
+                        <span className="font-bold text-white">?</span>
+                      </div>
+                      <div>
+                        <p className="font-bold text-amber-400">Waiting...</p>
+                        <p className="text-sm text-slate-400">No challenger yet</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2 mt-2">
+                      <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                      <span className="text-amber-400 font-bold text-sm">JOINING...</span>
                     </div>
                   </div>
-                  {battle.currentPlayer === battle.opponent && (
-                    <div className="flex items-center space-x-2 mt-2">
-                      <div className="w-2 h-2 bg-violet-400 rounded-full animate-pulse"></div>
-                      <span className="text-violet-400 font-bold text-sm">ACTIVE TURN</span>
-                    </div>
-                  )}
-                </div>
+                )}
               </CardContent>
             </Card>
 

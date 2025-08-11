@@ -10,7 +10,8 @@ import { Progress } from "@/components/ui/progress"
 import { Slider } from "@/components/ui/slider"
 import { Gamepad2, Coins, TrendingUp, Shield, Zap, Crown, Star, ArrowLeft, Bot, Plus, Gift, Minus } from "lucide-react"
 import Link from "next/link"
-import { ProtectedRoute } from "@/components/protected-route"
+
+import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
 
 export default function StakingPage() {
   const [stakeAmount, setStakeAmount] = useState("")
@@ -71,33 +72,10 @@ export default function StakingPage() {
   ]
 
   return (
-    <ProtectedRoute>
+   
       <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-pink-50">
         {/* Navigation */}
-        <nav className="bg-white/80 backdrop-blur-sm border-b border-orange-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <Link href="/" className="flex items-center space-x-2">
-                <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-pink-500 rounded-xl flex items-center justify-center">
-                  <Gamepad2 className="w-6 h-6 text-white" />
-                </div>
-                <span className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-pink-600 bg-clip-text text-transparent">
-                  ZeroSum
-                </span>
-              </Link>
-
-              <div className="flex items-center space-x-3">
-                <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">
-                  <Coins className="w-3 h-3 mr-1" />
-                  2.45 ETH
-                </Badge>
-                <Button variant="outline" className="rounded-xl bg-transparent">
-                  Portfolio
-                </Button>
-              </div>
-            </div>
-          </div>
-        </nav>
+         <UnifiedGamingNavigation />
 
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
@@ -388,6 +366,6 @@ export default function StakingPage() {
           </div>
         </div>
       </div>
-    </ProtectedRoute>
+   
   )
 }

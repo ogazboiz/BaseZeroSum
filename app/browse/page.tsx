@@ -10,149 +10,90 @@ import {
   Brain,
   Eye,
   Zap,
+  Loader2,
+  RefreshCw
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useAccount } from "wagmi"
 import {
   BattleFilters,
   BattleSearch,
   BattleCard,
-  EmptyBattleState,
-  type BattleFilter,
-  type Battle
+  EmptyBattleState
 } from "@/components/battle"
+import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
+import { useBrowseGames, type BattleData } from "@/hooks/useBrowseGames"
+import { useZeroSumContract } from "@/hooks/useZeroSumContract"
+import { toast } from "react-hot-toast"
 
 export default function BrowseGamesPage() {
   const router = useRouter()
+  const { address, isConnected } = useAccount()
+  const { joinGame, loading: contractLoading } = useZeroSumContract()
+  const { battles, loading, filters, debugInfo, refetch } = useBrowseGames()
+  
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedFilter, setSelectedFilter] = useState("all")
+  const [joiningBattle, setJoiningBattle] = useState<number | null>(null)
+  const [showDebug, setShowDebug] = useState(false)
 
-  const filters: BattleFilter[] = [
-    { id: "all", label: "ALL BATTLES", count: 89 },
-    { id: "quick-draw", label: "QUICK DRAW", count: 28 },
-    { id: "strategic", label: "STRATEGIC", count: 22 },
-    { id: "mystery", label: "MYSTERY", count: 39 },
-  ]
-
-  const activeBattles: Battle[] = [
-    {
-      id: 1,
-      mode: "Quick Draw",
-      modeId: "quick-draw",
-      creator: "WarriorX",
-      entryFee: "0.1",
-      prizePool: "0.19",
-      timeLeft: "4m 32s",
-      spectators: 12,
-      difficulty: "★★☆☆☆",
-      icon: <Target className="w-7 h-7 text-white" />,
-      gradient: "from-emerald-400 via-teal-500 to-cyan-600",
-      bgGradient: "from-emerald-900/20 to-teal-900/20",
-      isHot: true,
-      status: "WAITING",
-    },
-    {
-      id: 2,
-      mode: "Hardcore Mystery",
-      modeId: "hardcore-mystery",
-      creator: "ShadowMaster",
-      entryFee: "0.5",
-      prizePool: "0.95",
-      timeLeft: "2m 15s",
-      spectators: 28,
-      difficulty: "★★★★★",
-      icon: <Zap className="w-7 h-7 text-white" />,
-      gradient: "from-rose-400 via-pink-500 to-red-600",
-      bgGradient: "from-rose-900/20 to-pink-900/20",
-      isHot: true,
-      status: "WAITING",
-    },
-    {
-      id: 3,
-      mode: "Strategic",
-      modeId: "strategic",
-      creator: "MindBender",
-      entryFee: "0.25",
-      prizePool: "0.475",
-      timeLeft: "7m 45s",
-      spectators: 8,
-      difficulty: "★★★☆☆",
-      icon: <Brain className="w-7 h-7 text-white" />,
-      gradient: "from-blue-400 via-indigo-500 to-purple-600",
-      bgGradient: "from-blue-900/20 to-indigo-900/20",
-      isHot: false,
-      status: "WAITING",
-    },
-    {
-      id: 4,
-      mode: "Pure Mystery",
-      modeId: "pure-mystery",
-      creator: "GhostPlayer",
-      entryFee: "0.3",
-      prizePool: "0.57",
-      timeLeft: "1m 58s",
-      spectators: 19,
-      difficulty: "★★★★☆",
-      icon: <Eye className="w-7 h-7 text-white" />,
-      gradient: "from-violet-400 via-purple-500 to-fuchsia-600",
-      bgGradient: "from-violet-900/20 to-purple-900/20",
-      isHot: false,
-      status: "WAITING",
-    },
-    {
-      id: 5,
-      mode: "Quick Draw",
-      modeId: "quick-draw",
-      creator: "SpeedDemon",
-      entryFee: "0.05",
-      prizePool: "0.095",
-      timeLeft: "12m 20s",
-      spectators: 5,
-      difficulty: "★★☆☆☆",
-      icon: <Target className="w-7 h-7 text-white" />,
-      gradient: "from-emerald-400 via-teal-500 to-cyan-600",
-      bgGradient: "from-emerald-900/20 to-teal-900/20",
-      isHot: false,
-      status: "WAITING",
-    },
-    {
-      id: 6,
-      mode: "Strategic",
-      modeId: "strategic",
-      creator: "TacticalGenius",
-      entryFee: "0.75",
-      prizePool: "1.425",
-      timeLeft: "3m 42s",
-      spectators: 34,
-      difficulty: "★★★☆☆",
-      icon: <Brain className="w-7 h-7 text-white" />,
-      gradient: "from-blue-400 via-indigo-500 to-purple-600",
-      bgGradient: "from-blue-900/20 to-indigo-900/20",
-      isHot: true,
-      status: "WAITING",
-    },
-  ]
-
-  const filteredBattles = activeBattles.filter((battle) => {
+  // Filter battles based on search and selected filter
+  const filteredBattles = battles.filter((battle) => {
     const matchesSearch =
       battle.mode.toLowerCase().includes(searchTerm.toLowerCase()) ||
       battle.creator.toLowerCase().includes(searchTerm.toLowerCase())
 
     if (selectedFilter === "all") return matchesSearch
-    if (selectedFilter === "mystery") return matchesSearch && battle.mode.includes("Mystery")
     return matchesSearch && battle.modeId === selectedFilter
   })
 
-  const handleJoinBattle = (battleId: number, modeId: string) => {
-    router.push(`/battle/join/${battleId}?mode=${modeId}`)
+  // Handle joining a battle
+  const handleJoinBattle = async (battleId: number, modeId: string) => {
+    if (!isConnected) {
+      toast.error("Please connect your wallet to join a battle!")
+      return
+    }
+
+    const battle = battles.find(b => b.id === battleId)
+    if (!battle) {
+      toast.error("Battle not found!")
+      return
+    }
+
+    setJoiningBattle(battleId)
+    
+    try {
+      console.log(`🎮 Attempting to join game ${battleId} with entry fee ${battle.entryFee} ETH`)
+      const result = await joinGame(battleId, battle.entryFee)
+      
+      if (result.success) {
+        toast.success("Successfully joined the battle!")
+        // Check if the battle is full (2 players) or still waiting
+        // For now, redirect to battle page - in real app you'd check game state
+        router.push(`/battle/${battleId}`)
+      }
+    } catch (error: any) {
+      console.error('Error joining battle:', error)
+    } finally {
+      setJoiningBattle(null)
+    }
   }
 
+  // Handle watching a battle
   const handleWatchBattle = (battleId: number, modeId: string) => {
     router.push(`/spectate/${battleId}?mode=${modeId}`)
   }
 
+  // Handle creating a new battle
   const handleCreateBattle = () => {
     router.push("/create")
+  }
+
+  // Handle manual refresh
+  const handleRefresh = () => {
+    refetch()
+    toast.success("Refreshing battles...")
   }
 
   return (
@@ -164,39 +105,7 @@ export default function BrowseGamesPage() {
       </div>
 
       {/* Gaming Navigation */}
-      <nav className="relative z-50 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            <Link href="/" className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/25">
-                <Gamepad2 className="w-7 h-7 text-white" />
-              </div>
-              <div>
-                <span className="text-3xl font-black bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 bg-clip-text text-transparent">
-                  ZEROSUM
-                </span>
-                <div className="text-xs text-slate-400 font-medium">BATTLE ARENA</div>
-              </div>
-            </Link>
-
-            <div className="flex items-center space-x-4">
-              <div className="bg-slate-800/60 backdrop-blur-sm border border-emerald-500/30 rounded-xl px-4 py-2">
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-                  <Coins className="w-4 h-4 text-emerald-400" />
-                  <span className="font-bold text-emerald-400">2.45 ETH</span>
-                </div>
-              </div>
-              <Button
-                onClick={() => router.push("/create")}
-                className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all duration-300"
-              >
-                CREATE BATTLE
-              </Button>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <UnifiedGamingNavigation />
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
@@ -208,9 +117,85 @@ export default function BrowseGamesPage() {
           </div>
           <h1 className="text-5xl font-black text-white mb-4">CHOOSE YOUR BATTLE</h1>
           <p className="text-xl text-slate-300 font-medium">Join ongoing battles or spectate the warfare</p>
+          
+          {/* Connection Status */}
+          {!isConnected && (
+            <div className="mt-6 p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg max-w-md mx-auto">
+              <p className="text-amber-400 font-medium">
+                ⚠️ Connect your wallet to join battles
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Search and Filters */}
+        {/* Debug Info - Show when no battles found */}
+        {!loading && battles.length === 0 && debugInfo && (
+          <div className="mb-8 p-4 bg-slate-800/50 border border-slate-600 rounded-lg">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-lg font-bold text-white">🔍 Debug Information</h3>
+              <Button
+                onClick={() => setShowDebug(!showDebug)}
+                variant="outline"
+                size="sm"
+                className="border-slate-600 text-slate-300"
+              >
+                {showDebug ? "Hide" : "Show"} Details
+              </Button>
+            </div>
+            
+            <div className="text-sm text-slate-300 space-y-2">
+              <p>📊 Total Games on Contract: <span className="text-cyan-400 font-bold">{debugInfo.gameCounter || 0}</span></p>
+              <p>🔍 Games Checked: <span className="text-emerald-400 font-bold">{debugInfo.gamesChecked?.length || 0}</span></p>
+              <p>✅ Games Filtered: <span className="text-blue-400 font-bold">{debugInfo.gamesFiltered?.length || 0}</span></p>
+              
+              {showDebug && debugInfo.gamesChecked && (
+                <div className="mt-4 p-3 bg-slate-900/50 rounded border border-slate-700">
+                  <h4 className="font-bold mb-2">Game Analysis:</h4>
+                  <div className="space-y-2 text-xs">
+                    {debugInfo.gamesChecked.map((game: any, index: number) => (
+                      <div key={index} className="p-2 bg-slate-800/50 rounded">
+                        <div className="flex justify-between mb-1">
+                          <span className="font-bold">Game {game.id}:</span>
+                          <span className={game.reason === 'PASSED - Should be included' ? 'text-green-400' : 'text-red-400'}>
+                            {game.reason}
+                          </span>
+                        </div>
+                        <div className="text-slate-400 space-y-1">
+                          <div>Status: {game.status} | Players: {game.playersCount} | Bettable: {game.bettable ? 'Yes' : 'No'}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {debugInfo.detailedAnalysis && (
+                    <div className="mt-4 p-3 bg-slate-800/50 rounded border border-slate-600">
+                      <h4 className="font-bold mb-2 text-yellow-400">Detailed Analysis:</h4>
+                      <div className="space-y-2 text-xs">
+                        {debugInfo.detailedAnalysis.map((analysis: any, index: number) => (
+                          <div key={index} className="p-2 bg-slate-900/50 rounded">
+                            <div className="font-bold text-white">Game {analysis.gameId}:</div>
+                            <div className="text-slate-300 space-y-1 mt-1">
+                              <div>Status: <span className="text-blue-400">{analysis.gameStatus} ({analysis.gameStatusName})</span></div>
+                              <div>Players: <span className="text-green-400">{analysis.playersCount}</span></div>
+                              <div>Bettable: <span className="text-purple-400">{analysis.bettable ? 'Yes' : 'No'}</span></div>
+                              <div>Entry Fee: <span className="text-cyan-400">{analysis.entryFee}</span></div>
+                              <div>Prize Pool: <span className="text-emerald-400">{analysis.prizePool}</span></div>
+                              <div className={`font-bold ${analysis.shouldInclude ? 'text-green-400' : 'text-red-400'}`}>
+                                Result: {analysis.excludeReason}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Search, Filters, and Refresh */}
         <div className="flex flex-col md:flex-row gap-6 mb-12">
           <BattleSearch searchTerm={searchTerm} onSearchChange={setSearchTerm} />
           <BattleFilters 
@@ -218,23 +203,136 @@ export default function BrowseGamesPage() {
             selectedFilter={selectedFilter} 
             onFilterSelect={setSelectedFilter} 
           />
+          <Button
+            onClick={handleRefresh}
+            disabled={loading}
+            className="bg-slate-700 hover:bg-slate-600 border border-slate-600"
+          >
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            ) : (
+              <RefreshCw className="w-4 h-4 mr-2" />
+            )}
+            Refresh
+          </Button>
         </div>
+
+        {/* Loading State */}
+        {loading && (
+          <div className="text-center py-12">
+            <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-cyan-400" />
+            <p className="text-xl text-slate-300">Loading battles from blockchain...</p>
+            <p className="text-sm text-slate-400 mt-2">
+              Fetching game data from Sepolia testnet...
+            </p>
+          </div>
+        )}
 
         {/* Battles Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredBattles.map((battle) => (
-            <BattleCard
-              key={battle.id}
-              battle={battle}
-              onJoinBattle={handleJoinBattle}
-              onWatchBattle={handleWatchBattle}
-            />
-          ))}
-        </div>
+        {!loading && filteredBattles.length > 0 && (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredBattles.map((battleData) => (
+              <BattleCard
+                key={battleData.id}
+                battle={battleData} // Pass BattleData directly
+                onJoinBattle={handleJoinBattle}
+                onWatchBattle={handleWatchBattle}
+                isJoining={joiningBattle === battleData.id}
+                isConnected={isConnected}
+                currentUserAddress={address}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Empty State */}
-        {filteredBattles.length === 0 && (
-          <EmptyBattleState onCreateBattle={handleCreateBattle} />
+        {!loading && filteredBattles.length === 0 && (
+          <div className="text-center py-12">
+            {battles.length === 0 ? (
+              <div className="space-y-6">
+                <div className="w-24 h-24 bg-slate-800 rounded-full flex items-center justify-center mx-auto">
+                  <Swords className="w-12 h-12 text-slate-400" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-white mb-2">No Active Battles Found</h3>
+                  <p className="text-slate-400 mb-6">
+                    {debugInfo?.gameCounter > 0 
+                      ? "Games exist on contract but may be full or finished. Check debug info above."
+                      : "Be the first warrior to create a battle!"
+                    }
+                  </p>
+                  <Button
+                    onClick={handleCreateBattle}
+                    className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold"
+                  >
+                    <Zap className="w-5 h-5 mr-2" />
+                    CREATE BATTLE
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="w-24 h-24 bg-slate-800 rounded-full flex items-center justify-center mx-auto">
+                  <Eye className="w-12 h-12 text-slate-400" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-white mb-2">No Battles Match Your Filter</h3>
+                  <p className="text-slate-400 mb-6">
+                    No battles match your search "{searchTerm}" or filter "{selectedFilter}"
+                  </p>
+                  <div className="space-x-4">
+                    <Button
+                      onClick={() => {
+                        setSearchTerm("")
+                        setSelectedFilter("all")
+                      }}
+                      variant="outline"
+                      className="border-slate-600 text-slate-300 hover:bg-slate-800"
+                    >
+                      Clear Filters
+                    </Button>
+                    <Button
+                      onClick={handleCreateBattle}
+                      className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold"
+                    >
+                      <Zap className="w-5 h-5 mr-2" />
+                      CREATE BATTLE
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Stats Footer */}
+        {!loading && battles.length > 0 && (
+          <div className="mt-12 p-6 bg-slate-800/40 border border-slate-700/50 rounded-xl">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+              <div>
+                <div className="text-2xl font-bold text-cyan-400">{battles.length}</div>
+                <div className="text-sm text-slate-400">Active Battles</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-emerald-400">
+                  {filters.find(f => f.id === "quick-draw")?.count || 0}
+                </div>
+                <div className="text-sm text-slate-400">Quick Draw</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-blue-400">
+                  {filters.find(f => f.id === "strategic")?.count || 0}
+                </div>
+                <div className="text-sm text-slate-400">Strategic</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-amber-400">
+                  {battles.reduce((total, battle) => total + parseFloat(battle.prizePool), 0).toFixed(4)} ETH
+                </div>
+                <div className="text-sm text-slate-400">Total Prize Pool</div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

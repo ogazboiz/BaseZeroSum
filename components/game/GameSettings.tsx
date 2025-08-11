@@ -16,14 +16,45 @@ interface GameSettingsProps {
     timeout: number
   }
   onGameSettingsChange: (settings: any) => void
+  selectedMode: string
+  maxEntryFee: number
 }
 
 export default function GameSettings({ 
   entryFee, 
   onEntryFeeChange, 
   gameSettings, 
-  onGameSettingsChange 
+  onGameSettingsChange,
+  selectedMode,
+  maxEntryFee
 }: GameSettingsProps) {
+  
+  // Calculate min entry fee and step size based on selected mode
+  const getMinEntryFee = () => {
+    switch (selectedMode) {
+      case "quick-draw":
+        return 0.0001 // New lower minimum for Quick Draw
+      case "strategic":
+        return 0.001 // Higher minimum for Strategic
+      default:
+        return 0.001
+    }
+  }
+
+  const getStepSize = () => {
+    switch (selectedMode) {
+      case "quick-draw":
+        return 0.0001 // Smaller steps for Quick Draw (0.0001 ETH)
+      case "strategic":
+        return 0.001 // Larger steps for Strategic (0.001 ETH)
+      default:
+        return 0.001
+    }
+  }
+
+  const minEntryFee = getMinEntryFee()
+  const stepSize = getStepSize()
+
   return (
     <Card className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 shadow-2xl rounded-2xl">
       <CardHeader>
@@ -40,15 +71,15 @@ export default function GameSettings({
             <Slider
               value={entryFee}
               onValueChange={onEntryFeeChange}
-              max={5}
-              min={0.01}
-              step={0.01}
+              max={maxEntryFee}
+              min={minEntryFee}
+              step={stepSize}
               className="w-full"
             />
             <div className="flex justify-between text-sm">
-              <span className="text-slate-400">0.01 ETH</span>
+              <span className="text-slate-400">{minEntryFee} ETH</span>
               <span className="text-2xl font-black text-cyan-400">{entryFee[0]} ETH</span>
-              <span className="text-slate-400">5.0 ETH</span>
+              <span className="text-slate-400">{maxEntryFee} ETH</span>
             </div>
           </div>
         </div>

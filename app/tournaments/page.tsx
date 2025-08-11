@@ -23,6 +23,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
 
 export default function TournamentsPage() {
   const router = useRouter()
@@ -156,33 +157,7 @@ export default function TournamentsPage() {
         <div className="absolute bottom-20 right-10 w-96 h-96 bg-gradient-to-r from-violet-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
       </div>
       {/* Navigation */}
-      <nav className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-600 shadow-lg shadow-cyan-500/25 rounded-xl flex items-center justify-center">
-                <Gamepad2 className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 bg-clip-text text-transparent">
-                ZeroSum
-              </span>
-            </Link>
-
-            <div className="flex items-center space-x-3">
-              <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">
-                <Coins className="w-3 h-3 mr-1" />
-                2.45 ETH
-              </Badge>
-              <Button
-                onClick={handleCreateTournament}
-                className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-xl"
-              >
-                Create Tournament
-              </Button>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <UnifiedGamingNavigation />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}

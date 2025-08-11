@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -18,16 +18,20 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
+import { useAccount } from "wagmi"
+import { toast } from "react-hot-toast"
 
 export default function JoinBattlePage() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { address, isConnected } = useAccount()
   const battleId = params.id
   const mode = searchParams.get("mode") || "quick-draw"
 
   const [isJoining, setIsJoining] = useState(false)
   const [hasJoined, setHasJoined] = useState(false)
+  const [isCreator, setIsCreator] = useState(false)
 
   // Game mode configurations
   const gameModeConfigs = {
@@ -68,7 +72,8 @@ export default function JoinBattlePage() {
   const battle = {
     id: battleId,
     mode: gameModeConfigs[mode]?.title || "Quick Draw",
-    creator: "WarriorX",
+    creator: "WarriorX", // In real app, this would come from blockchain
+    creatorAddress: "0x1234567890123456789012345678901234567890", // Demo address for testing
     entryFee: "0.1",
     prizePool: "0.19",
     timeLeft: "4m 32s",
@@ -80,7 +85,31 @@ export default function JoinBattlePage() {
     maxTurns: "15 turns max",
   }
 
+  // Check if current user is the creator (in real app, compare with actual creator address)
+  useEffect(() => {
+    if (address && battle.creatorAddress) {
+      // In real app, you'd compare: address.toLowerCase() === battle.creatorAddress.toLowerCase()
+      const isUserCreator = address.toLowerCase() === battle.creatorAddress.toLowerCase()
+      setIsCreator(isUserCreator)
+      
+      if (isUserCreator) {
+        toast.error("You cannot join your own battle!")
+        router.push("/browse")
+      }
+    }
+  }, [address, battle.creatorAddress, router])
+
   const handleJoinBattle = async () => {
+    if (!isConnected) {
+      toast.error("Please connect your wallet to join this battle!")
+      return
+    }
+
+    if (isCreator) {
+      toast.error("You cannot join your own battle!")
+      return
+    }
+
     setIsJoining(true)
 
     // Simulate joining process
@@ -253,6 +282,21 @@ export default function JoinBattlePage() {
                 </div>
               </div>
 
+              {/* Creator Warning */}
+              {isCreator && (
+                <div className="bg-gradient-to-r from-rose-900/30 to-red-900/30 border border-rose-500/30 rounded-xl p-4">
+                  <div className="flex items-center space-x-3">
+                    <AlertTriangle className="w-6 h-6 text-rose-400" />
+                    <div>
+                      <h3 className="font-bold text-rose-400 mb-1">CREATOR DETECTED</h3>
+                      <p className="text-rose-300 text-sm">
+                        You cannot join your own battle. You're already the creator of this game.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-4">
                 <div className="flex justify-between text-lg">
                   <span className="text-slate-300">You will pay:</span>
@@ -272,13 +316,22 @@ export default function JoinBattlePage() {
 
               <Button
                 onClick={handleJoinBattle}
-                disabled={isJoining}
-                className={`w-full bg-gradient-to-r ${battle.gradient} hover:shadow-2xl text-white font-black text-xl py-4 rounded-xl transition-all transform hover:scale-105`}
+                disabled={isJoining || isCreator}
+                className={`w-full ${
+                  isCreator 
+                    ? "bg-slate-600 cursor-not-allowed" 
+                    : `bg-gradient-to-r ${battle.gradient} hover:shadow-2xl hover:scale-105`
+                } text-white font-black text-xl py-4 rounded-xl transition-all transform`}
               >
                 {isJoining ? (
                   <>
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-3"></div>
                     JOINING BATTLE...
+                  </>
+                ) : isCreator ? (
+                  <>
+                    <AlertTriangle className="w-6 h-6 mr-3" />
+                    CANNOT JOIN OWN BATTLE
                   </>
                 ) : (
                   <>

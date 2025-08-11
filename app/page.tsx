@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -19,15 +19,98 @@ import {
   Swords,
   Crown,
   Flame,
+  Wallet,
+  User,
+  LogOut,
+  Settings,
+  ExternalLink,
+  Bell,
+  Menu,
+  X,
+  Trophy,
 } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { WalletConnect } from "@/components/wallet-connect"
+import { useRouter, usePathname } from "next/navigation"
+import Image from "next/image"
+import { useAppKitAccount, useAppKit } from "@reown/appkit/react"
+import { useDisconnect } from "@reown/appkit/react"
+import { useWalletInfo } from "@reown/appkit/react"
+import { useAccount, useDisconnect as useWagmiDisconnect } from "wagmi"
+import { toast } from "react-hot-toast"
+
+// Mock balance hooks - replace with your actual balance hooks
+const useETHBalance = (address: string | undefined) => {
+  return {
+    formatted: "2.45",
+    isLoading: false,
+    error: null,
+    refetch: () => {}
+  }
+}
+
+const useZSTokenBalance = (address: string | undefined) => {
+  return {
+    formatted: "1247",
+    isLoading: false,
+    error: null,
+    refetch: () => {}
+  }
+}
+
+// Mock player stats hook - replace with your actual stats hook
+const usePlayerStats = (address: string | undefined) => {
+  return {
+    wins: 24,
+    losses: 8,
+    rank: 47,
+    totalEarnings: "12.5 ETH",
+    winRate: 75,
+    isLoading: false
+  }
+}
 
 export default function HomePage() {
   const router = useRouter()
+  const pathname = usePathname()
   const [activeGame, setActiveGame] = useState(0)
   const [pulseEffect, setPulseEffect] = useState(false)
+  
+  // Wallet state
+  const [mounted, setMounted] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const mobileMenuRef = useRef<HTMLDivElement>(null)
+
+  // Navigation items
+  const navigation = [
+    { name: "ARENA", href: "/" },
+    { name: "CREATE", href: "/create" },
+    { name: "BATTLES", href: "/browse" },
+    { name: "SPECTATE", href: "/spectate" },
+    { name: "TOURNAMENTS", href: "/tournaments" },
+  ]
+
+  // AppKit hooks (same pattern as AgriChain)
+  const { address: appkitAddress, isConnected: appkitIsConnected } = useAppKitAccount()
+  const { open, close } = useAppKit()
+  const { walletInfo } = useWalletInfo()
+  const { disconnect: appkitDisconnect } = useDisconnect()
+
+  // Wagmi hooks (same pattern as AgriChain)
+  const { address: wagmiAddress, isConnected: wagmiIsConnected, connector } = useAccount()
+  const { disconnect: wagmiDisconnect } = useWagmiDisconnect()
+
+  // Unified state (exact same pattern as AgriChain)
+  const address = appkitAddress || wagmiAddress
+  const isConnected = appkitIsConnected || wagmiIsConnected
+
+  // Balance and stats hooks
+  const ethBalance = useETHBalance(address)
+  const zsBalance = useZSTokenBalance(address)
+  const playerStats = usePlayerStats(address)
+
+  useEffect(() => setMounted(true), [])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -36,6 +119,13 @@ export default function HomePage() {
     }, 3000)
     return () => clearInterval(interval)
   }, [])
+
+  // Show success toast when wallet connects
+  useEffect(() => {
+    if (mounted && isConnected) {
+      toast.success("🎮 Wallet connected! Ready to battle!")
+    }
+  }, [mounted, isConnected])
 
   const liveStats = {
     playersOnline: "1,247",
@@ -107,7 +197,128 @@ export default function HomePage() {
     },
   ]
 
+  const truncateAddress = (addr: string | undefined) =>
+    addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : ""
+
+  const getWalletIcon = () => {
+    const sanitizeImageUrl = (url: string) => {
+      if (!url) return null
+
+      try {
+        const trimmedUrl = url.trim()
+
+        if (trimmedUrl.startsWith('data:')) {
+          return trimmedUrl
+        }
+
+        new URL(trimmedUrl)
+        return trimmedUrl
+      } catch {
+        console.warn('Invalid wallet icon URL:', url)
+        return null
+      }
+    }
+
+    if (walletInfo?.icon) {
+      const sanitizedUrl = sanitizeImageUrl(walletInfo.icon)
+      if (sanitizedUrl) {
+        return (
+          <Image
+            src={sanitizedUrl}
+            alt={walletInfo.name || "Wallet"}
+            width={20}
+            height={20}
+            className="w-4 h-4 rounded-full sm:w-5 sm:h-5"
+            onError={(e) => {
+              (e.currentTarget.style.display = "none")
+              console.warn('Failed to load wallet icon:', sanitizedUrl)
+            }}
+            unoptimized
+          />
+        )
+      }
+    }
+
+    if (connector?.icon) {
+      const sanitizedUrl = sanitizeImageUrl(connector.icon)
+      if (sanitizedUrl) {
+        return (
+          <Image
+            src={sanitizedUrl}
+            alt={connector.name || "Wallet"}
+            width={20}
+            height={20}
+            className="w-4 h-4 rounded-full sm:w-5 sm:h-5"
+            onError={(e) => {
+              (e.currentTarget.style.display = "none")
+              console.warn('Failed to load connector icon:', sanitizedUrl)
+            }}
+            unoptimized
+          />
+        )
+      }
+    }
+
+    return <Wallet className="w-4 h-4 text-cyan-400 sm:w-5 sm:h-5" />
+  }
+
+  const getWalletName = () => walletInfo?.name || connector?.name || "Battle Wallet"
+
+  const handleConnect = async () => {
+    try {
+      await open()
+    } catch (error: unknown) {
+      console.error("Connection error:", error instanceof Error ? error.message : String(error))
+      toast.error("Failed to connect wallet. Please try again.")
+    }
+  }
+
+  const handleDisconnect = () => {
+    console.log("Disconnect initiated")
+    setIsDropdownOpen(false)
+    try {
+      if (appkitIsConnected) {
+        console.log("Disconnecting AppKit")
+        appkitDisconnect()
+      }
+      if (wagmiIsConnected) {
+        console.log("Disconnecting Wagmi")
+        wagmiDisconnect()
+      }
+      close()
+      toast.success("Wallet disconnected")
+    } catch (error: unknown) {
+      console.error("Disconnect error:", error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  // Click outside handlers
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false)
+      }
+      if (
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(event.target as Node) &&
+        !(event.target as Element).closest("[data-menu-toggle]")
+      ) {
+        setIsMobileMenuOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false)
+  }, [pathname])
+
   const handleEnterBattle = () => {
+    if (!isConnected) {
+      toast.error("Please connect your wallet to enter battles!")
+      return
+    }
     router.push("/browse")
   }
 
@@ -116,6 +327,10 @@ export default function HomePage() {
   }
 
   const handleCreateGame = (gameMode: string) => {
+    if (!isConnected) {
+      toast.error("Please connect your wallet to create battles!")
+      return
+    }
     router.push(`/create?mode=${gameMode}`)
   }
 
@@ -128,7 +343,7 @@ export default function HomePage() {
         <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-full blur-3xl animate-pulse delay-2000"></div>
       </div>
 
-      {/* Gaming Navigation */}
+      {/* Integrated Gaming Navigation */}
       <nav className="relative z-50 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
@@ -148,27 +363,272 @@ export default function HomePage() {
             </div>
 
             <div className="hidden md:flex items-center space-x-8">
-              <Link href="/" className="text-white hover:text-cyan-400 font-bold transition-colors">
-                ARENA
-              </Link>
-              <Link href="/create" className="text-slate-300 hover:text-cyan-400 font-bold transition-colors">
-                CREATE
-              </Link>
-              <Link href="/browse" className="text-slate-300 hover:text-cyan-400 font-bold transition-colors">
-                BATTLES
-              </Link>
-              <Link href="/spectate" className="text-slate-300 hover:text-cyan-400 font-bold transition-colors">
-                SPECTATE
-              </Link>
-              <Link href="/tournaments" className="text-slate-300 hover:text-cyan-400 font-bold transition-colors">
-                TOURNAMENTS
-              </Link>
+              {navigation.map((item) => (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={`font-bold transition-colors hover:text-cyan-400 ${
+                    pathname === item.href
+                      ? "text-cyan-400 border-b-2 border-cyan-400 pb-1"
+                      : "text-slate-300"
+                  }`}
+                >
+                  {item.name}
+                </Link>
+              ))}
             </div>
 
             <div className="flex items-center space-x-4">
-              <WalletConnect />
+              {!mounted ? (
+                <Button className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold rounded-xl shadow-lg shadow-cyan-500/25">
+                  <Wallet className="w-4 h-4 mr-2" />
+                  CONNECT
+                </Button>
+              ) : isConnected ? (
+                <>
+                  {/* Balance Display */}
+                  <div className="hidden md:flex items-center space-x-3">
+                    {/* ETH Balance */}
+                    <Badge className="bg-slate-800/60 backdrop-blur-sm border border-emerald-500/30 rounded-xl px-4 py-2">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                        <Coins className="w-4 h-4 text-emerald-400" />
+                        <span className="font-bold text-emerald-400">
+                          {ethBalance.isLoading ? "..." : `${ethBalance.formatted} ETH`}
+                        </span>
+                      </div>
+                    </Badge>
+
+                  
+                  </div>
+
+                  {/* User Dropdown */}
+                  <div className="relative" ref={dropdownRef}>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="w-10 h-10 text-slate-400 hover:text-cyan-400 bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 rounded-xl"
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    >
+                      <User className="w-5 h-5" />
+                    </Button>
+                    
+                    {isDropdownOpen && (
+                      <div className="absolute right-0 z-50 w-80 mt-2 border border-slate-700/50 rounded-xl shadow-2xl bg-slate-900/95 backdrop-blur-sm">
+                        {/* Header */}
+                        <div className="p-4 border-b border-slate-700/50">
+                          <div className="flex items-center gap-3 mb-4">
+                            {getWalletIcon()}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-base font-bold text-white truncate">{getWalletName()}</p>
+                              <p className="text-sm text-slate-400">{truncateAddress(address)}</p>
+                            </div>
+                            <Crown className="w-5 h-5 text-amber-400" />
+                          </div>
+                          
+                          {/* Player Stats */}
+                          <div className="grid grid-cols-3 gap-3 text-center">
+                            <div className="p-2 rounded-lg bg-slate-800/60">
+                              <div className="text-lg font-bold text-emerald-400">{playerStats.wins}</div>
+                              <div className="text-xs text-slate-400">WINS</div>
+                            </div>
+                            <div className="p-2 rounded-lg bg-slate-800/60">
+                              <div className="text-lg font-bold text-red-400">{playerStats.losses}</div>
+                              <div className="text-xs text-slate-400">LOSSES</div>
+                            </div>
+                            <div className="p-2 rounded-lg bg-slate-800/60">
+                              <div className="text-lg font-bold text-violet-400">#{playerStats.rank}</div>
+                              <div className="text-xs text-slate-400">RANK</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Balance Details */}
+                        <div className="p-4 border-b border-slate-700/50">
+                          <div className="space-y-3">
+                            <div className="p-3 rounded-lg bg-slate-800/40">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Coins className="w-4 h-4 text-emerald-400" />
+                                  <span className="text-sm font-medium text-emerald-300">ETH Balance</span>
+                                </div>
+                                <span className="text-sm font-bold text-emerald-400">
+                                  {ethBalance.formatted || "0.00"}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div className="p-3 rounded-lg bg-slate-800/40">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Zap className="w-4 h-4 text-violet-400" />
+                                  <span className="text-sm font-medium text-violet-300">ZS Tokens</span>
+                                </div>
+                                <span className="text-sm font-bold text-violet-400">
+                                  {zsBalance.formatted || "0"}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="p-3 rounded-lg bg-slate-800/40">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Trophy className="w-4 h-4 text-amber-400" />
+                                  <span className="text-sm font-medium text-amber-300">Total Earnings</span>
+                                </div>
+                                <span className="text-sm font-bold text-amber-400">
+                                  {playerStats.totalEarnings}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Menu Items */}
+                        <div className="p-2">
+                          <Link
+                            href="/profile"
+                            className="flex items-center w-full gap-3 px-3 py-2 text-sm text-slate-300 transition-colors rounded-lg hover:bg-slate-800/60 hover:text-white"
+                          >
+                            <User className="w-4 h-4" />
+                            Battle Profile
+                          </Link>
+                          <Link
+                            href="/rewards"
+                            className="flex items-center w-full gap-3 px-3 py-2 text-sm text-slate-300 transition-colors rounded-lg hover:bg-slate-800/60 hover:text-white"
+                          >
+                            <Target className="w-4 h-4" />
+                            My Rewards
+                          </Link>
+                          <a
+                            href={`https://mantlescan.xyz/address/${address}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-3 px-3 py-2 text-sm text-slate-300 transition-colors rounded-lg hover:bg-slate-800/60 hover:text-white"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                            View on Mantle Explorer
+                          </a>
+                          <button className="flex items-center w-full gap-3 px-3 py-2 text-sm text-slate-300 transition-colors rounded-lg hover:bg-slate-800/60 hover:text-white">
+                            <Settings className="w-4 h-4" />
+                            Game Settings
+                          </button>
+                          <button
+                            onClick={handleDisconnect}
+                            className="flex items-center w-full gap-3 px-3 py-2 text-sm text-red-400 transition-colors rounded-lg hover:bg-red-500/10 hover:text-red-300"
+                          >
+                            <LogOut className="w-4 h-4" />
+                            Disconnect Wallet
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Create Battle Button */}
+                  <Button
+                    onClick={() => router.push("/create")}
+                    className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all duration-300"
+                  >
+                    <Flame className="w-4 h-4 mr-2" />
+                    <span className="hidden sm:inline">CREATE BATTLE</span>
+                    <span className="sm:hidden">CREATE</span>
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  onClick={handleConnect}
+                  className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold rounded-xl shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300"
+                >
+                  <Wallet className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">CONNECT WALLET</span>
+                  <span className="sm:hidden">CONNECT</span>
+                </Button>
+              )}
+
+              {/* Mobile menu button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden w-10 h-10 text-slate-400 bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 rounded-xl"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                data-menu-toggle="true"
+              >
+                {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </Button>
             </div>
           </div>
+
+          {/* Mobile Navigation */}
+          {isMobileMenuOpen && (
+            <nav ref={mobileMenuRef} className="md:hidden pt-4 pb-4 mx-2 mt-4 border-t border-slate-700/50 rounded-lg bg-slate-800/50 backdrop-blur-sm">
+              <div className="flex flex-col gap-2">
+                {navigation.map((item) => (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold transition-colors ${
+                      pathname === item.href
+                        ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                        : "text-slate-300 hover:bg-slate-700/50 hover:text-cyan-400"
+                    }`}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    {item.name}
+                  </Link>
+                ))}
+                
+                {/* Mobile Balance Display */}
+                {isConnected && (
+                  <div className="pt-4 mt-4 border-t border-slate-700/50">
+                    <div className="space-y-3">
+                      <div className="p-3 rounded-lg bg-slate-800/60">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Coins className="w-4 h-4 text-emerald-400" />
+                            <span className="text-sm font-medium text-emerald-300">ETH</span>
+                          </div>
+                          <span className="text-sm font-bold text-emerald-400">
+                            {ethBalance.formatted || "0.00"}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="p-3 rounded-lg bg-slate-800/60">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Zap className="w-4 h-4 text-violet-400" />
+                            <span className="text-sm font-medium text-violet-300">ZS Tokens</span>
+                          </div>
+                          <span className="text-sm font-bold text-violet-400">
+                            {zsBalance.formatted || "0"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Mobile Stats */}
+                      <div className="p-3 rounded-lg bg-slate-800/60">
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          <div>
+                            <div className="text-sm font-bold text-emerald-400">{playerStats.wins}</div>
+                            <div className="text-xs text-slate-400">WINS</div>
+                          </div>
+                          <div>
+                            <div className="text-sm font-bold text-red-400">{playerStats.losses}</div>
+                            <div className="text-xs text-slate-400">LOSSES</div>
+                          </div>
+                          <div>
+                            <div className="text-sm font-bold text-violet-400">#{playerStats.rank}</div>
+                            <div className="text-xs text-slate-400">RANK</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </nav>
+          )}
         </div>
       </nav>
 
@@ -201,7 +661,7 @@ export default function HomePage() {
               className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-black text-lg px-12 py-4 rounded-xl shadow-2xl shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all transform hover:scale-105"
             >
               <Swords className="w-6 h-6 mr-3" />
-              ENTER BATTLE
+              {isConnected ? "ENTER BATTLE" : "CONNECT & BATTLE"}
             </Button>
             <Button
               size="lg"
@@ -338,7 +798,7 @@ export default function HomePage() {
                   className={`w-full bg-gradient-to-r ${game.gradient} hover:shadow-lg text-white font-black py-4 rounded-xl transition-all transform group-hover:scale-105`}
                 >
                   <Play className="w-5 h-5 mr-2" />
-                  ENTER BATTLE
+                  {isConnected ? "ENTER BATTLE" : "CONNECT TO PLAY"}
                 </Button>
               </CardContent>
             </Card>
