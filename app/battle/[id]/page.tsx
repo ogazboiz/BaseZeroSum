@@ -670,7 +670,7 @@ export default function FixedBattlePage() {
                       >
                         <X className="w-4 h-4 mr-2" />
                         Cancel Game
-                      </Button>
+                      </Button> 
                     )}
                   </div>
                 </CardHeader>
@@ -761,7 +761,7 @@ export default function FixedBattlePage() {
                     </div>
                     
                     <Progress
-                      value={(getCurrentTimeLeft() / 300) * 100} // Assuming 5 min max
+                      value={(getCurrentTimeLeft() / 90) * 100} // 90 seconds max
                       className={`h-3 ${getCurrentTimeLeft() < 10 ? "bg-rose-900/50" : "bg-slate-800/50"}`}
                     />
                   </div>
@@ -1137,7 +1137,7 @@ export default function FixedBattlePage() {
                     <div className="space-y-1">
                       <p>• Players take turns subtracting exactly 1</p>
                       <p>• First player to reach 0 WINS</p>
-                      <p>• 5 minutes per turn</p>
+                      <p>• 90 seconds per turn</p>
                       <p>• 2 timeouts allowed per player</p>
                     </div>
                   ) : (
@@ -1145,7 +1145,7 @@ export default function FixedBattlePage() {
                       <p>• Subtract 10-30% of current number</p>
                       <p>• DON'T reach 0 or you LOSE</p>
                       <p>• Force opponent to reach 0</p>
-                      <p>• 5 minutes per turn</p>
+                      <p>• 90 seconds per turn</p>
                       <p>• 2 timeouts allowed per player</p>
                     </div>
                   )}

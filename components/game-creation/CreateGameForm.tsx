@@ -24,7 +24,7 @@ export default function CreateGameForm() {
   const [gameSettings, setGameSettings] = useState({
     isPrivate: false,
     allowSpectators: true,
-    timeout: 300, // Fixed at 5 minutes (300 seconds) to match contract
+    timeout: 90, // Fixed at 5 minutes (300 seconds) to match contract
   })
   const [isCreating, setIsCreating] = useState(false)
 

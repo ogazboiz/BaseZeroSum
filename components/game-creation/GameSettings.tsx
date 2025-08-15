@@ -61,7 +61,7 @@ export default function GameSettings({ entryFee, onEntryFeeChange, gameSettings,
           </div>
           <div className="bg-slate-700/50 border border-slate-600 rounded-lg p-3 text-center">
             <span className="text-2xl font-black text-red-400">{gameSettings.timeout}s</span>
-            <p className="text-sm text-slate-400 mt-1">3 minutes</p>
+            <p className="text-sm text-slate-400 mt-1">90 seconds</p>
           </div>
         </div>
 
