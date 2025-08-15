@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -11,243 +11,530 @@ import {
   Target,
   Brain,
   Eye,
-  Zap,
   Clock,
-  Users,
-  Coins,
   Swords,
   Shield,
   AlertTriangle,
   Timer,
+  Minus,
+  Wallet,
+  RefreshCw,
+  ArrowLeft,
+  Trophy,
+  Plus,
+  Loader2,
+  X
 } from "lucide-react"
-import Link from "next/link"
-import { useParams, useSearchParams, useRouter } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { toast } from "react-hot-toast"
+import { useAccount } from "wagmi"
+import { 
+  useZeroSumData, 
+  useZeroSumContract, 
+  GameData, 
+  PlayerView, 
+  GameStatus, 
+  GameMode 
+} from "@/hooks/useZeroSumContract"
+import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
 
-export default function BattlePage() {
+// Enhanced game state interface
+interface EnhancedGameState {
+  gameId: number
+  mode: "Quick Draw" | "Strategic"
+  status: "waiting" | "active" | "completed"
+  currentNumber: number
+  currentPlayer: string
+  winner: string | null
+  entryFee: string
+  prizePool: string
+  players: string[]
+  
+  // User-specific
+  isUserInGame: boolean
+  isUserCreator: boolean
+  isMyTurn: boolean
+  canJoin: boolean
+  timeLeft: number
+  
+  // Enhanced game state
+  numberGenerated: boolean
+  gameStuck: boolean
+  stuckPlayer: string
+  yourTimeouts: number
+  opponentTimeouts: number
+}
+
+export default function FixedBattlePage() {
   const params = useParams()
-  const searchParams = useSearchParams()
   const router = useRouter()
-  const battleId = params.id
-  const mode = searchParams.get("mode") || "quick-draw"
+  const { address, isConnected } = useAccount()
+  
+  const battleId = params.id as string
+  const gameId = battleId ? parseInt(battleId) : null
+  
+  // Blockchain hooks
+  const {
+    getGame,
+    getPlayers,
+    getPlayerView,
+    getPlayerBalance,
+    contractsReady,
+    providerReady
+  } = useZeroSumData()
+  
+  const {
+    joinGame,
+    makeMove,
+    handleTimeout,
+    cancelWaitingGame,
+    forceFinishInactiveGame,
+    withdraw,
+    loading: transactionLoading
+  } = useZeroSumContract()
 
-  // Game mode configurations
-  const gameModeConfigs = {
-    "quick-draw": {
-      title: "Quick Draw",
-      icon: Target,
-      gradient: "from-emerald-400 via-teal-500 to-cyan-600",
-      rules: "Subtract exactly 1 each turn",
-      currentNumber: 23,
-      isHidden: false,
-    },
-    strategic: {
-      title: "Strategic",
-      icon: Brain,
-      gradient: "from-blue-400 via-indigo-500 to-purple-600",
-      rules: "Subtract 10-30% each turn",
-      currentNumber: 127,
-      isHidden: false,
-    },
-    "pure-mystery": {
-      title: "Pure Mystery",
-      icon: Eye,
-      gradient: "from-violet-400 via-purple-500 to-fuchsia-600",
-      rules: "Any subtraction, forgiving",
-      currentNumber: "???",
-      isHidden: true,
-    },
-    "hardcore-mystery": {
-      title: "Hardcore Mystery",
-      icon: Zap,
-      gradient: "from-rose-400 via-pink-500 to-red-600",
-      rules: "Any subtraction, instant loss",
-      currentNumber: "???",
-      isHidden: true,
-    },
-  }
-
-  const config = gameModeConfigs[mode] || gameModeConfigs["quick-draw"]
-
-  // Battle state
-  const [battle, setBattle] = useState({
-    id: battleId,
-    mode: config.title,
-    creator: "WarriorX",
-    opponent: null, // Will be set when opponent joins
-    currentPlayer: "WarriorX",
-    currentNumber: config.currentNumber,
-    isHidden: config.isHidden,
-    entryFee: "0.1",
-    prizePool: "0.19",
-    status: "waiting", // waiting, active, completed
-    round: 0,
-    maxRounds: 15,
-    timeLeft: 180, // 3 minutes in seconds
-    moves: [],
-    spectators: 0,
-    icon: config.icon,
-    gradient: config.gradient,
-  })
-
+  // State management
+  const [gameState, setGameState] = useState<EnhancedGameState | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [userBalance, setUserBalance] = useState("0")
   const [moveAmount, setMoveAmount] = useState("")
-  const [isMyTurn, setIsMyTurn] = useState(true) // Simulate if it's player's turn
-
-  // Timer countdown
-  useEffect(() => {
-    if (battle.status === "active" && battle.timeLeft > 0) {
-      const timer = setInterval(() => {
-        setBattle((prev) => ({
-          ...prev,
-          timeLeft: prev.timeLeft - 1,
-        }))
-      }, 1000)
-
-      return () => clearInterval(timer)
+  const [localTimeLeft, setLocalTimeLeft] = useState<number | null>(null)
+  const [showDebugInfo, setShowDebugInfo] = useState(false)
+  
+  // Fetch game data function
+  const fetchGameData = useCallback(async () => {
+    if (!gameId || !isConnected || !address || !contractsReady) {
+      console.log('⏸️ Skipping fetch - requirements not met:', {
+        gameId: !!gameId,
+        isConnected,
+        address: !!address,
+        contractsReady
+      })
+      return
     }
-  }, [battle.status, battle.timeLeft])
 
-  // Auto-skip turn when timer reaches 0
-  useEffect(() => {
-    if (battle.timeLeft === 0 && battle.status === "active") {
-      handleTimeOut()
-    }
-  }, [battle.timeLeft])
+    console.log(`🎮 Fetching data for game ${gameId}`)
+    setIsLoading(true)
+    setError(null)
 
-  const handleTimeOut = () => {
-    setBattle((prev) => ({
-      ...prev,
-      currentPlayer: prev.currentPlayer === "WarriorX" ? "PlayerY" : "WarriorX",
-      timeLeft: 180, // Reset to 3 minutes
-      round: prev.round + 1,
-      moves: [
-        ...prev.moves,
-        {
-          player: prev.currentPlayer,
-          move: "TIMEOUT",
-          newNumber: prev.currentNumber,
-          timestamp: "now",
-        },
-      ],
-    }))
-    setIsMyTurn(!isMyTurn)
-  }
+    try {
+      // Parallel fetch for better performance
+      const [gameData, players, balance] = await Promise.all([
+        getGame(gameId),
+        getPlayers(gameId),
+        getPlayerBalance(address)
+      ])
 
-  const handleMove = () => {
-    if (!moveAmount || !isMyTurn) return
-
-    const move = Number.parseInt(moveAmount)
-    let newNumber = battle.currentNumber
-
-    if (!battle.isHidden) {
-      if (mode === "strategic") {
-        newNumber = Math.max(0, battle.currentNumber - move)
-      } else {
-        newNumber = battle.currentNumber - move
+      if (!gameData) {
+        throw new Error(`Game #${gameId} not found on blockchain`)
       }
+
+      console.log('📊 Raw game data:', gameData)
+      console.log('👥 Players:', players)
+
+      // Update user balance
+      setUserBalance(balance)
+
+      // Determine user relationship to game
+      const isUserInGame = players.some(p => p.toLowerCase() === address.toLowerCase())
+      const isUserCreator = players.length > 0 && players[0].toLowerCase() === address.toLowerCase()
+      const canJoin = !isUserInGame && players.length < 2 && gameData.status === GameStatus.WAITING
+
+      // Initialize player view data
+      let playerViewData: PlayerView | null = null
+      let isMyTurn = false
+      let timeLeft = 0
+      let gameStuck = false
+      let stuckPlayer = ""
+      let yourTimeouts = 0
+      let opponentTimeouts = 0
+
+      // Get enhanced player view for active games
+      if (gameData.status === GameStatus.ACTIVE) {
+        try {
+          playerViewData = await getPlayerView(gameId)
+          if (playerViewData) {
+            isMyTurn = playerViewData.yourTurn
+            timeLeft = playerViewData.timeLeft
+            gameStuck = playerViewData.gameStuck || false
+            stuckPlayer = playerViewData.stuckPlayer || ""
+            yourTimeouts = playerViewData.yourTimeouts
+            opponentTimeouts = playerViewData.opponentTimeouts
+            
+            console.log('🎯 Player view data:', {
+              yourTurn: isMyTurn,
+              timeLeft,
+              gameStuck,
+              stuckPlayer,
+              yourTimeouts,
+              opponentTimeouts
+            })
+          }
+        } catch (error) {
+          console.warn('⚠️ Could not get player view (might be spectator):', error)
+          
+          // Fallback: Basic turn detection for spectators
+          isMyTurn = isUserInGame && gameData.currentPlayer.toLowerCase() === address.toLowerCase()
+          timeLeft = 0 // Can't get time left without player view
+        }
+      }
+
+      // Double-check turn logic for consistency
+      const currentPlayerIsMe = gameData.currentPlayer.toLowerCase() === address.toLowerCase()
+      console.log('🔍 Turn logic verification:', {
+        contractSaysMyTurn: isMyTurn,
+        currentPlayerIsMe,
+        isUserInGame,
+        gameStatus: gameData.status,
+        currentPlayer: gameData.currentPlayer
+      })
+
+      // Build enhanced game state
+      const enhancedState: EnhancedGameState = {
+        gameId,
+        mode: gameData.mode === GameMode.QUICK_DRAW ? "Quick Draw" : "Strategic",
+        status: gameData.status === GameStatus.WAITING ? "waiting" : 
+                gameData.status === GameStatus.ACTIVE ? "active" : "completed",
+        currentNumber: gameData.currentNumber,
+        currentPlayer: gameData.currentPlayer,
+        winner: gameData.winner && gameData.winner !== "0x0000000000000000000000000000000000000000" 
+                ? gameData.winner : null,
+        entryFee: gameData.entryFee,
+        prizePool: gameData.prizePool,
+        players,
+        
+        isUserInGame,
+        isUserCreator,
+        isMyTurn: isUserInGame ? currentPlayerIsMe : false, // Always use currentPlayer for turn logic
+        canJoin,
+        timeLeft,
+        
+        numberGenerated: gameData.numberGenerated,
+        gameStuck,
+        stuckPlayer,
+        yourTimeouts,
+        opponentTimeouts
+      }
+
+      setGameState(enhancedState)
+      console.log('✅ Enhanced game state:', enhancedState)
+
+    } catch (error) {
+      console.error('❌ Error fetching game:', error)
+      setError(error instanceof Error ? error.message : 'Failed to load game data')
+    } finally {
+      setIsLoading(false)
     }
+  }, [gameId, isConnected, address, contractsReady, getGame, getPlayers, getPlayerView, getPlayerBalance])
 
-    setBattle((prev) => ({
-      ...prev,
-      currentNumber: battle.isHidden ? "???" : newNumber,
-      currentPlayer: prev.currentPlayer === "WarriorX" ? "PlayerY" : "WarriorX",
-      timeLeft: 180, // Reset timer
-      round: prev.round + 1,
-      moves: [
-        ...prev.moves,
-        {
-          player: prev.currentPlayer,
-          move: move,
-          newNumber: battle.isHidden ? "???" : newNumber,
-          timestamp: "now",
-        },
-      ],
-      status: !battle.isHidden && newNumber === 0 ? "completed" : "active",
-    }))
-
-    setMoveAmount("")
-    setIsMyTurn(false)
-
-    // Check win condition for non-hidden modes
-    if (!battle.isHidden && newNumber === 0) {
-      // Winner logic here
+  // Initial data fetch
+  useEffect(() => {
+    if (providerReady) {
+      fetchGameData()
     }
-  }
+  }, [providerReady, fetchGameData])
 
-  const formatTime = (seconds) => {
+  // Real-time countdown timer
+  useEffect(() => {
+    if (gameState?.status === "active" && gameState.timeLeft > 0) {
+      setLocalTimeLeft(gameState.timeLeft)
+      
+      const interval = setInterval(() => {
+        setLocalTimeLeft(prev => {
+          if (prev === null || prev <= 0) return 0
+          return prev - 1
+        })
+      }, 1000)
+      
+      return () => clearInterval(interval)
+    } else {
+      setLocalTimeLeft(null)
+    }
+  }, [gameState?.status, gameState?.timeLeft])
+
+  // Helper functions
+  const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
     return `${mins}:${secs.toString().padStart(2, "0")}`
   }
 
-  const handleExitBattle = () => {
-    router.push("/browse")
+  const getValidMoveRange = () => {
+    if (!gameState) return { min: 1, max: 1 }
+    
+    if (gameState.mode === "Quick Draw") {
+      return { min: 1, max: 1 }
+    } else {
+      // Strategic mode: 10-30% of current number
+      const min = Math.max(1, Math.ceil(gameState.currentNumber * 0.1))
+      const max = Math.floor(gameState.currentNumber * 0.3)
+      
+      // Handle edge case for small numbers
+      if (max < min) {
+        return { min: 1, max: 1 }
+      }
+      
+      return { min, max }
+    }
   }
 
-  const handleSpectateAndBet = () => {
-    router.push(`/spectate/${battle.id}?mode=${mode}`)
+  const isActionAllowed = () => {
+    return gameState?.isUserInGame && 
+           gameState?.isMyTurn && 
+           gameState?.status === "active" && 
+           (localTimeLeft ?? gameState?.timeLeft ?? 0) > 0 &&
+           !transactionLoading
   }
 
-  // Simulate opponent joining (in real app, this would be triggered by blockchain events)
-  const handleSimulateOpponentJoin = () => {
-    setBattle(prev => ({
-      ...prev,
-      status: "active",
-      opponent: "PlayerY",
-      currentNumber: Math.floor(Math.random() * 35) + 15, // Random starting number
-      round: 1,
-      timeLeft: 180,
-    }))
-    toast.success("Opponent joined! Battle starting...")
+  const getCurrentTimeLeft = () => {
+    return localTimeLeft ?? gameState?.timeLeft ?? 0
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 text-white">
-      {/* Animated Background */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-gradient-to-r from-violet-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+  // Action handlers with better error handling
+  const handleJoinGame = async () => {
+    if (!gameState?.canJoin) {
+      toast.error("Cannot join this game")
+      return
+    }
+    
+    try {
+      const result = await joinGame(gameId!, gameState.entryFee)
+      if (result.success) {
+        toast.success("Successfully joined the game!")
+        // Wait a bit for blockchain confirmation then refresh
+        setTimeout(() => {
+          fetchGameData()
+        }, 3000)
+      }
+    } catch (error) {
+      console.error('Failed to join game:', error)
+      toast.error("Failed to join game")
+    }
+  }
+
+  const handleMakeMove = async (subtraction?: number) => {
+    if (!isActionAllowed()) {
+      toast.error("Move not allowed at this time")
+      return
+    }
+    
+    const move = subtraction ?? parseInt(moveAmount)
+    if (!move || move < 1) {
+      toast.error("Please enter a valid move")
+      return
+    }
+
+    const range = getValidMoveRange()
+    if (move < range.min || move > range.max) {
+      toast.error(`Move must be between ${range.min} and ${range.max}`)
+      return
+    }
+
+    try {
+      const result = await makeMove(gameId!, move)
+      if (result.success) {
+        const newNumber = gameState!.currentNumber - move
+        setMoveAmount("")
+        toast.success(`Move submitted: ${gameState!.currentNumber} - ${move} = ${newNumber}`)
+        
+        // Refresh data after successful move
+        setTimeout(() => {
+          fetchGameData()
+        }, 2000)
+      }
+    } catch (error) {
+      console.error('Failed to make move:', error)
+      toast.error("Failed to submit move")
+    }
+  }
+
+  const handleTimeoutAction = async () => {
+    if (!gameState) return
+    
+    try {
+      const result = await handleTimeout(gameId!)
+      if (result.success) {
+        toast.success("Timeout processed successfully!")
+        setTimeout(() => {
+          fetchGameData()
+        }, 2000)
+      }
+    } catch (error) {
+      console.error('Failed to handle timeout:', error)
+      toast.error("Failed to process timeout")
+    }
+  }
+
+  const handleCancelGame = async () => {
+    if (!gameState?.isUserCreator || gameState?.status !== "waiting") {
+      toast.error("Cannot cancel this game")
+      return
+    }
+    
+    try {
+      const result = await cancelWaitingGame(gameId!)
+      if (result.success) {
+        toast.success("Game cancelled successfully!")
+        setTimeout(() => {
+          router.push("/my-games")
+        }, 2000)
+      }
+    } catch (error) {
+      console.error('Failed to cancel game:', error)
+      toast.error("Failed to cancel game")
+    }
+  }
+
+  const handleForceFinish = async () => {
+    if (!gameState?.gameStuck) {
+      toast.error("Game is not stuck")
+      return
+    }
+    
+    try {
+      const result = await forceFinishInactiveGame(gameId!)
+      if (result.success) {
+        toast.success("Stuck game finished successfully!")
+        setTimeout(() => {
+          fetchGameData()
+        }, 2000)
+      }
+    } catch (error) {
+      console.error('Failed to force finish game:', error)
+      toast.error("Failed to force finish game")
+    }
+  }
+
+  const handleWithdraw = async () => {
+    try {
+      const result = await withdraw()
+      if (result.success) {
+        toast.success("Balance withdrawn successfully!")
+        setTimeout(() => {
+          fetchGameData()
+        }, 3000)
+      }
+    } catch (error) {
+      console.error('Failed to withdraw:', error)
+      toast.error("Failed to withdraw balance")
+    }
+  }
+
+  // Game mode configuration
+  const config = {
+    "Quick Draw": {
+      icon: Target,
+      gradient: "from-emerald-400 via-teal-500 to-cyan-600",
+    },
+    "Strategic": {
+      icon: Brain,
+      gradient: "from-blue-400 via-indigo-500 to-purple-600",
+    },
+  }
+
+  const gameConfig = gameState ? config[gameState.mode] : config["Quick Draw"]
+  const range = getValidMoveRange()
+
+  // Loading state
+  if (!isConnected) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 text-white">
+        <UnifiedGamingNavigation />
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Wallet className="w-16 h-16 mx-auto mb-4 text-slate-500" />
+            <h2 className="text-2xl font-bold text-white mb-2">Connect Your Wallet</h2>
+            <p className="text-slate-400">Please connect your wallet to view this battle</p>
+          </div>
+        </div>
       </div>
+    )
+  }
 
-      {/* Navigation */}
-      <nav className="relative z-50 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            <Link href="/" className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/25">
-                <Gamepad2 className="w-7 h-7 text-white" />
-              </div>
-              <div>
-                <span className="text-3xl font-black bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 bg-clip-text text-transparent">
-                  ZEROSUM
-                </span>
-                <div className="text-xs text-slate-400 font-medium">
-                  {battle.status === "waiting" ? "WAITING FOR OPPONENT" : "BATTLE IN PROGRESS"}
-                </div>
-              </div>
-            </Link>
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 text-white">
+        <UnifiedGamingNavigation />
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="w-16 h-16 animate-spin mx-auto mb-4 text-cyan-400" />
+            <p className="text-xl font-bold text-white">Loading Battle #{battleId}...</p>
+            <p className="text-slate-400">Fetching data from blockchain</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
-            <div className="flex items-center space-x-4">
-              <div className="bg-slate-800/60 backdrop-blur-sm border border-emerald-500/30 rounded-xl px-4 py-2">
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-                  <Coins className="w-4 h-4 text-emerald-400" />
-                  <span className="font-bold text-emerald-400">2.45 ETH</span>
-                </div>
+  if (error || !gameState) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 text-white">
+        <UnifiedGamingNavigation />
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-6">
+            <Button
+              onClick={() => router.back()}
+              variant="outline"
+              className="border-slate-600 text-white hover:bg-slate-800/50"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
+          </div>
+          
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-red-500" />
+              <h2 className="text-2xl font-bold text-white mb-2">
+                {error || `Battle #${battleId} Not Found`}
+              </h2>
+              <p className="text-slate-400 mb-4">
+                {error || `Battle #${battleId} doesn't exist or couldn't be loaded`}
+              </p>
+              <div className="space-x-3">
+                <Button
+                  onClick={fetchGameData}
+                  className="bg-cyan-600 hover:bg-cyan-700 text-white"
+                  disabled={isLoading}
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                  {isLoading ? "Retrying..." : "Try Again"}
+                </Button>
+                <Button
+                  onClick={() => router.push('/my-games')}
+                  variant="outline"
+                  className="border-slate-600 text-white hover:bg-slate-800/50"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to My Games
+                </Button>
               </div>
-              <Button
-                onClick={handleExitBattle}
-                variant="outline"
-                className="border-slate-600 text-white hover:bg-slate-800/50 rounded-xl font-bold bg-transparent"
-              >
-                EXIT BATTLE
-              </Button>
             </div>
           </div>
         </div>
-      </nav>
+      </div>
+    )
+  }
+
+  // Main render
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 text-white">
+      <UnifiedGamingNavigation />
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Back Button */}
+        <div className="mb-6">
+          <Button
+            onClick={() => router.back()}
+            variant="outline"
+            className="border-slate-600 text-white hover:bg-slate-800/50"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+        </div>
+
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Main Battle Area */}
           <div className="lg:col-span-2 space-y-6">
@@ -256,181 +543,511 @@ export default function BattlePage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
-                    <div
-                      className={`w-16 h-16 bg-gradient-to-br ${battle.gradient} rounded-2xl flex items-center justify-center shadow-lg`}
-                    >
-                      <battle.icon className="w-8 h-8 text-white" />
+                    <div className={`w-16 h-16 bg-gradient-to-br ${gameConfig.gradient} rounded-2xl flex items-center justify-center shadow-lg`}>
+                      <gameConfig.icon className="w-8 h-8 text-white" />
                     </div>
                     <div>
-                      <CardTitle className="text-3xl font-black text-white">{battle.mode}</CardTitle>
-                      <p className="text-slate-300 font-medium">Battle #{battle.id}</p>
+                      <CardTitle className="text-3xl font-black text-white">{gameState.mode}</CardTitle>
+                      <p className="text-slate-300 font-medium">Battle #{gameState.gameId}</p>
                     </div>
                   </div>
-                  <Badge
-                    className={`${
-                      battle.status === "active"
-                        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                        : battle.status === "completed"
-                          ? "bg-violet-500/20 text-violet-400 border-violet-500/30"
-                          : "bg-amber-500/20 text-amber-400 border-amber-500/30"
-                    } font-bold text-lg px-4 py-2`}
-                  >
-                    {battle.status.toUpperCase()}
-                  </Badge>
+                  <div className="flex items-center space-x-4">
+                    <Button
+                      onClick={fetchGameData}
+                      variant="outline"
+                      size="sm"
+                      className="border-cyan-500 text-cyan-400 hover:bg-cyan-500/10"
+                      disabled={isLoading}
+                    >
+                      <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                      {isLoading ? "Loading..." : "Refresh"}
+                    </Button>
+                    <Badge
+                      className={`${
+                        gameState.status === "active"
+                          ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                          : gameState.status === "completed"
+                            ? "bg-violet-500/20 text-violet-400 border-violet-500/30"
+                            : "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                      } font-bold text-lg px-4 py-2`}
+                    >
+                      {gameState.status.toUpperCase()}
+                    </Badge>
+                  </div>
                 </div>
               </CardHeader>
             </Card>
 
-            {/* Waiting State */}
-            {battle.status === "waiting" && (
+            {/* Connection Info */}
+            <Card className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 shadow-2xl rounded-2xl">
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <Wallet className="w-5 h-5 text-cyan-400" />
+                    <div>
+                      <p className="text-xs text-slate-400">CONNECTED WALLET</p>
+                      <p className="text-white font-bold">
+                        {address?.slice(0, 8)}...{address?.slice(-8)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="text-right">
+                      <p className="text-xs text-slate-400">YOUR ROLE</p>
+                      <p className="text-cyan-400 font-bold">
+                        {!gameState.isUserInGame ? "Spectator" : 
+                         gameState.isUserCreator ? "Creator" : "Player"}
+                      </p>
+                    </div>
+                    <div className="w-3 h-3 bg-emerald-400 rounded-full"></div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Debug Info Toggle */}
+            {process.env.NODE_ENV === 'development' && (
+              <Card className="bg-yellow-900/20 border border-yellow-500/30">
+                <CardContent className="py-3">
+                  <Button
+                    onClick={() => setShowDebugInfo(!showDebugInfo)}
+                    variant="outline"
+                    size="sm"
+                    className="border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10"
+                  >
+                    {showDebugInfo ? "Hide" : "Show"} Debug Info
+                  </Button>
+                  
+                  {showDebugInfo && (
+                    <div className="mt-4 text-xs space-y-2">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <div>isUserInGame: <span className={gameState.isUserInGame ? "text-green-400" : "text-red-400"}>{gameState.isUserInGame ? "YES" : "NO"}</span></div>
+                          <div>isMyTurn: <span className={gameState.isMyTurn ? "text-green-400" : "text-red-400"}>{gameState.isMyTurn ? "YES" : "NO"}</span></div>
+                          <div>timeLeft: <span className="text-cyan-400">{getCurrentTimeLeft()}s</span></div>
+                          <div>gameStuck: <span className={gameState.gameStuck ? "text-red-400" : "text-green-400"}>{gameState.gameStuck ? "YES" : "NO"}</span></div>
+                        </div>
+                        <div>
+                          <div>currentPlayer: <span className="text-white">{gameState.currentPlayer?.slice(0, 8)}...</span></div>
+                          <div>yourAddress: <span className="text-white">{address?.slice(0, 8)}...</span></div>
+                          <div>yourTimeouts: <span className="text-yellow-400">{gameState.yourTimeouts}/2</span></div>
+                          <div>oppTimeouts: <span className="text-yellow-400">{gameState.opponentTimeouts}/2</span></div>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-3 p-2 bg-slate-800/40 rounded">
+                        <div className="font-bold text-yellow-400 mb-1">TURN ANALYSIS:</div>
+                        <div>currentPlayer === yourAddress: <span className={gameState.currentPlayer?.toLowerCase() === address?.toLowerCase() ? "text-green-400" : "text-red-400"}>
+                          {gameState.currentPlayer?.toLowerCase() === address?.toLowerCase() ? "YES" : "NO"}
+                        </span></div>
+                        <div>actionAllowed: <span className={isActionAllowed() ? "text-green-400" : "text-red-400"}>
+                          {isActionAllowed() ? "YES" : "NO"}
+                        </span></div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Game Status Cards */}
+            {gameState.status === "waiting" && (
               <Card className="bg-slate-800/60 backdrop-blur-sm border border-amber-500/30 shadow-2xl rounded-2xl">
                 <CardHeader>
-                  <CardTitle className="text-2xl font-black text-white flex items-center">
-                    <Clock className="w-6 h-6 mr-3 text-amber-400" />
-                    WAITING FOR OPPONENT
-                  </CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-2xl font-black text-white flex items-center">
+                      <Clock className="w-6 h-6 mr-3 text-amber-400" />
+                      WAITING FOR OPPONENT
+                    </CardTitle>
+                    
+                    {gameState.isUserCreator && (
+                      <Button
+                        onClick={handleCancelGame}
+                        variant="outline"
+                        size="sm"
+                        className="border-red-500 text-red-400 hover:bg-red-500/10"
+                        disabled={transactionLoading}
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        Cancel Game
+                      </Button>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent className="text-center space-y-6">
                   <div className="w-24 h-24 bg-amber-500/20 border-2 border-amber-500/30 rounded-full flex items-center justify-center mx-auto">
                     <Clock className="w-12 h-12 text-amber-400" />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold text-white mb-2">Battle Created Successfully!</h3>
+                    <h3 className="text-2xl font-bold text-white mb-2">Battle Ready!</h3>
                     <p className="text-slate-300 mb-4">
-                      Your {battle.mode} battle is waiting for an opponent to join.
+                      {gameState.isUserCreator 
+                        ? "Your battle is waiting for an opponent to join." 
+                        : "This battle is waiting for a second player."}
                     </p>
-                    <p className="text-slate-400 text-sm mb-6">
-                      Entry Fee: {battle.entryFee} ETH • Prize Pool: {battle.prizePool} ETH
+                    <p className="text-slate-400 text-sm">
+                      Entry Fee: {parseFloat(gameState.entryFee).toFixed(4)} ETH • Prize Pool: {parseFloat(gameState.prizePool).toFixed(4)} ETH
                     </p>
                     
-                    {/* Development: Simulate opponent joining */}
-                    <Button
-                      onClick={handleSimulateOpponentJoin}
-                      className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold px-8 py-3 rounded-xl"
-                    >
-                      <Users className="w-5 h-5 mr-2" />
-                      Simulate Opponent Join (Dev)
-                    </Button>
+                    {gameState.canJoin && (
+                      <div className="mt-6">
+                        <Button
+                          onClick={handleJoinGame}
+                          disabled={transactionLoading}
+                          className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold py-3 px-8 rounded-xl"
+                        >
+                          {transactionLoading ? (
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                          ) : (
+                            <Swords className="w-5 h-5 mr-2" />
+                          )}
+                          {transactionLoading ? "JOINING..." : `JOIN BATTLE (${parseFloat(gameState.entryFee).toFixed(4)} ETH)`}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            {/* Current Game State */}
-            {battle.status === "active" && (
-            <Card className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 shadow-2xl rounded-2xl">
-              <CardHeader>
-                <CardTitle className="text-2xl font-black text-white flex items-center">
-                  <Swords className="w-6 h-6 mr-3 text-cyan-400" />
-                  BATTLE STATE
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Current Number Display */}
-                <div className="text-center">
-                  <div className="text-6xl font-black text-white mb-2">{battle.currentNumber}</div>
-                  <p className="text-slate-300 font-medium">{battle.isHidden ? "Hidden Number" : "Current Number"}</p>
-                </div>
-
-                {/* Turn Timer */}
-                <div className="bg-gradient-to-r from-rose-900/30 to-red-900/30 border border-rose-500/30 rounded-xl p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-3">
-                      <Timer className={`w-6 h-6 ${battle.timeLeft < 60 ? "text-rose-400" : "text-cyan-400"}`} />
-                      <span className="font-bold text-white text-xl">{battle.currentPlayer}'s Turn</span>
+            {/* Active Game */}
+            {gameState.status === "active" && (
+              <Card className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 shadow-2xl rounded-2xl">
+                <CardHeader>
+                  <CardTitle className="text-2xl font-black text-white flex items-center">
+                    <Swords className="w-6 h-6 mr-3 text-cyan-400" />
+                    SUBTRACTION BATTLE
+                    {gameState.gameStuck && (
+                      <Badge className="ml-3 bg-red-500/20 text-red-400 border-red-500/30">
+                        STUCK
+                      </Badge>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  
+                  {/* Current Number Display */}
+                  <div className="text-center p-6 bg-gradient-to-r from-blue-900/30 to-purple-900/30 border border-blue-500/30 rounded-xl">
+                    <div className="flex items-center justify-center space-x-4 text-4xl font-black">
+                      <span className="text-white">{gameState.currentNumber}</span>
                     </div>
-                    <div className={`text-3xl font-black ${battle.timeLeft < 60 ? "text-rose-400" : "text-cyan-400"}`}>
-                      {formatTime(battle.timeLeft)}
+                    
+                    <div className="mt-4 p-3 bg-slate-800/40 rounded-lg">
+                      <p className="text-slate-400 text-sm">
+                        {gameState.mode === "Quick Draw"
+                          ? "Valid move: Subtract exactly 1"
+                          : `Valid moves: Subtract between ${range.min} and ${range.max}`
+                        }
+                      </p>
                     </div>
                   </div>
-                  <Progress
-                    value={(battle.timeLeft / 180) * 100}
-                    className={`h-3 ${battle.timeLeft < 60 ? "bg-rose-900/50" : "bg-slate-800/50"}`}
-                  />
-                  {battle.timeLeft < 60 && (
-                    <div className="flex items-center space-x-2 mt-3">
-                      <AlertTriangle className="w-5 h-5 text-rose-400" />
-                      <span className="text-rose-400 font-bold">TIME RUNNING OUT!</span>
-                    </div>
-                  )}
-                </div>
 
-                {/* Player Action Area */}
-                {isMyTurn && battle.status === "active" && (
-                  <div className="bg-gradient-to-r from-cyan-900/30 to-blue-900/30 border border-cyan-500/30 rounded-xl p-6">
-                    <h3 className="font-bold text-cyan-400 text-xl mb-4">YOUR TURN</h3>
-                    <div className="flex space-x-4">
-                      <Input
-                        type="number"
-                        value={moveAmount}
-                        onChange={(e) => setMoveAmount(e.target.value)}
-                        placeholder="Enter your move"
-                        className="bg-slate-800/50 border-slate-600/50 text-white rounded-xl text-lg font-bold flex-1"
-                        min="1"
-                        max={mode === "quick-draw" ? "1" : battle.isHidden ? "999" : battle.currentNumber}
-                      />
-                      <Button
-                        onClick={handleMove}
-                        disabled={!moveAmount}
-                        className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold px-8 rounded-xl"
-                      >
-                        <Swords className="w-5 h-5 mr-2" />
-                        MAKE MOVE
-                      </Button>
-                    </div>
-                    <p className="text-slate-400 text-sm mt-2">{config.rules}</p>
-                  </div>
-                )}
-
-                {!isMyTurn && battle.status === "active" && (
-                  <div className="bg-gradient-to-r from-slate-800/60 to-slate-800/30 border border-slate-600/50 rounded-xl p-6 text-center">
-                    <Clock className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-                    <h3 className="font-bold text-slate-300 text-xl mb-2">WAITING FOR OPPONENT</h3>
-                    <p className="text-slate-400">It's {battle.currentPlayer}'s turn to move</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            )}
-
-            {/* Move History */}
-            {battle.status === "active" && (
-            <Card className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 shadow-2xl rounded-2xl">
-              <CardHeader>
-                <CardTitle className="text-xl font-black text-white">BATTLE HISTORY</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {battle.moves.map((move, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-slate-900/40 rounded-lg">
+                  {/* Turn Information */}
+                  <div className="bg-gradient-to-r from-rose-900/30 to-red-900/30 border border-rose-500/30 rounded-xl p-6">
+                    <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center space-x-3">
-                        <div
-                          className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                            move.player === "WarriorX"
-                              ? "bg-cyan-500/20 text-cyan-400"
-                              : "bg-violet-500/20 text-violet-400"
-                          }`}
-                        >
-                          <span className="font-bold text-sm">{move.player[0]}</span>
-                        </div>
+                        <Timer className={`w-6 h-6 ${getCurrentTimeLeft() < 60 ? "text-rose-400" : "text-cyan-400"}`} />
                         <div>
-                          <p className="font-medium text-white">{move.player}</p>
-                          <p className="text-sm text-slate-400">{move.timestamp}</p>
+                          <span className="font-bold text-white text-xl">
+                            {gameState.isMyTurn ? "YOUR TURN" : "OPPONENT'S TURN"}
+                          </span>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold text-white">{move.move === "TIMEOUT" ? "TIMEOUT" : `-${move.move}`}</p>
-                        <p className="text-sm text-slate-400">→ {move.newNumber}</p>
+                        <div className={`text-3xl font-black ${getCurrentTimeLeft() < 10 ? "text-rose-400" : "text-cyan-400"}`}>
+                          {formatTime(getCurrentTimeLeft())}
+                        </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    
+                    <Progress
+                      value={(getCurrentTimeLeft() / 300) * 100} // Assuming 5 min max
+                      className={`h-3 ${getCurrentTimeLeft() < 10 ? "bg-rose-900/50" : "bg-slate-800/50"}`}
+                    />
+                  </div>
+
+                  {/* Game Controls */}
+                  <div className={`rounded-xl p-6 border ${
+                    isActionAllowed()
+                      ? "bg-gradient-to-r from-cyan-900/30 to-blue-900/30 border-cyan-500/30"
+                      : "bg-gradient-to-r from-slate-900/30 to-gray-900/30 border-slate-500/30"
+                  }`}>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className={`text-xl font-bold ${
+                        isActionAllowed() ? "text-cyan-400" : "text-slate-400"
+                      }`}>
+                        {isActionAllowed() ? "YOUR TURN - MAKE A MOVE" : "GAME CONTROLS"}
+                      </h3>
+                      <Badge className={
+                        isActionAllowed()
+                          ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                          : "bg-slate-500/20 text-slate-400 border-slate-500/30"
+                      }>
+                        {isActionAllowed() ? "ACTIVE PLAYER" : "INACTIVE"}
+                      </Badge>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      {/* Quick Draw Controls */}
+                      {gameState.mode === "Quick Draw" && (
+                        <div className="text-center">
+                          <div className="mb-2">
+                            <p className="text-slate-300 text-sm">Quick Draw Mode: Subtract exactly 1</p>
+                          </div>
+                          <Button
+                            onClick={() => handleMakeMove(1)}
+                            disabled={!isActionAllowed()}
+                            className={`font-bold px-8 py-4 rounded-xl text-xl w-full ${
+                              isActionAllowed()
+                                ? "bg-emerald-500 hover:bg-emerald-600 text-white"
+                                : "bg-slate-600 text-slate-400 cursor-not-allowed"
+                            }`}
+                          >
+                            {transactionLoading ? (
+                              <Loader2 className="w-6 h-6 mr-3 animate-spin" />
+                            ) : (
+                              <Minus className="w-6 h-6 mr-3" />
+                            )}
+                            {transactionLoading ? "PROCESSING..." : "SUBTRACT 1"}
+                          </Button>
+                        </div>
+                      )}
+                      
+                      {/* Strategic Mode Controls */}
+                      {gameState.mode === "Strategic" && (
+                        <div className="space-y-3">
+                          <p className="text-slate-300 text-center font-medium">
+                            Strategic Mode: Choose amount to subtract ({range.min} - {range.max})
+                          </p>
+                          {range.min === range.max && range.min === 1 && (
+                            <div className="bg-amber-500/20 border border-amber-500/30 rounded-lg p-2 text-center">
+                              <p className="text-amber-400 text-sm">
+                                ⚠️ Number too small for percentage moves. Only subtract 1 allowed.
+                              </p>
+                            </div>
+                          )}
+                        
+                          <div className="grid grid-cols-3 gap-2 mb-3">
+                            <Button
+                              onClick={() => setMoveAmount(range.min.toString())}
+                              variant="outline"
+                              size="sm"
+                              className="border-cyan-500 text-cyan-400 hover:bg-cyan-500/10"
+                            >
+                              Min ({range.min})
+                            </Button>
+                            <Button
+                              onClick={() => setMoveAmount(Math.floor((range.min + range.max) / 2).toString())}
+                              variant="outline"
+                              size="sm"
+                              className="border-cyan-500 text-cyan-400 hover:bg-cyan-500/10"
+                            >
+                              Mid ({Math.floor((range.min + range.max) / 2)})
+                            </Button>
+                            <Button
+                              onClick={() => setMoveAmount(range.max.toString())}
+                              variant="outline"
+                              size="sm"
+                              className="border-cyan-500 text-cyan-400 hover:bg-cyan-500/10"
+                            >
+                              Max ({range.max})
+                            </Button>
+                          </div>
+                          
+                          <div className="flex space-x-3">
+                            <Input
+                              type="number"
+                              value={moveAmount}
+                              onChange={(e) => setMoveAmount(e.target.value)}
+                              placeholder={`Enter ${range.min}-${range.max}`}
+                              className="bg-slate-800/50 border-slate-600/50 text-white rounded-xl text-lg font-bold flex-1"
+                              min={range.min}
+                              max={range.max}
+                            />
+                            <Button
+                              onClick={() => handleMakeMove()}
+                              disabled={!moveAmount || !isActionAllowed()}
+                              className={`font-bold px-8 py-4 rounded-xl ${
+                                isActionAllowed()
+                                  ? "bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white"
+                                  : "bg-slate-600 text-slate-400 cursor-not-allowed"
+                              }`}
+                            >
+                              {transactionLoading ? (
+                                <Loader2 className="w-6 h-6 mr-2 animate-spin" />
+                              ) : (
+                                <Swords className="w-6 h-6 mr-2" />
+                              )}
+                              {transactionLoading ? "PROCESSING..." : "SUBMIT MOVE"}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Status Messages */}
+                    <div className="mt-4 text-center space-y-2">
+                      {!gameState.isUserInGame && (
+                        <p className="text-amber-400 text-sm">👁️ You are spectating this game</p>
+                      )}
+                      {gameState.isUserInGame && !gameState.isMyTurn && (
+                        <p className="text-yellow-400 text-sm">⏳ Waiting for opponent's move</p>
+                      )}
+                      {gameState.isUserInGame && gameState.isMyTurn && getCurrentTimeLeft() <= 0 && (
+                        <p className="text-red-400 text-sm">⏰ Your time has expired!</p>
+                      )}
+                      {gameState.isUserInGame && gameState.isMyTurn && getCurrentTimeLeft() > 0 && (
+                        <p className="text-green-400 text-sm">✅ It's your turn - make your move!</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Timeout Handling */}
+                  {getCurrentTimeLeft() === 0 && gameState.status === "active" && (
+                    <div className="bg-gradient-to-r from-red-900/30 to-orange-900/30 border border-red-500/30 rounded-xl p-6">
+                      <div className="flex items-center space-x-3 mb-4">
+                        <AlertTriangle className="w-6 h-6 text-red-400" />
+                        <div>
+                          <span className="font-bold text-red-400 text-xl">⏰ TIME EXPIRED!</span>
+                          <p className="text-sm text-red-300">
+                            {gameState.isMyTurn ? "Your time expired" : "Opponent's time expired"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <Button
+                        onClick={handleTimeoutAction}
+                        disabled={transactionLoading}
+                        className="bg-red-500 hover:bg-red-600 text-white font-bold"
+                      >
+                        {transactionLoading ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Clock className="w-4 h-4 mr-2" />
+                        )}
+                        {transactionLoading ? "PROCESSING..." : 
+                         gameState.isMyTurn ? "Accept My Timeout" : "Claim Opponent Timeout"}
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Stuck Game Handling */}
+                  {gameState.gameStuck && (
+                    <div className="bg-gradient-to-r from-orange-900/30 to-red-900/30 border border-orange-500/30 rounded-xl p-6">
+                      <div className="flex items-center space-x-3 mb-4">
+                        <AlertTriangle className="w-6 h-6 text-orange-400" />
+                        <div>
+                          <span className="font-bold text-orange-400 text-xl">🔄 GAME STUCK!</span>
+                          <p className="text-sm text-orange-300">
+                            This game has been inactive for over an hour. Anyone can force finish it.
+                          </p>
+                        </div>
+                      </div>
+
+                      <Button
+                        onClick={handleForceFinish}
+                        disabled={transactionLoading}
+                        className="bg-orange-500 hover:bg-orange-600 text-white font-bold"
+                      >
+                        {transactionLoading ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <AlertTriangle className="w-4 h-4 mr-2" />
+                        )}
+                        {transactionLoading ? "PROCESSING..." : "Force Finish Game"}
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Spectator View */}
+                  {!gameState.isUserInGame && (
+                    <div className="bg-gradient-to-r from-slate-900/30 to-gray-900/30 border border-slate-500/30 rounded-xl p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-bold text-slate-400 text-xl">SPECTATOR MODE</h3>
+                        <Badge className="bg-slate-500/20 text-slate-400 border-slate-500/30">
+                          WATCHING
+                        </Badge>
+                      </div>
+                      
+                      <p className="text-slate-300 text-center mb-4">
+                        You are watching this battle as a spectator. 
+                        <br />
+                        Current player: {gameState.currentPlayer === gameState.players[0] ? 
+                          `${gameState.players[0]?.slice(0, 8)}... (Creator)` : 
+                          `${gameState.players[1]?.slice(0, 8)}... (Opponent)`}
+                      </p>
+                      
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className="bg-slate-800/40 rounded p-2">
+                          <span className="text-slate-400">Creator Timeouts:</span>
+                          <span className="text-white ml-2">{gameState.yourTimeouts}/2</span>
+                        </div>
+                        <div className="bg-slate-800/40 rounded p-2">
+                          <span className="text-slate-400">Opponent Timeouts:</span>
+                          <span className="text-white ml-2">{gameState.opponentTimeouts}/2</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Completed Game */}
+            {gameState.status === "completed" && (
+              <Card className="bg-gradient-to-r from-violet-900/30 to-purple-900/30 border border-violet-500/30 shadow-2xl rounded-2xl">
+                <CardHeader>
+                  <CardTitle className="text-2xl font-black text-white flex items-center">
+                    <Trophy className="w-6 h-6 mr-3 text-violet-400" />
+                    BATTLE COMPLETED
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-center space-y-6">
+                  <div className="w-24 h-24 bg-violet-500/20 border-2 border-violet-500/30 rounded-full flex items-center justify-center mx-auto">
+                    {gameState.winner?.toLowerCase() === address?.toLowerCase() ? (
+                      <Trophy className="w-12 h-12 text-emerald-400" />
+                    ) : (
+                      <Shield className="w-12 h-12 text-violet-400" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-3xl font-bold text-white mb-2">
+                      {gameState.winner?.toLowerCase() === address?.toLowerCase() ? "🎉 VICTORY!" : "Battle Ended"}
+                    </h3>
+                    <p className="text-slate-300 mb-4">
+                      Winner: {gameState.winner?.toLowerCase() === address?.toLowerCase() ? "You" : 
+                               gameState.winner?.toLowerCase() === gameState.players[0]?.toLowerCase() ? 
+                               `${gameState.players[0]?.slice(0, 8)}... (Creator)` : 
+                               `${gameState.players[1]?.slice(0, 8)}... (Opponent)`}
+                    </p>
+                    <p className="text-slate-400 text-sm">
+                      Final number: {gameState.currentNumber} • Prize Pool: {parseFloat(gameState.prizePool).toFixed(4)} ETH
+                    </p>
+                  </div>
+                  
+                  <div className="space-x-3">
+                    <Button
+                      onClick={() => router.push("/create")}
+                      className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold px-6 py-2 rounded-xl"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create New Battle
+                    </Button>
+                    <Button
+                      onClick={() => router.push("/browse")}
+                      variant="outline"
+                      className="border-slate-600 text-white hover:bg-slate-800/50"
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      Browse Battles
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </div>
 
-          {/* Battle Info Sidebar */}
+          {/* Sidebar */}
           <div className="lg:col-span-1 space-y-6">
             {/* Battle Details */}
             <Card className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 shadow-2xl rounded-2xl">
@@ -441,146 +1058,184 @@ export default function BattlePage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-900/40 rounded-lg p-3">
                     <p className="text-xs font-bold text-slate-400 mb-1">ENTRY FEE</p>
-                    <p className="font-black text-cyan-400">{battle.entryFee} ETH</p>
+                    <p className="font-black text-cyan-400">{parseFloat(gameState.entryFee).toFixed(4)} ETH</p>
                   </div>
                   <div className="bg-slate-900/40 rounded-lg p-3">
                     <p className="text-xs font-bold text-slate-400 mb-1">PRIZE POOL</p>
-                    <p className="font-black text-emerald-400">{battle.prizePool} ETH</p>
+                    <p className="font-black text-emerald-400">{parseFloat(gameState.prizePool).toFixed(4)} ETH</p>
                   </div>
                 </div>
 
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-slate-300">Status:</span>
-                    <span className={`font-bold ${
-                      battle.status === "waiting" ? "text-amber-400" : 
-                      battle.status === "active" ? "text-emerald-400" : "text-violet-400"
-                    }`}>
-                      {battle.status === "waiting" ? "Waiting" : 
-                       battle.status === "active" ? "Active" : "Completed"}
+                    <span className="text-slate-400">Creator:</span>
+                    <span className="font-bold text-emerald-400 text-sm">
+                      {gameState.players[0] ? `${gameState.players[0].slice(0, 6)}...${gameState.players[0].slice(-4)}` : "Loading..."}
                     </span>
                   </div>
-                  {battle.status === "active" && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Opponent:</span>
+                    <span className="font-bold text-violet-400 text-sm">
+                      {gameState.players[1] ? `${gameState.players[1].slice(0, 6)}...${gameState.players[1].slice(-4)}` : "Waiting..."}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Current Player:</span>
+                    <span className="font-bold text-cyan-400 text-sm">
+                      {gameState.currentPlayer ? `${gameState.currentPlayer.slice(0, 6)}...${gameState.currentPlayer.slice(-4)}` : "None"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Current Number:</span>
+                    <span className="font-bold text-white">{gameState.currentNumber}</span>
+                  </div>
+                  {gameState.status === "active" && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Time Left:</span>
+                      <span className={`font-bold ${getCurrentTimeLeft() < 10 ? "text-rose-400" : "text-amber-400"}`}>
+                        {formatTime(getCurrentTimeLeft())}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Your Role:</span>
+                    <span className="font-bold text-white">
+                      {!gameState.isUserInGame ? "Spectator" : 
+                       gameState.isUserCreator ? "Creator" : "Player"}
+                    </span>
+                  </div>
+                  {gameState.status === "active" && (
                     <>
                       <div className="flex justify-between">
-                        <span className="text-slate-300">Round:</span>
-                        <span className="font-bold text-white">
-                          {battle.round}/{battle.maxRounds}
-                        </span>
+                        <span className="text-slate-400">Your Timeouts:</span>
+                        <span className="font-bold text-yellow-400">{gameState.yourTimeouts}/2</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-300">Turn Time:</span>
-                        <span className="font-bold text-white">3:00 minutes</span>
+                        <span className="text-slate-400">Opp. Timeouts:</span>
+                        <span className="font-bold text-yellow-400">{gameState.opponentTimeouts}/2</span>
                       </div>
                     </>
                   )}
-                  <div className="flex justify-between">
-                    <span className="text-slate-300">Spectators:</span>
-                    <span className="font-bold text-white">{battle.spectators}</span>
-                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Players */}
+            {/* Game Rules */}
             <Card className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 shadow-2xl rounded-2xl">
               <CardHeader>
-                <CardTitle className="text-xl font-black text-white">WARRIORS</CardTitle>
+                <CardTitle className="text-xl font-black text-white">GAME RULES</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div
-                  className={`p-4 rounded-xl border-2 ${
-                    battle.currentPlayer === battle.creator
-                      ? "border-cyan-500/50 bg-cyan-900/20"
-                      : "border-slate-600/50 bg-slate-900/20"
-                  }`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-lg flex items-center justify-center">
-                      <span className="font-bold text-white">{battle.creator[0]}</span>
+              <CardContent className="space-y-3">
+                <div className="bg-slate-900/40 rounded-lg p-3">
+                  <p className="text-xs font-bold text-slate-400 mb-1">MODE</p>
+                  <p className="font-bold text-white">{gameState.mode}</p>
+                </div>
+                
+                <div className="text-sm text-slate-300 space-y-2">
+                  <p className="font-bold text-white">How to play:</p>
+                  {gameState.mode === "Quick Draw" ? (
+                    <div className="space-y-1">
+                      <p>• Players take turns subtracting exactly 1</p>
+                      <p>• First player to reach 0 WINS</p>
+                      <p>• 5 minutes per turn</p>
+                      <p>• 2 timeouts allowed per player</p>
                     </div>
-                    <div>
-                      <p className="font-bold text-white">{battle.creator}</p>
-                      <p className="text-sm text-slate-400">Creator</p>
-                    </div>
-                  </div>
-                  {battle.currentPlayer === battle.creator && (
-                    <div className="flex items-center space-x-2 mt-2">
-                      <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
-                      <span className="text-cyan-400 font-bold text-sm">ACTIVE TURN</span>
+                  ) : (
+                    <div className="space-y-1">
+                      <p>• Subtract 10-30% of current number</p>
+                      <p>• DON'T reach 0 or you LOSE</p>
+                      <p>• Force opponent to reach 0</p>
+                      <p>• 5 minutes per turn</p>
+                      <p>• 2 timeouts allowed per player</p>
                     </div>
                   )}
                 </div>
+              </CardContent>
+            </Card>
 
-                {battle.opponent ? (
-                  <div
-                    className={`p-4 rounded-xl border-2 ${
-                      battle.currentPlayer === battle.opponent
-                        ? "border-violet-500/50 bg-violet-900/20"
-                        : "border-slate-600/50 bg-slate-900/20"
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-violet-400 to-purple-600 rounded-lg flex items-center justify-center">
-                        <span className="font-bold text-white">{battle.opponent[0]}</span>
-                      </div>
-                      <div>
-                        <p className="font-bold text-white">{battle.opponent}</p>
-                        <p className="text-sm text-slate-400">Challenger</p>
-                      </div>
-                    </div>
-                    {battle.currentPlayer === battle.opponent && (
-                      <div className="flex items-center space-x-2 mt-2">
-                        <div className="w-2 h-2 bg-violet-400 rounded-full animate-pulse"></div>
-                        <span className="text-violet-400 font-bold text-sm">ACTIVE TURN</span>
-                      </div>
-                    )}
+            {/* Wallet Info */}
+            <Card className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 shadow-2xl rounded-2xl">
+              <CardHeader>
+                <CardTitle className="text-xl font-black text-white">WALLET STATUS</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="bg-slate-900/40 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-bold text-slate-400">CONNECTED ADDRESS</p>
+                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
                   </div>
-                ) : (
-                  <div className="p-4 rounded-xl border-2 border-amber-500/30 bg-amber-900/20">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-600 rounded-lg flex items-center justify-center">
-                        <span className="font-bold text-white">?</span>
-                      </div>
-                      <div>
-                        <p className="font-bold text-amber-400">Waiting...</p>
-                        <p className="text-sm text-slate-400">No challenger yet</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2 mt-2">
-                      <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
-                      <span className="text-amber-400 font-bold text-sm">JOINING...</span>
-                    </div>
+                  <p className="font-mono text-cyan-400 text-xs break-all">
+                    {address}
+                  </p>
+                </div>
+                
+                <div className="bg-slate-900/40 rounded-lg p-3">
+                  <p className="text-xs font-bold text-slate-400 mb-1">GAME BALANCE</p>
+                  <p className="font-black text-emerald-400">{parseFloat(userBalance).toFixed(4)} ETH</p>
+                </div>
+
+                {parseFloat(userBalance) > 0 && (
+                  <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
+                    <p className="text-xs font-bold text-emerald-400 mb-1">AVAILABLE TO WITHDRAW</p>
+                    <p className="font-black text-emerald-400">{parseFloat(userBalance).toFixed(4)} ETH</p>
+                    <Button
+                      onClick={handleWithdraw}
+                      disabled={transactionLoading}
+                      className="w-full mt-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      size="sm"
+                    >
+                      {transactionLoading ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Wallet className="w-4 h-4 mr-2" />
+                      )}
+                      {transactionLoading ? "Withdrawing..." : "Withdraw Balance"}
+                    </Button>
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Spectator Actions */}
+            {/* Quick Actions */}
             <Card className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 shadow-2xl rounded-2xl">
               <CardHeader>
-                <CardTitle className="text-xl font-black text-white">SPECTATOR ZONE</CardTitle>
+                <CardTitle className="text-xl font-black text-white">QUICK ACTIONS</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center space-x-2 mb-4">
-                  <Users className="w-5 h-5 text-slate-400" />
-                  <span className="text-slate-300">{battle.spectators} watching</span>
-                </div>
-
+              <CardContent className="space-y-3">
                 <Button
-                  onClick={handleSpectateAndBet}
-                  className="w-full bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-bold rounded-xl"
+                  onClick={fetchGameData}
+                  className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold rounded-lg"
+                  disabled={isLoading}
                 >
-                  <Eye className="w-5 h-5 mr-2" />
-                  SPECTATE & BET
+                  <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                  {isLoading ? "Refreshing..." : "Refresh Game"}
                 </Button>
-
+                
                 <Button
+                  onClick={() => router.push("/my-games")}
                   variant="outline"
-                  className="w-full border-slate-600 text-white hover:bg-slate-800/50 rounded-xl font-bold bg-transparent"
+                  className="w-full border-slate-600 text-white hover:bg-slate-800/50 rounded-lg"
                 >
-                  <Shield className="w-5 h-5 mr-2" />
-                  SHARE BATTLE
+                  <Gamepad2 className="w-4 h-4 mr-2" />
+                  My Games
+                </Button>
+                
+                <Button
+                  onClick={() => router.push("/browse")}
+                  variant="outline"
+                  className="w-full border-slate-600 text-white hover:bg-slate-800/50 rounded-lg"
+                >
+                  <Eye className="w-4 h-4 mr-2" />
+                  Browse Battles
+                </Button>
+                
+                <Button
+                  onClick={() => router.push("/create")}
+                  variant="outline"
+                  className="w-full border-emerald-600 text-emerald-400 hover:bg-emerald-500/10 rounded-lg"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create New Battle
                 </Button>
               </CardContent>
             </Card>

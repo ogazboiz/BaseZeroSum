@@ -28,6 +28,13 @@ import {
   Menu,
   X,
   Trophy,
+  Volume2,
+  VolumeX,
+  Music,
+  SkipBack,
+  SkipForward,
+  Mic,
+  Radio,
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
@@ -37,6 +44,7 @@ import { useDisconnect } from "@reown/appkit/react"
 import { useWalletInfo } from "@reown/appkit/react"
 import { useAccount, useDisconnect as useWagmiDisconnect } from "wagmi"
 import { toast } from "react-hot-toast"
+import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
 
 // Mock balance hooks - replace with your actual balance hooks
 const useETHBalance = (address: string | undefined) => {
@@ -70,10 +78,47 @@ const usePlayerStats = (address: string | undefined) => {
 }
 
 export default function HomePage() {
+  // Add custom CSS for volume slider
+  useEffect(() => {
+    const style = document.createElement('style')
+    style.textContent = `
+      .slider::-webkit-slider-thumb {
+        appearance: none;
+        height: 16px;
+        width: 16px;
+        border-radius: 50%;
+        background: #06b6d4;
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+      }
+      
+      .slider::-moz-range-thumb {
+        height: 16px;
+        width: 16px;
+        border-radius: 50%;
+        background: #06b6d4;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+      }
+    `
+    document.head.appendChild(style)
+    
+    return () => {
+      document.head.removeChild(style)
+    }
+  }, [])
   const router = useRouter()
   const pathname = usePathname()
   const [activeGame, setActiveGame] = useState(0)
   const [pulseEffect, setPulseEffect] = useState(false)
+  
+  // Soundtrack state
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [isMuted, setIsMuted] = useState(false)
+  const [currentTrack, setCurrentTrack] = useState(0)
+  const [volume, setVolume] = useState(0.7)
+  const audioRef = useRef<HTMLAudioElement>(null)
   
   // Wallet state
   const [mounted, setMounted] = useState(false)
@@ -82,13 +127,23 @@ export default function HomePage() {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
 
-  // Navigation items
+  // Navigation items (keeping for reference, but using UnifiedGamingNavigation now)
   const navigation = [
     { name: "ARENA", href: "/" },
     { name: "CREATE", href: "/create" },
     { name: "BATTLES", href: "/browse" },
     { name: "SPECTATE", href: "/spectate" },
     { name: "TOURNAMENTS", href: "/tournaments" },
+  ]
+
+  // Single track for infinite loop
+  const soundtrack = [
+    {
+      title: "Epic Battle Theme",
+      artist: "ZeroSum Gaming",
+      url: "/audio/epic-battle.mp3",
+      duration: "3:45"
+    }
   ]
 
   // AppKit hooks (same pattern as AgriChain)
@@ -334,6 +389,79 @@ export default function HomePage() {
     router.push(`/create?mode=${gameMode}`)
   }
 
+  // Soundtrack control functions
+  const togglePlay = async () => {
+    if (audioRef.current) {
+      try {
+        if (isPlaying) {
+          audioRef.current.pause()
+          setIsPlaying(false)
+        } else {
+          // Set volume before playing
+          audioRef.current.volume = volume
+          await audioRef.current.play()
+          setIsPlaying(true)
+        }
+      } catch (error) {
+        console.error("Audio play error:", error)
+        toast.error("Audio playback failed. Check browser settings.")
+      }
+    }
+  }
+
+  const toggleMute = () => {
+    if (audioRef.current) {
+      audioRef.current.muted = !isMuted
+      setIsMuted(!isMuted)
+    }
+  }
+
+
+
+  const handleVolumeChange = (newVolume: number) => {
+    setVolume(newVolume)
+    if (audioRef.current) {
+      audioRef.current.volume = newVolume
+    }
+  }
+
+  // Test audio file existence
+  const testAudioFiles = async () => {
+    console.log("Testing audio files...")
+    for (const track of soundtrack) {
+      try {
+        const response = await fetch(track.url, { method: 'HEAD' })
+        if (response.ok) {
+          console.log(`✅ ${track.title}: Found`)
+        } else {
+          console.log(`❌ ${track.title}: Not found (${response.status})`)
+        }
+      } catch (error) {
+        console.log(`❌ ${track.title}: Error - ${error}`)
+      }
+    }
+  }
+
+  // Test audio files on mount
+  useEffect(() => {
+    testAudioFiles()
+  }, [])
+
+  // Auto-play first track on page load
+  useEffect(() => {
+    const startPlayback = () => {
+      if (audioRef.current && !isPlaying) {
+        // Small delay to ensure audio is loaded
+        setTimeout(() => {
+          togglePlay()
+        }, 2000)
+      }
+    }
+
+    // Start playing after a short delay
+    startPlayback()
+  }, [])
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 text-white overflow-hidden">
       {/* Animated Background Elements */}
@@ -343,294 +471,25 @@ export default function HomePage() {
         <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-full blur-3xl animate-pulse delay-2000"></div>
       </div>
 
-      {/* Integrated Gaming Navigation */}
-      <nav className="relative z-50 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            <div className="flex items-center space-x-3">
-              <div className="relative">
-                <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/25">
-                  <Gamepad2 className="w-7 h-7 text-white" />
-                </div>
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full animate-pulse"></div>
-              </div>
-              <div>
-                <span className="text-3xl font-black bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 bg-clip-text text-transparent">
-                  ZEROSUM
-                </span>
-                <div className="text-xs text-slate-400 font-medium">GAMING ARENA</div>
-              </div>
-            </div>
+      {/* Unified Gaming Navigation */}
+      <UnifiedGamingNavigation />
 
-            <div className="hidden md:flex items-center space-x-8">
-              {navigation.map((item) => (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`font-bold transition-colors hover:text-cyan-400 ${
-                    pathname === item.href
-                      ? "text-cyan-400 border-b-2 border-cyan-400 pb-1"
-                      : "text-slate-300"
-                  }`}
-                >
-                  {item.name}
-                </Link>
-              ))}
-            </div>
+      {/* Hidden Audio Element - Infinite Loop */}
+      <audio
+        ref={audioRef}
+        src={soundtrack[currentTrack].url}
+        loop
+        onError={(e) => {
+          console.error("Audio error:", e)
+          toast.error(`Failed to load: ${soundtrack[currentTrack].title}`)
+        }}
+        onLoadStart={() => console.log("Loading audio:", soundtrack[currentTrack].title)}
+        onCanPlay={() => console.log("Audio ready:", soundtrack[currentTrack].title)}
+        preload="metadata"
+        crossOrigin="anonymous"
+      />
 
-            <div className="flex items-center space-x-4">
-              {!mounted ? (
-                <Button className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold rounded-xl shadow-lg shadow-cyan-500/25">
-                  <Wallet className="w-4 h-4 mr-2" />
-                  CONNECT
-                </Button>
-              ) : isConnected ? (
-                <>
-                  {/* Balance Display */}
-                  <div className="hidden md:flex items-center space-x-3">
-                    {/* ETH Balance */}
-                    <Badge className="bg-slate-800/60 backdrop-blur-sm border border-emerald-500/30 rounded-xl px-4 py-2">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-                        <Coins className="w-4 h-4 text-emerald-400" />
-                        <span className="font-bold text-emerald-400">
-                          {ethBalance.isLoading ? "..." : `${ethBalance.formatted} ETH`}
-                        </span>
-                      </div>
-                    </Badge>
 
-                  
-                  </div>
-
-                  {/* User Dropdown */}
-                  <div className="relative" ref={dropdownRef}>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="w-10 h-10 text-slate-400 hover:text-cyan-400 bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 rounded-xl"
-                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    >
-                      <User className="w-5 h-5" />
-                    </Button>
-                    
-                    {isDropdownOpen && (
-                      <div className="absolute right-0 z-50 w-80 mt-2 border border-slate-700/50 rounded-xl shadow-2xl bg-slate-900/95 backdrop-blur-sm">
-                        {/* Header */}
-                        <div className="p-4 border-b border-slate-700/50">
-                          <div className="flex items-center gap-3 mb-4">
-                            {getWalletIcon()}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-base font-bold text-white truncate">{getWalletName()}</p>
-                              <p className="text-sm text-slate-400">{truncateAddress(address)}</p>
-                            </div>
-                            <Crown className="w-5 h-5 text-amber-400" />
-                          </div>
-                          
-                          {/* Player Stats */}
-                          <div className="grid grid-cols-3 gap-3 text-center">
-                            <div className="p-2 rounded-lg bg-slate-800/60">
-                              <div className="text-lg font-bold text-emerald-400">{playerStats.wins}</div>
-                              <div className="text-xs text-slate-400">WINS</div>
-                            </div>
-                            <div className="p-2 rounded-lg bg-slate-800/60">
-                              <div className="text-lg font-bold text-red-400">{playerStats.losses}</div>
-                              <div className="text-xs text-slate-400">LOSSES</div>
-                            </div>
-                            <div className="p-2 rounded-lg bg-slate-800/60">
-                              <div className="text-lg font-bold text-violet-400">#{playerStats.rank}</div>
-                              <div className="text-xs text-slate-400">RANK</div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Balance Details */}
-                        <div className="p-4 border-b border-slate-700/50">
-                          <div className="space-y-3">
-                            <div className="p-3 rounded-lg bg-slate-800/40">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Coins className="w-4 h-4 text-emerald-400" />
-                                  <span className="text-sm font-medium text-emerald-300">ETH Balance</span>
-                                </div>
-                                <span className="text-sm font-bold text-emerald-400">
-                                  {ethBalance.formatted || "0.00"}
-                                </span>
-                              </div>
-                            </div>
-                            
-                            <div className="p-3 rounded-lg bg-slate-800/40">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Zap className="w-4 h-4 text-violet-400" />
-                                  <span className="text-sm font-medium text-violet-300">ZS Tokens</span>
-                                </div>
-                                <span className="text-sm font-bold text-violet-400">
-                                  {zsBalance.formatted || "0"}
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="p-3 rounded-lg bg-slate-800/40">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Trophy className="w-4 h-4 text-amber-400" />
-                                  <span className="text-sm font-medium text-amber-300">Total Earnings</span>
-                                </div>
-                                <span className="text-sm font-bold text-amber-400">
-                                  {playerStats.totalEarnings}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Menu Items */}
-                        <div className="p-2">
-                          <Link
-                            href="/profile"
-                            className="flex items-center w-full gap-3 px-3 py-2 text-sm text-slate-300 transition-colors rounded-lg hover:bg-slate-800/60 hover:text-white"
-                          >
-                            <User className="w-4 h-4" />
-                            Battle Profile
-                          </Link>
-                          <Link
-                            href="/rewards"
-                            className="flex items-center w-full gap-3 px-3 py-2 text-sm text-slate-300 transition-colors rounded-lg hover:bg-slate-800/60 hover:text-white"
-                          >
-                            <Target className="w-4 h-4" />
-                            My Rewards
-                          </Link>
-                          <a
-                            href={`https://mantlescan.xyz/address/${address}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-3 px-3 py-2 text-sm text-slate-300 transition-colors rounded-lg hover:bg-slate-800/60 hover:text-white"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                            View on Mantle Explorer
-                          </a>
-                          <button className="flex items-center w-full gap-3 px-3 py-2 text-sm text-slate-300 transition-colors rounded-lg hover:bg-slate-800/60 hover:text-white">
-                            <Settings className="w-4 h-4" />
-                            Game Settings
-                          </button>
-                          <button
-                            onClick={handleDisconnect}
-                            className="flex items-center w-full gap-3 px-3 py-2 text-sm text-red-400 transition-colors rounded-lg hover:bg-red-500/10 hover:text-red-300"
-                          >
-                            <LogOut className="w-4 h-4" />
-                            Disconnect Wallet
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Create Battle Button */}
-                  <Button
-                    onClick={() => router.push("/create")}
-                    className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all duration-300"
-                  >
-                    <Flame className="w-4 h-4 mr-2" />
-                    <span className="hidden sm:inline">CREATE BATTLE</span>
-                    <span className="sm:hidden">CREATE</span>
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  onClick={handleConnect}
-                  className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold rounded-xl shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300"
-                >
-                  <Wallet className="w-4 h-4 mr-2" />
-                  <span className="hidden sm:inline">CONNECT WALLET</span>
-                  <span className="sm:hidden">CONNECT</span>
-                </Button>
-              )}
-
-              {/* Mobile menu button */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="md:hidden w-10 h-10 text-slate-400 bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 rounded-xl"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                data-menu-toggle="true"
-              >
-                {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </Button>
-            </div>
-          </div>
-
-          {/* Mobile Navigation */}
-          {isMobileMenuOpen && (
-            <nav ref={mobileMenuRef} className="md:hidden pt-4 pb-4 mx-2 mt-4 border-t border-slate-700/50 rounded-lg bg-slate-800/50 backdrop-blur-sm">
-              <div className="flex flex-col gap-2">
-                {navigation.map((item) => (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold transition-colors ${
-                      pathname === item.href
-                        ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
-                        : "text-slate-300 hover:bg-slate-700/50 hover:text-cyan-400"
-                    }`}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    {item.name}
-                  </Link>
-                ))}
-                
-                {/* Mobile Balance Display */}
-                {isConnected && (
-                  <div className="pt-4 mt-4 border-t border-slate-700/50">
-                    <div className="space-y-3">
-                      <div className="p-3 rounded-lg bg-slate-800/60">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Coins className="w-4 h-4 text-emerald-400" />
-                            <span className="text-sm font-medium text-emerald-300">ETH</span>
-                          </div>
-                          <span className="text-sm font-bold text-emerald-400">
-                            {ethBalance.formatted || "0.00"}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="p-3 rounded-lg bg-slate-800/60">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Zap className="w-4 h-4 text-violet-400" />
-                            <span className="text-sm font-medium text-violet-300">ZS Tokens</span>
-                          </div>
-                          <span className="text-sm font-bold text-violet-400">
-                            {zsBalance.formatted || "0"}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Mobile Stats */}
-                      <div className="p-3 rounded-lg bg-slate-800/60">
-                        <div className="grid grid-cols-3 gap-2 text-center">
-                          <div>
-                            <div className="text-sm font-bold text-emerald-400">{playerStats.wins}</div>
-                            <div className="text-xs text-slate-400">WINS</div>
-                          </div>
-                          <div>
-                            <div className="text-sm font-bold text-red-400">{playerStats.losses}</div>
-                            <div className="text-xs text-slate-400">LOSSES</div>
-                          </div>
-                          <div>
-                            <div className="text-sm font-bold text-violet-400">#{playerStats.rank}</div>
-                            <div className="text-xs text-slate-400">RANK</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </nav>
-          )}
-        </div>
-      </nav>
 
       {/* Hero Section */}
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -675,7 +534,48 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Live Stats Bar */}
+        {/* Minimal Invisible Soundtrack Control with Volume */}
+        <div className="flex justify-center mb-8">
+          <div className="bg-slate-900/20 backdrop-blur-sm border border-slate-500/20 rounded-full p-2 shadow-lg hover:bg-slate-900/30 transition-all duration-300 group">
+            <div className="flex items-center space-x-2">
+              <Button
+                onClick={togglePlay}
+                variant="ghost"
+                size="sm"
+                className="w-10 h-10 p-0 text-cyan-400 hover:text-cyan-300 rounded-full"
+              >
+                {isPlaying ? (
+                  <div className="flex items-center space-x-0.5">
+                    <div className="w-0.5 h-2 bg-current rounded-full animate-pulse"></div>
+                    <div className="w-0.5 h-3 bg-current rounded-full animate-pulse" style={{animationDelay: '0.1s'}}></div>
+                    <div className="w-0.5 h-1 bg-current rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
+                    <div className="w-0.5 h-4 bg-current rounded-full animate-pulse" style={{animationDelay: '0.3s'}}></div>
+                  </div>
+                ) : (
+                  <Play className="w-4 h-4 ml-0.5" />
+                )}
+              </Button>
+              
+              {/* Volume Control - Hidden by default, shows on hover */}
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 w-16">
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={volume}
+                  onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                  className="w-full h-1.5 bg-slate-600/50 rounded-lg appearance-none cursor-pointer slider"
+                  style={{
+                    background: `linear-gradient(to right, #06b6d4 0%, #06b6d4 ${volume * 100}%, rgba(71, 85, 105, 0.5) ${volume * 100}%, rgba(71, 85, 105, 0.5) 100%)`
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Live Stats Bar - Completely Transparent Background */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16">
           {[
             {
@@ -683,7 +583,7 @@ export default function HomePage() {
               value: liveStats.playersOnline,
               icon: Users,
               color: "text-cyan-400",
-              bg: "bg-slate-800/60 border-cyan-500/20",
+              bg: "bg-transparent border-cyan-500/20",
               glow: "hover:shadow-cyan-500/20",
               action: () => router.push("/browse"),
             },
@@ -692,7 +592,7 @@ export default function HomePage() {
               value: liveStats.activeGames,
               icon: Swords,
               color: "text-emerald-400",
-              bg: "bg-slate-800/60 border-emerald-500/20",
+              bg: "bg-transparent border-emerald-500/20",
               glow: "hover:shadow-emerald-500/20",
               action: () => router.push("/browse"),
             },
@@ -701,7 +601,7 @@ export default function HomePage() {
               value: liveStats.totalPrizePool,
               icon: TrendingUp,
               color: "text-violet-400",
-              bg: "bg-slate-800/60 border-violet-500/20",
+              bg: "bg-transparent border-violet-500/20",
               glow: "hover:shadow-violet-500/20",
               action: () => router.push("/tournaments"),
             },
@@ -710,7 +610,7 @@ export default function HomePage() {
               value: liveStats.biggestWin,
               icon: Crown,
               color: "text-amber-400",
-              bg: "bg-slate-800/60 border-amber-500/20",
+              bg: "bg-transparent border-amber-500/20",
               glow: "hover:shadow-amber-500/20",
               action: () => router.push("/profile"),
             },

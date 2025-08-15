@@ -1,9 +1,9 @@
 // config/contracts.ts
 
-// Contract addresses
+// Contract addresses - Updated to match .env file
 export const CONTRACT_ADDRESSES = {
-  ZERO_SUM_SIMPLIFIED: '0x3b4B128d79cC2e0d9Af4f429A9bc74cD01bE6B7a' as `0x${string}`,
-  ZERO_SUM_SPECTATOR: '0x1bE77b80eE1729e4ad52243f0A5d109a2F266F89' as `0x${string}`,
+  ZERO_SUM_SIMPLIFIED: '0x5ecc48015485c2d4025a33Df8F5AF79eF5e8B96B' as `0x${string}`,
+  ZERO_SUM_SPECTATOR: '0x1e1A47d93Fb1Fd616bbC1445f9f387C27f3Afc56' as `0x${string}`,
 } as const;
 
 // Helper function to get contract addresses based on environment

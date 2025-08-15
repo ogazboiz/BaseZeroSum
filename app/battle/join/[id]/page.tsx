@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -20,6 +20,9 @@ import Link from "next/link"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useAccount } from "wagmi"
 import { toast } from "react-hot-toast"
+import { useZeroSumContract, useZeroSumData } from "@/hooks/useZeroSumContract"
+import { ethers } from "ethers"
+import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
 
 export default function JoinBattlePage() {
   const params = useParams()
@@ -28,6 +31,10 @@ export default function JoinBattlePage() {
   const { address, isConnected } = useAccount()
   const battleId = params.id
   const mode = searchParams.get("mode") || "quick-draw"
+  
+  // Blockchain integration
+  const { joinGame } = useZeroSumContract()
+  const { getGame, getPlayers } = useZeroSumData()
 
   const [isJoining, setIsJoining] = useState(false)
   const [hasJoined, setHasJoined] = useState(false)
@@ -69,26 +76,68 @@ export default function JoinBattlePage() {
     },
   }
 
-  const battle = {
+  const [battle, setBattle] = useState({
     id: battleId,
     mode: gameModeConfigs[mode]?.title || "Quick Draw",
-    creator: "WarriorX", // In real app, this would come from blockchain
-    creatorAddress: "0x1234567890123456789012345678901234567890", // Demo address for testing
-    entryFee: "0.1",
-    prizePool: "0.19",
-    timeLeft: "4m 32s",
+    creator: "",
+    creatorAddress: "",
+    entryFee: "0",
+    prizePool: "0",
+    timeLeft: "5m 0s",
     difficulty: gameModeConfigs[mode]?.difficulty || "★★☆☆☆",
     icon: gameModeConfigs[mode]?.icon || Target,
     gradient: gameModeConfigs[mode]?.gradient || "from-emerald-400 via-teal-500 to-cyan-600",
     rules: gameModeConfigs[mode]?.rules || "First to reach exactly zero wins!",
     numberRange: gameModeConfigs[mode]?.numberRange || "15-49",
     maxTurns: "15 turns max",
-  }
+  })
+  
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-  // Check if current user is the creator (in real app, compare with actual creator address)
+  // Fetch real blockchain data - memoized to prevent infinite loops
+  const fetchGameData = useCallback(async () => {
+    if (!battleId) return
+    
+    try {
+      setIsLoading(true)
+      
+      console.log(`Fetching game data for join page, battle ${battleId}`)
+      
+      // Get game data from blockchain
+      const gameData = await getGame(Number(battleId))
+      if (gameData) {
+        const players = await getPlayers(Number(battleId))
+        
+        setBattle(prev => ({
+          ...prev,
+          creator: players[0] || "",
+          creatorAddress: players[0] || "",
+          entryFee: gameData.entryFee ? (typeof gameData.entryFee === 'bigint' ? ethers.formatEther(gameData.entryFee) : gameData.entryFee.toString()) : "0",
+          prizePool: gameData.prizePool ? (typeof gameData.prizePool === 'bigint' ? ethers.formatEther(gameData.prizePool) : gameData.prizePool.toString()) : "0",
+        }))
+      }
+    } catch (error) {
+      console.error("Failed to fetch game data:", error)
+      // Don't show error toast for network issues to avoid spam
+      if (!error.message?.includes("network") && !error.message?.includes("timeout")) {
+        toast.error("Failed to load game data")
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }, [battleId, getGame, getPlayers])
+
+  // Only fetch once when component mounts
+  useEffect(() => {
+    if (battleId) {
+      fetchGameData()
+    }
+  }, [battleId]) // Only depend on battleId, not the functions
+
+  // Check if current user is the creator
   useEffect(() => {
     if (address && battle.creatorAddress) {
-      // In real app, you'd compare: address.toLowerCase() === battle.creatorAddress.toLowerCase()
       const isUserCreator = address.toLowerCase() === battle.creatorAddress.toLowerCase()
       setIsCreator(isUserCreator)
       
@@ -112,16 +161,25 @@ export default function JoinBattlePage() {
 
     setIsJoining(true)
 
-    // Simulate joining process
-    setTimeout(() => {
+    try {
+      // Join game on blockchain
+      const result = await joinGame(Number(battleId), battle.entryFee)
+      
+      if (result.success) {
+        toast.success("Successfully joined the battle!")
+        setHasJoined(true)
+        
+        // Redirect to battle after 2 seconds
+        setTimeout(() => {
+          router.push(`/battle/${battleId}?mode=${mode}`)
+        }, 2000)
+      }
+    } catch (error) {
+      console.error("Failed to join battle:", error)
+      toast.error("Failed to join battle")
+    } finally {
       setIsJoining(false)
-      setHasJoined(true)
-
-      // Redirect to battle after 2 seconds
-      setTimeout(() => {
-        router.push(`/battle/${battleId}?mode=${mode}`)
-      }, 2000)
-    }, 2000)
+    }
   }
 
   if (hasJoined) {
@@ -152,42 +210,42 @@ export default function JoinBattlePage() {
       </div>
 
       {/* Navigation */}
-      <nav className="relative z-50 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            <Link href="/" className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/25">
-                <Gamepad2 className="w-7 h-7 text-white" />
-              </div>
-              <div>
-                <span className="text-3xl font-black bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 bg-clip-text text-transparent">
-                  ZEROSUM
-                </span>
-                <div className="text-xs text-slate-400 font-medium">JOIN BATTLE</div>
-              </div>
-            </Link>
-
-            <div className="flex items-center space-x-4">
-              <div className="bg-slate-800/60 backdrop-blur-sm border border-emerald-500/30 rounded-xl px-4 py-2">
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-                  <Coins className="w-4 h-4 text-emerald-400" />
-                  <span className="font-bold text-emerald-400">2.45 ETH</span>
-                </div>
+     <UnifiedGamingNavigation/>
+      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Error Display */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <AlertTriangle className="w-5 h-5 text-red-400" />
+                <p className="text-red-400 font-medium">Error: {error}</p>
               </div>
               <Button
-                onClick={() => router.push("/browse")}
+                onClick={() => {
+                  setError(null)
+                  fetchGameData()
+                }}
+                size="sm"
                 variant="outline"
-                className="border-slate-600 text-white hover:bg-slate-800/50 rounded-xl font-bold bg-transparent"
+                className="border-red-500 text-red-400 hover:bg-red-500/10 rounded-lg"
+                disabled={isLoading}
               >
-                BACK TO BATTLES
+                Retry
               </Button>
             </div>
           </div>
-        </div>
-      </nav>
+        )}
 
-      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {isLoading ? (
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-xl font-bold text-white">Loading battle data...</p>
+              <p className="text-slate-400">Fetching from blockchain</p>
+            </div>
+          </div>
+        ) : (
+        <>
         <div className="text-center mb-8">
           <h1 className="text-5xl font-black text-white mb-4">JOIN BATTLE</h1>
           <p className="text-xl text-slate-300 font-medium">Review the battle details and enter the arena</p>
@@ -197,16 +255,30 @@ export default function JoinBattlePage() {
           {/* Battle Details */}
           <Card className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 shadow-2xl rounded-2xl">
             <CardHeader>
-              <div className="flex items-center space-x-4">
-                <div
-                  className={`w-16 h-16 bg-gradient-to-br ${battle.gradient} rounded-2xl flex items-center justify-center shadow-lg`}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div
+                    className={`w-16 h-16 bg-gradient-to-br ${battle.gradient} rounded-2xl flex items-center justify-center shadow-lg`}
+                  >
+                    <battle.icon className="w-8 h-8 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-3xl font-black text-white">{battle.mode}</CardTitle>
+                    <p className="text-slate-300 font-medium">Battle #{battle.id}</p>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => {
+                    setError(null)
+                    fetchGameData()
+                  }}
+                  size="sm"
+                  variant="outline"
+                  className="border-slate-600 text-white hover:bg-slate-800/50 rounded-lg"
+                  disabled={isLoading}
                 >
-                  <battle.icon className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <CardTitle className="text-3xl font-black text-white">{battle.mode}</CardTitle>
-                  <p className="text-slate-300 font-medium">Battle #{battle.id}</p>
-                </div>
+                  {isLoading ? "Refreshing..." : "Refresh"}
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -347,6 +419,8 @@ export default function JoinBattlePage() {
             </CardContent>
           </Card>
         </div>
+        </>
+        )}
       </div>
     </div>
   )

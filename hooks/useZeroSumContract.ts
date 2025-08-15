@@ -1,6 +1,6 @@
-// hooks/useZeroSumContracts.ts
-import { useState, useEffect } from 'react'
-import { useConfig } from 'wagmi'
+// hooks/useZeroSumContracts.ts - UPDATED to match improved contract
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useConfig, useAccount } from 'wagmi'
 import { ethers } from 'ethers'
 import { getEthersProvider, getEthersSigner } from '@/config/adapter'
 import { toast } from 'react-hot-toast'
@@ -8,10 +8,10 @@ import { ZeroSumSimplifiedABI } from '../config/abis/ZeroSumSimplifiedABI'
 import { ZeroSumSpectatorABI } from '../config/abis/ZeroSumSpectatorABI'
 
 // Contract addresses - Update these with your deployed addresses
-const GAME_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_GAME_CONTRACT_ADDRESS || "0x5ecc48015485c2d4025a33Df8F5AF79eF5e8B96B"
+const GAME_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_GAME_CONTRACT_ADDRESS || "0xAd22cC67E66F1F0b0D1Be33F53Bd0948796a460E"
 const SPECTATOR_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_SPECTATOR_CONTRACT_ADDRESS || "0x1e1A47d93Fb1Fd616bbC1445f9f387C27f3Afc56"
 
-// Types based on your actual contract
+// Types based on your updated contract
 export enum GameMode {
   QUICK_DRAW = 0,
   STRATEGIC = 1
@@ -43,18 +43,37 @@ export interface PlayerStats {
   stakedAmount: string
 }
 
+// UPDATED: Enhanced PlayerView with new fields from your contract
 export interface PlayerView {
   number: number
   yourTurn: boolean
   timeLeft: number
   yourTimeouts: number
   opponentTimeouts: number
+  gameStuck: boolean // NEW
+  stuckPlayer: string // NEW
 }
 
 export interface StakingInfo {
   amount: string
   lastReward: number
   rewards: string
+}
+
+// NEW: Game Summary interface matching your contract
+export interface GameSummary {
+  gameId: number
+  mode: GameMode
+  status: GameStatus
+  currentNumber: number
+  currentPlayer: string
+  winner: string
+  entryFee: string
+  prizePool: string
+  players: string[]
+  numberGenerated: boolean
+  timeLeft: number
+  isStuck: boolean
 }
 
 export interface SpectatorGameData {
@@ -78,290 +97,294 @@ export interface BettingOdds {
   oddPercentages: number[]
 }
 
+// Provider hook with connection state management
+export function useContractProvider() {
+  const config = useConfig()
+  const { isConnected, address } = useAccount()
+  const [providerReady, setProviderReady] = useState(false)
+  const providerRef = useRef<any>(null)
+  
+  useEffect(() => {
+    console.log('🔗 Provider connection check:', { isConnected, address })
+    
+    const initProvider = async () => {
+      try {
+        const provider = getEthersProvider(config)
+        if (provider) {
+          providerRef.current = provider
+          setProviderReady(true)
+          console.log('✅ Provider ready')
+        } else {
+          setProviderReady(false)
+          console.log('❌ Provider not available')
+        }
+      } catch (error) {
+        console.error('Provider initialization error:', error)
+        setProviderReady(false)
+      }
+    }
+    
+    initProvider()
+    
+    const timeout = setTimeout(initProvider, 1000)
+    return () => clearTimeout(timeout)
+  }, [config, isConnected])
+  
+  const getProvider = useCallback(() => {
+    return providerRef.current
+  }, [])
+  
+  const getSigner = useCallback(async () => {
+    if (!isConnected || !address) {
+      throw new Error('Wallet not connected')
+    }
+    return await getEthersSigner(config)
+  }, [config, isConnected, address])
+  
+  return {
+    providerReady,
+    isConnected,
+    address,
+    getProvider,
+    getSigner
+  }
+}
+
 // Main hook for contract interactions (write functions)
 export function useZeroSumContract() {
-  const config = useConfig()
+  const { getSigner } = useContractProvider()
   const [loading, setLoading] = useState(false)
 
-  // Create Quick Draw Game
+  // Generic transaction handler with better error handling
+  const executeTransaction = async (
+    contractCall: () => Promise<any>,
+    loadingMessage: string,
+    successMessage: string,
+    errorMessage: string
+  ) => {
+    setLoading(true)
+    try {
+      const signer = await getSigner()
+      
+      if (!signer) {
+        throw new Error('Please connect your wallet')
+      }
+
+      toast.success(loadingMessage)
+      const tx = await contractCall()
+      
+      console.log(`Transaction sent: ${tx.hash}`)
+      
+      const receipt = await tx.wait()
+      console.log(`Transaction confirmed: ${receipt.transactionHash}`)
+      
+      // Extract relevant event data if needed
+      let gameId = null
+      for (const log of receipt.logs) {
+        try {
+          const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+          const parsed = contract.interface.parseLog(log)
+          if (parsed?.name === 'GameCreated') {
+            gameId = parsed.args[0].toString()
+            break
+          }
+        } catch (e) {
+          // Skip logs that don't match our interface
+        }
+      }
+      
+      toast.success(successMessage)
+      return { success: true, txHash: tx.hash, receipt, gameId }
+    } catch (error: any) {
+      console.error('Transaction failed:', error)
+      
+      let errorMsg = errorMessage
+      
+      if (error.reason) {
+        errorMsg = error.reason
+      } else if (error.message) {
+        if (error.message.includes('user rejected')) {
+          errorMsg = 'Transaction cancelled by user'
+        } else if (error.message.includes('insufficient funds')) {
+          errorMsg = 'Insufficient funds for transaction'
+        } else if (error.message.includes('execution reverted')) {
+          const match = error.message.match(/execution reverted: (.+)/)
+          if (match) {
+            errorMsg = match[1]
+          }
+        }
+      }
+      
+      toast.error(errorMsg)
+      return { success: false, error: errorMsg }
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const createQuickDraw = async (entryFee: string) => {
-    setLoading(true)
-    try {
-      const signer = await getEthersSigner(config)
-      
-      if (!signer) {
-        throw new Error('Please connect your wallet')
-      }
-
-      const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
-      
-      const tx = await contract.createQuickDraw({
-        value: ethers.parseEther(entryFee)
-      })
-      
-      toast.success('Creating Quick Draw game...')
-      const receipt = await tx.wait()
-      
-      // Extract game ID from GameCreated event
-      let gameId = null
-      for (const log of receipt.logs) {
-        try {
-          const parsed = contract.interface.parseLog(log)
-          if (parsed?.name === 'GameCreated') {
-            gameId = parsed.args[0].toString()
-            break
-          }
-        } catch (e) {
-          // Skip logs that don't match our interface
-        }
-      }
-      
-      toast.success('Quick Draw game created successfully!')
-      return { success: true, gameId, txHash: tx.hash }
-    } catch (error: any) {
-      console.error('Error creating Quick Draw:', error)
-      toast.error(error.reason || error.message || 'Failed to create game')
-      throw error
-    } finally {
-      setLoading(false)
-    }
+    return executeTransaction(
+      async () => {
+        const signer = await getSigner()
+        const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+        
+        return await contract.createQuickDraw({
+          value: ethers.parseEther(entryFee)
+        })
+      },
+      'Creating Quick Draw game...',
+      'Quick Draw game created successfully!',
+      'Failed to create Quick Draw game'
+    )
   }
 
-  // Create Strategic Game
   const createStrategic = async (entryFee: string) => {
-    setLoading(true)
-    try {
-      const signer = await getEthersSigner(config)
-      
-      if (!signer) {
-        throw new Error('Please connect your wallet')
-      }
-
-      const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
-      
-      const tx = await contract.createStrategic({
-        value: ethers.parseEther(entryFee)
-      })
-      
-      toast.success('Creating Strategic game...')
-      const receipt = await tx.wait()
-      
-      // Extract game ID from GameCreated event
-      let gameId = null
-      for (const log of receipt.logs) {
-        try {
-          const parsed = contract.interface.parseLog(log)
-          if (parsed?.name === 'GameCreated') {
-            gameId = parsed.args[0].toString()
-            break
-          }
-        } catch (e) {
-          // Skip logs that don't match our interface
-        }
-      }
-      
-      toast.success('Strategic game created successfully!')
-      return { success: true, gameId, txHash: tx.hash }
-    } catch (error: any) {
-      console.error('Error creating Strategic:', error)
-      toast.error(error.reason || error.message || 'Failed to create game')
-      throw error
-    } finally {
-      setLoading(false)
-    }
+    return executeTransaction(
+      async () => {
+        const signer = await getSigner()
+        const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+        
+        return await contract.createStrategic({
+          value: ethers.parseEther(entryFee)
+        })
+      },
+      'Creating Strategic game...',
+      'Strategic game created successfully!',
+      'Failed to create Strategic game'
+    )
   }
 
-  // Join Game
   const joinGame = async (gameId: number, entryFee: string) => {
-    setLoading(true)
-    try {
-      const signer = await getEthersSigner(config)
-      
-      if (!signer) {
-        throw new Error('Please connect your wallet')
-      }
-
-      const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
-      
-      const tx = await contract.joinGame(gameId, {
-        value: ethers.parseEther(entryFee)
-      })
-      
-      toast.success('Joining game...')
-      await tx.wait()
-      toast.success('Successfully joined the game!')
-      return { success: true, txHash: tx.hash }
-    } catch (error: any) {
-      console.error('Error joining game:', error)
-      toast.error(error.reason || error.message || 'Failed to join game')
-      throw error
-    } finally {
-      setLoading(false)
-    }
+    return executeTransaction(
+      async () => {
+        const signer = await getSigner()
+        const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+        
+        return await contract.joinGame(gameId, {
+          value: ethers.parseEther(entryFee)
+        })
+      },
+      'Joining game...',
+      'Successfully joined the game!',
+      'Failed to join game'
+    )
   }
 
-  // Make Move
   const makeMove = async (gameId: number, subtraction: number) => {
-    setLoading(true)
-    try {
-      const signer = await getEthersSigner(config)
-      
-      if (!signer) {
-        throw new Error('Please connect your wallet')
-      }
-
-      const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
-      
-      const tx = await contract.makeMove(gameId, subtraction)
-      
-      toast.success('Making move...')
-      await tx.wait()
-      toast.success('Move made successfully!')
-      return { success: true, txHash: tx.hash }
-    } catch (error: any) {
-      console.error('Error making move:', error)
-      toast.error(error.reason || error.message || 'Invalid move')
-      throw error
-    } finally {
-      setLoading(false)
-    }
+    return executeTransaction(
+      async () => {
+        const signer = await getSigner()
+        const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+        
+        console.log(`Making move: gameId=${gameId}, subtraction=${subtraction}`)
+        return await contract.makeMove(gameId, subtraction)
+      },
+      'Submitting move...',
+      'Move submitted successfully!',
+      'Failed to submit move'
+    )
   }
 
-  // Handle Timeout
   const handleTimeout = async (gameId: number) => {
-    setLoading(true)
-    try {
-      const signer = await getEthersSigner(config)
-      
-      if (!signer) {
-        throw new Error('Please connect your wallet')
-      }
-
-      const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
-      
-      const tx = await contract.handleTimeout(gameId)
-      
-      toast.success('Handling timeout...')
-      await tx.wait()
-      toast.success('Timeout handled!')
-      return { success: true, txHash: tx.hash }
-    } catch (error: any) {
-      console.error('Error handling timeout:', error)
-      toast.error(error.reason || error.message || 'Failed to handle timeout')
-      throw error
-    } finally {
-      setLoading(false)
-    }
+    return executeTransaction(
+      async () => {
+        const signer = await getSigner()
+        const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+        
+        return await contract.handleTimeout(gameId)
+      },
+      'Processing timeout...',
+      'Timeout handled successfully!',
+      'Failed to handle timeout'
+    )
   }
 
-  // Withdraw Balance
+  // NEW: Cancel waiting games
+  const cancelWaitingGame = async (gameId: number) => {
+    return executeTransaction(
+      async () => {
+        const signer = await getSigner()
+        const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+        
+        return await contract.cancelWaitingGame(gameId)
+      },
+      'Cancelling game...',
+      'Game cancelled successfully!',
+      'Failed to cancel game'
+    )
+  }
+
+  // NEW: Force finish stuck games
+  const forceFinishInactiveGame = async (gameId: number) => {
+    return executeTransaction(
+      async () => {
+        const signer = await getSigner()
+        const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+        
+        return await contract.forceFinishInactiveGame(gameId)
+      },
+      'Force finishing stuck game...',
+      'Game finished successfully!',
+      'Failed to force finish game'
+    )
+  }
+
   const withdraw = async () => {
-    setLoading(true)
-    try {
-      const signer = await getEthersSigner(config)
-      
-      if (!signer) {
-        throw new Error('Please connect your wallet')
-      }
-
-      const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
-      
-      const tx = await contract.withdraw()
-      
-      toast.success('Withdrawing balance...')
-      await tx.wait()
-      toast.success('Balance withdrawn successfully!')
-      return { success: true, txHash: tx.hash }
-    } catch (error: any) {
-      console.error('Error withdrawing:', error)
-      toast.error(error.reason || error.message || 'Failed to withdraw')
-      throw error
-    } finally {
-      setLoading(false)
-    }
+    return executeTransaction(
+      async () => {
+        const signer = await getSigner()
+        const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+        
+        return await contract.withdraw()
+      },
+      'Withdrawing balance...',
+      'Balance withdrawn successfully!',
+      'Failed to withdraw'
+    )
   }
 
-  // Stake ETH
   const stake = async (amount: string) => {
-    setLoading(true)
-    try {
-      const signer = await getEthersSigner(config)
-      
-      if (!signer) {
-        throw new Error('Please connect your wallet')
-      }
-
-      const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
-      
-      const tx = await contract.stake({
-        value: ethers.parseEther(amount)
-      })
-      
-      toast.success('Staking ETH...')
-      await tx.wait()
-      toast.success('ETH staked successfully!')
-      return { success: true, txHash: tx.hash }
-    } catch (error: any) {
-      console.error('Error staking:', error)
-      toast.error(error.reason || error.message || 'Failed to stake')
-      throw error
-    } finally {
-      setLoading(false)
-    }
+    return executeTransaction(
+      async () => {
+        const signer = await getSigner()
+        const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+        
+        return await contract.stake({
+          value: ethers.parseEther(amount)
+        })
+      },
+      'Staking ETH...',
+      'ETH staked successfully!',
+      'Failed to stake'
+    )
   }
 
-  // Unstake ETH
   const unstake = async (amount: string) => {
-    setLoading(true)
-    try {
-      const signer = await getEthersSigner(config)
-      
-      if (!signer) {
-        throw new Error('Please connect your wallet')
-      }
-
-      const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
-      
-      const tx = await contract.unstake(ethers.parseEther(amount))
-      
-      toast.success('Unstaking ETH...')
-      await tx.wait()
-      toast.success('ETH unstaked successfully!')
-      return { success: true, txHash: tx.hash }
-    } catch (error: any) {
-      console.error('Error unstaking:', error)
-      toast.error(error.reason || error.message || 'Failed to unstake')
-      throw error
-    } finally {
-      setLoading(false)
-    }
+    return executeTransaction(
+      async () => {
+        const signer = await getSigner()
+        const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+        
+        return await contract.unstake(ethers.parseEther(amount))
+      },
+      'Unstaking ETH...',
+      'ETH unstaked successfully!',
+      'Failed to unstake'
+    )
   }
 
-  // Claim Rewards
   const claimRewards = async () => {
-    setLoading(true)
-    try {
-      const signer = await getEthersSigner(config)
-      
-      if (!signer) {
-        throw new Error('Please connect your wallet')
-      }
-
-      const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
-      
-      const tx = await contract.claimRewards()
-      
-      toast.success('Claiming rewards...')
-      await tx.wait()
-      toast.success('Rewards claimed successfully!')
-      return { success: true, txHash: tx.hash }
-    } catch (error: any) {
-      console.error('Error claiming rewards:', error)
-      toast.error(error.reason || error.message || 'Failed to claim rewards')
-      throw error
-    } finally {
-      setLoading(false)
-    }
+    return executeTransaction(
+      async () => {
+        const signer = await getSigner()
+        const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+        
+        return await contract.claimRewards()
+      },
+      'Claiming rewards...',
+      'Rewards claimed successfully!',
+      'Failed to claim rewards'
+    )
   }
 
   return {
@@ -371,6 +394,8 @@ export function useZeroSumContract() {
     joinGame,
     makeMove,
     handleTimeout,
+    cancelWaitingGame, // NEW
+    forceFinishInactiveGame, // NEW
     withdraw,
     stake,
     unstake,
@@ -380,309 +405,539 @@ export function useZeroSumContract() {
 
 // Hook for reading contract data
 export function useZeroSumData() {
-  const config = useConfig()
+  const { providerReady, getProvider, isConnected, address } = useContractProvider()
+  const [contractsReady, setContractsReady] = useState(false)
+  const contractsRef = useRef<{ gameContract: any; spectatorContract: any } | null>(null)
 
-  // Get contract instances
-  const getContracts = () => {
-    const provider = getEthersProvider(config)
-    if (!provider) return null
-
-    const gameContract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, provider)
-    const spectatorContract = new ethers.Contract(SPECTATOR_CONTRACT_ADDRESS, ZeroSumSpectatorABI, provider)
+  // Initialize contracts when provider is ready
+  useEffect(() => {
+    console.log('🔗 Contract initialization effect:', { providerReady, isConnected, address })
     
-    return { gameContract, spectatorContract }
-  }
-
-  // Get Game Data
-  const getGame = async (gameId: number): Promise<GameData | null> => {
-    try {
-      const contracts = getContracts()
-      if (!contracts) return null
-
-      const game = await contracts.gameContract.getGame(gameId)
+    if (providerReady) {
+      const provider = getProvider()
+      console.log('📡 Provider available:', !!provider)
       
-      return {
-        gameId: Number(game.gameId),
-        mode: Number(game.mode) as GameMode,
-        currentNumber: Number(game.currentNumber),
-        currentPlayer: game.currentPlayer,
-        status: Number(game.status) as GameStatus,
-        entryFee: ethers.formatEther(game.entryFee),
-        prizePool: ethers.formatEther(game.prizePool),
-        winner: game.winner,
-        numberGenerated: game.numberGenerated
+      if (provider) {
+        try {
+          console.log('🏗️ Contract addresses:', { GAME_CONTRACT_ADDRESS, SPECTATOR_CONTRACT_ADDRESS })
+          
+          const gameContract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, provider)
+          const spectatorContract = new ethers.Contract(SPECTATOR_CONTRACT_ADDRESS, ZeroSumSpectatorABI, provider)
+          
+          contractsRef.current = { gameContract, spectatorContract }
+          setContractsReady(true)
+          console.log('✅ Contracts initialized and ready')
+        } catch (error) {
+          console.error('❌ Contract initialization failed:', error)
+          setContractsReady(false)
+        }
       }
-    } catch (error) {
-      console.error('Error getting game:', error)
+    } else {
+      console.log('⏳ Provider not ready yet, waiting...')
+      setContractsReady(false)
+      contractsRef.current = null
+    }
+  }, [providerReady, getProvider])
+
+  const getContracts = useCallback(() => {
+    if (!contractsReady || !contractsRef.current) {
+      console.log('⚠️ Contracts not ready yet')
       return null
+    }
+    return contractsRef.current
+  }, [contractsReady])
+
+  // Enhanced error handling for read functions
+  const safeContractCall = async <T>(
+    contractCall: () => Promise<T>,
+    defaultValue: T,
+    errorContext: string,
+    requiresConnection = false
+  ): Promise<T> => {
+    try {
+      if (requiresConnection && (!isConnected || !address)) {
+        console.log(`⚠️ ${errorContext}: Connection required but not available`)
+        return defaultValue
+      }
+
+      if (!contractsReady) {
+        console.log(`⚠️ ${errorContext}: Contracts not ready`)
+        return defaultValue
+      }
+
+      const result = await contractCall()
+      console.log(`✅ ${errorContext}:`, result)
+      return result
+    } catch (error) {
+      console.error(`❌ ${errorContext}:`, error)
+      return defaultValue
     }
   }
 
-  // Get Game Players
-  const getPlayers = async (gameId: number): Promise<string[]> => {
-    try {
-      const contracts = getContracts()
-      if (!contracts) return []
+  // Get Game Data with better validation
+  const getGame = useCallback(async (gameId: number): Promise<GameData | null> => {
+    if (!gameId && gameId !== 0) {
+      console.log('❌ Invalid game ID:', gameId)
+      return null
+    }
+  
+    return safeContractCall(
+      async () => {
+        const contracts = getContracts()
+        if (!contracts) throw new Error('Contracts not ready')
+  
+        console.log(`🔍 Fetching game data for ID: ${gameId}`)
+        
+        // Check if the game exists by checking gameCounter
+        const gameCounter = await contracts.gameContract.gameCounter()
+        const totalGames = Number(gameCounter)
+        
+        console.log(`📊 Total games on contract: ${totalGames}`)
+        console.log(`🎯 Requested game ID: ${gameId}`)
+        
+        // Game counter starts from 1, so valid range is 1 to gameCounter-1
+        if (gameId < 1 || gameId >= totalGames) {
+          console.error(`❌ Game #${gameId} doesn't exist. Valid range: 1-${totalGames-1}`)
+          throw new Error(`Game #${gameId} doesn't exist. Total games: ${totalGames-1}`)
+        }
+        
+        console.log(`✅ Game #${gameId} is within valid range, fetching...`)
+        const game = await contracts.gameContract.getGame(gameId)
+        
+        if (!game) {
+          console.error(`❌ Game #${gameId} returned null/undefined data`)
+          throw new Error(`Game #${gameId} returned invalid data`)
+        }
+        
+        const gameIdFromContract = Number(game.gameId)
+        console.log(`📊 Contract returned gameId: ${gameIdFromContract}, expected: ${gameId}`)
+        
+        if (gameIdFromContract !== gameId) {
+          console.error(`❌ Game ID mismatch: requested ${gameId}, got ${gameIdFromContract}`)
+          throw new Error(`Game ID mismatch: requested ${gameId}, but contract returned ${gameIdFromContract}`)
+        }
+        
+        const gameData: GameData = {
+          gameId: gameIdFromContract,
+          mode: Number(game.mode) as GameMode,
+          currentNumber: Number(game.currentNumber),
+          currentPlayer: game.currentPlayer,
+          status: Number(game.status) as GameStatus,
+          entryFee: ethers.formatEther(game.entryFee),
+          prizePool: ethers.formatEther(game.prizePool),
+          winner: game.winner,
+          numberGenerated: game.numberGenerated
+        }
+        
+        console.log(`✅ Successfully fetched game #${gameId}:`, {
+          gameId: gameData.gameId,
+          status: gameData.status,
+          mode: gameData.mode,
+          currentNumber: gameData.currentNumber
+        })
+        
+        return gameData
+      },
+      null,
+      `getGame(${gameId})`
+    )
+  }, [getContracts, contractsReady])
 
-      return await contracts.gameContract.getPlayers(gameId)
-    } catch (error) {
-      console.error('Error getting players:', error)
+  const getPlayers = useCallback(async (gameId: number): Promise<string[]> => {
+    if (gameId < 1) {
+      console.log('❌ Invalid game ID for getPlayers:', gameId)
       return []
     }
-  }
 
-  // Get Player View - Updated to match your contract's actual return values
-  const getPlayerView = async (gameId: number): Promise<PlayerView | null> => {
-    try {
-      const contracts = getContracts()
-      if (!contracts) return null
+    return safeContractCall(
+      async () => {
+        const contracts = getContracts()
+        if (!contracts) throw new Error('Contracts not ready')
 
-      const view = await contracts.gameContract.getPlayerView(gameId)
-      
-      return {
-        number: Number(view.number),
-        yourTurn: view.yourTurn,
-        timeLeft: Number(view.timeLeft),
-        yourTimeouts: Number(view.yourTimeouts),
-        opponentTimeouts: Number(view.opponentTimeouts)
-      }
-    } catch (error) {
-      console.error('Error getting player view:', error)
+        const players = await contracts.gameContract.getPlayers(gameId)
+        console.log(`👥 Players for game ${gameId}:`, players)
+        return players
+      },
+      [],
+      `getPlayers(${gameId})`
+    )
+  }, [getContracts, contractsReady])
+
+  // UPDATED: Enhanced Player View with new fields
+  const getPlayerView = useCallback(async (gameId: number): Promise<PlayerView | null> => {
+    if (gameId < 1) {
+      console.log('❌ Invalid game ID for getPlayerView:', gameId)
       return null
     }
-  }
 
-  // Get Player Stats
-  const getPlayerStats = async (address: string): Promise<PlayerStats | null> => {
-    try {
-      const contracts = getContracts()
-      if (!contracts || !address) return null
+    return safeContractCall(
+      async () => {
+        const contracts = getContracts()
+        if (!contracts) throw new Error('Contracts not ready')
 
-      const stats = await contracts.gameContract.getStats(address)
-      
-      return {
-        balance: ethers.formatEther(stats[0]),
-        wins: Number(stats[1]),
-        played: Number(stats[2]),
-        winRate: Number(stats[3]),
-        stakedAmount: ethers.formatEther(stats[4])
-      }
-    } catch (error) {
-      console.error('Error getting player stats:', error)
+        const view = await contracts.gameContract.getPlayerView(gameId)
+        
+        const playerView: PlayerView = {
+          number: Number(view.number),
+          yourTurn: view.yourTurn,
+          timeLeft: Number(view.timeLeft),
+          yourTimeouts: Number(view.yourTimeouts),
+          opponentTimeouts: Number(view.opponentTimeouts),
+          gameStuck: view.gameStuck || false, // NEW
+          stuckPlayer: view.stuckPlayer || '0x0000000000000000000000000000000000000000' // NEW
+        }
+        
+        console.log(`🎯 Enhanced player view for game ${gameId}:`, playerView)
+        return playerView
+      },
+      null,
+      `getPlayerView(${gameId})`,
+      true // Requires connection
+    )
+  }, [getContracts, contractsReady, isConnected, address])
+
+  // NEW: Get Game Summary in one call
+  const getGameSummary = useCallback(async (gameId: number): Promise<GameSummary | null> => {
+    if (gameId < 1) {
+      console.log('❌ Invalid game ID for getGameSummary:', gameId)
       return null
     }
-  }
 
-  // Get Player Balance
-  const getPlayerBalance = async (address: string): Promise<string> => {
-    try {
-      const contracts = getContracts()
-      if (!contracts || !address) return "0"
+    return safeContractCall(
+      async () => {
+        const contracts = getContracts()
+        if (!contracts) throw new Error('Contracts not ready')
 
-      const balance = await contracts.gameContract.balances(address)
-      return ethers.formatEther(balance)
-    } catch (error) {
-      console.error('Error getting balance:', error)
-      return "0"
-    }
-  }
+        const summary = await contracts.gameContract.getGameSummary(gameId)
+        
+        return {
+          gameId: Number(summary.gameId),
+          mode: Number(summary.mode) as GameMode,
+          status: Number(summary.status) as GameStatus,
+          currentNumber: Number(summary.currentNumber),
+          currentPlayer: summary.currentPlayer,
+          winner: summary.winner,
+          entryFee: ethers.formatEther(summary.entryFee),
+          prizePool: ethers.formatEther(summary.prizePool),
+          players: summary.players,
+          numberGenerated: summary.numberGenerated,
+          timeLeft: Number(summary.timeLeft),
+          isStuck: summary.isStuck
+        }
+      },
+      null,
+      `getGameSummary(${gameId})`
+    )
+  }, [getContracts, contractsReady])
 
-  // Get Staking Info
-  const getStakingInfo = async (address: string): Promise<StakingInfo | null> => {
-    try {
-      const contracts = getContracts()
-      if (!contracts || !address) return null
+  // NEW: Batch getter for multiple games
+  const getGamesBatch = useCallback(async (gameIds: number[]): Promise<GameData[]> => {
+    if (!gameIds.length) return []
 
-      const info = await contracts.gameContract.staking(address)
-      
-      return {
-        amount: ethers.formatEther(info.amount),
-        lastReward: Number(info.lastReward),
-        rewards: ethers.formatEther(info.rewards)
-      }
-    } catch (error) {
-      console.error('Error getting staking info:', error)
-      return null
-    }
-  }
+    return safeContractCall(
+      async () => {
+        const contracts = getContracts()
+        if (!contracts) throw new Error('Contracts not ready')
 
-  // Get Game Counter
-  const getGameCounter = async (): Promise<number> => {
-    try {
-      const contracts = getContracts()
-      if (!contracts) return 0
+        const games = await contracts.gameContract.getGamesBatch(gameIds)
+        
+        return games.map((game: any) => ({
+          gameId: Number(game.gameId),
+          mode: Number(game.mode) as GameMode,
+          currentNumber: Number(game.currentNumber),
+          currentPlayer: game.currentPlayer,
+          status: Number(game.status) as GameStatus,
+          entryFee: ethers.formatEther(game.entryFee),
+          prizePool: ethers.formatEther(game.prizePool),
+          winner: game.winner,
+          numberGenerated: game.numberGenerated
+        }))
+      },
+      [],
+      `getGamesBatch([${gameIds.join(',')}])`
+    )
+  }, [getContracts, contractsReady])
 
-      const counter = await contracts.gameContract.gameCounter()
-      return Number(counter)
-    } catch (error) {
-      console.error('Error getting game counter:', error)
-      return 0
-    }
-  }
+  // NEW: Get user's games efficiently
+  const getUserGames = useCallback(async (
+    userAddress: string, 
+    fromGameId: number = 0, 
+    limit: number = 10
+  ): Promise<{ gameIds: number[], games: GameData[] }> => {
+    if (!userAddress) return { gameIds: [], games: [] }
 
-  // Check if game is bettable
-  const isGameBettable = async (gameId: number): Promise<boolean> => {
-    try {
-      const contracts = getContracts()
-      if (!contracts) return false
+    return safeContractCall(
+      async () => {
+        const contracts = getContracts()
+        if (!contracts) throw new Error('Contracts not ready')
 
-      return await contracts.gameContract.isGameBettable(gameId)
-    } catch (error) {
-      console.error('Error checking if game is bettable:', error)
-      return false
-    }
-  }
+        const result = await contracts.gameContract.getUserGames(userAddress, fromGameId, limit)
+        
+        const gameIds = result.gameIds.map((id: any) => Number(id))
+        const games = result.userGames.map((game: any) => ({
+          gameId: Number(game.gameId),
+          mode: Number(game.mode) as GameMode,
+          currentNumber: Number(game.currentNumber),
+          currentPlayer: game.currentPlayer,
+          status: Number(game.status) as GameStatus,
+          entryFee: ethers.formatEther(game.entryFee),
+          prizePool: ethers.formatEther(game.prizePool),
+          winner: game.winner,
+          numberGenerated: game.numberGenerated
+        }))
 
-  // Get Game For Spectators
-  const getGameForSpectators = async (gameId: number): Promise<SpectatorGameData | null> => {
-    try {
-      const contracts = getContracts()
-      if (!contracts) return null
+        return { gameIds, games }
+      },
+      { gameIds: [], games: [] },
+      `getUserGames(${userAddress}, ${fromGameId}, ${limit})`
+    )
+  }, [getContracts, contractsReady])
 
-      const result = await contracts.gameContract.getGameForSpectators(gameId)
-      
-      return {
-        status: Number(result.status) as GameStatus,
-        winner: result.winner,
-        players: result.players,
-        currentNumber: Number(result.currentNumber),
-        numberGenerated: result.numberGenerated,
-        currentPlayer: result.currentPlayer,
-        mode: Number(result.mode) as GameMode
-      }
-    } catch (error) {
-      console.error('Error getting game for spectators:', error)
-      return null
-    }
-  }
+  const getPlayerStats = useCallback(async (playerAddress: string): Promise<PlayerStats | null> => {
+    if (!playerAddress) return null
+    
+    return safeContractCall(
+      async () => {
+        const contracts = getContracts()
+        if (!contracts) throw new Error('Contracts not ready')
 
-  // Get Platform Stats
-  const getPlatformStats = async () => {
-    try {
-      const contracts = getContracts()
-      if (!contracts) return null
+        const stats = await contracts.gameContract.getStats(playerAddress)
+        
+        return {
+          balance: ethers.formatEther(stats[0]),
+          wins: Number(stats[1]),
+          played: Number(stats[2]),
+          winRate: Number(stats[3]),
+          stakedAmount: ethers.formatEther(stats[4])
+        }
+      },
+      null,
+      `getPlayerStats(${playerAddress})`
+    )
+  }, [getContracts, contractsReady])
 
-      const [gameCounter, platformFee, totalStaked, timeLimit, stakingAPY] = await Promise.all([
-        contracts.gameContract.gameCounter(),
-        contracts.gameContract.platformFee(),
-        contracts.gameContract.totalStaked(),
-        contracts.gameContract.timeLimit(),
-        contracts.gameContract.stakingAPY()
-      ])
+  const getPlayerBalance = useCallback(async (playerAddress: string): Promise<string> => {
+    if (!playerAddress) return "0"
+    
+    return safeContractCall(
+      async () => {
+        const contracts = getContracts()
+        if (!contracts) throw new Error('Contracts not ready')
 
-      return {
-        gameCounter: Number(gameCounter),
-        platformFee: Number(platformFee),
-        totalStaked: ethers.formatEther(totalStaked),
-        timeLimit: Number(timeLimit),
-        stakingAPY: Number(stakingAPY)
-      }
-    } catch (error) {
-      console.error('Error getting platform stats:', error)
-      return null
-    }
-  }
+        const balance = await contracts.gameContract.balances(playerAddress)
+        return ethers.formatEther(balance)
+      },
+      "0",
+      `getPlayerBalance(${playerAddress})`
+    )
+  }, [getContracts, contractsReady])
+
+  const getStakingInfo = useCallback(async (playerAddress: string): Promise<StakingInfo | null> => {
+    if (!playerAddress) return null
+    
+    return safeContractCall(
+      async () => {
+        const contracts = getContracts()
+        if (!contracts) throw new Error('Contracts not ready')
+
+        const info = await contracts.gameContract.staking(playerAddress)
+        
+        return {
+          amount: ethers.formatEther(info.amount),
+          lastReward: Number(info.lastReward),
+          rewards: ethers.formatEther(info.rewards)
+        }
+      },
+      null,
+      `getStakingInfo(${playerAddress})`
+    )
+  }, [getContracts, contractsReady])
+
+  const getGameCounter = useCallback(async (): Promise<number> => {
+    return safeContractCall(
+      async () => {
+        const contracts = getContracts()
+        if (!contracts) throw new Error('Contracts not ready')
+
+        const counter = await contracts.gameContract.gameCounter()
+        return Number(counter)
+      },
+      1, // Default to 1 since your contract starts from 1
+      'getGameCounter()'
+    )
+  }, [getContracts, contractsReady])
+
+  const isGameBettable = useCallback(async (gameId: number): Promise<boolean> => {
+    return safeContractCall(
+      async () => {
+        const contracts = getContracts()
+        if (!contracts) throw new Error('Contracts not ready')
+
+        return await contracts.gameContract.isGameBettable(gameId)
+      },
+      false,
+      `isGameBettable(${gameId})`
+    )
+  }, [getContracts, contractsReady])
+
+  const getGameForSpectators = useCallback(async (gameId: number): Promise<SpectatorGameData | null> => {
+    return safeContractCall(
+      async () => {
+        const contracts = getContracts()
+        if (!contracts) throw new Error('Contracts not ready')
+
+        const result = await contracts.gameContract.getGameForSpectators(gameId)
+        
+        return {
+          status: Number(result.status) as GameStatus,
+          winner: result.winner,
+          players: result.players,
+          currentNumber: Number(result.currentNumber),
+          numberGenerated: result.numberGenerated,
+          currentPlayer: result.currentPlayer,
+          mode: Number(result.mode) as GameMode
+        }
+      },
+      null,
+      `getGameForSpectators(${gameId})`
+    )
+  }, [getContracts, contractsReady])
+
+  const getPlatformStats = useCallback(async () => {
+    return safeContractCall(
+      async () => {
+        const contracts = getContracts()
+        if (!contracts) throw new Error('Contracts not ready')
+
+        const [gameCounter, platformFee, totalStaked, timeLimit, stakingAPY] = await Promise.all([
+          contracts.gameContract.gameCounter(),
+          contracts.gameContract.platformFee(),
+          contracts.gameContract.totalStaked(),
+          contracts.gameContract.timeLimit(),
+          contracts.gameContract.stakingAPY()
+        ])
+
+        return {
+          gameCounter: Number(gameCounter),
+          platformFee: Number(platformFee),
+          totalStaked: ethers.formatEther(totalStaked),
+          timeLimit: Number(timeLimit),
+          stakingAPY: Number(stakingAPY)
+        }
+      },
+      null,
+      'getPlatformStats()'
+    )
+  }, [getContracts, contractsReady])
 
   return {
+    // State
+    contractsReady,
+    providerReady,
+    
+    // Original functions
     getGame,
     getPlayers,
-    getPlayerView,
+    getPlayerView, // Enhanced with new fields
     getPlayerStats,
     getPlayerBalance,
     getStakingInfo,
     getGameCounter,
     isGameBettable,
     getGameForSpectators,
-    getPlatformStats
+    getPlatformStats,
+    
+    // NEW functions matching your contract
+    getGameSummary,
+    getGamesBatch,
+    getUserGames
   }
 }
 
 // Hook for spectator/betting functionality
 export function useSpectatorContract() {
-  const config = useConfig()
+  const { getSigner } = useContractProvider()
   const [loading, setLoading] = useState(false)
 
-  // Place Bet
+  const executeSpectatorTransaction = async (
+    contractCall: () => Promise<any>,
+    loadingMessage: string,
+    successMessage: string,
+    errorMessage: string
+  ) => {
+    setLoading(true)
+    try {
+      const signer = await getSigner()
+      
+      if (!signer) {
+        throw new Error('Please connect your wallet')
+      }
+
+      toast.success(loadingMessage)
+      const tx = await contractCall()
+      
+      const receipt = await tx.wait()
+      toast.success(successMessage)
+      return { success: true, txHash: tx.hash, receipt }
+    } catch (error: any) {
+      console.error('Spectator transaction failed:', error)
+      
+      let errorMsg = errorMessage
+      if (error.reason) {
+        errorMsg = error.reason
+      } else if (error.message && error.message.includes('user rejected')) {
+        errorMsg = 'Transaction cancelled by user'
+      }
+      
+      toast.error(errorMsg)
+      return { success: false, error: errorMsg }
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const placeBet = async (gameId: number, predictedWinner: string, amount: string) => {
-    setLoading(true)
-    try {
-      const signer = await getEthersSigner(config)
-      
-      if (!signer) {
-        throw new Error('Please connect your wallet')
-      }
-
-      const contract = new ethers.Contract(SPECTATOR_CONTRACT_ADDRESS, ZeroSumSpectatorABI, signer)
-      
-      const tx = await contract.placeBet(GAME_CONTRACT_ADDRESS, gameId, predictedWinner, {
-        value: ethers.parseEther(amount)
-      })
-      
-      toast.success('Placing bet...')
-      await tx.wait()
-      toast.success('Bet placed successfully!')
-      return { success: true, txHash: tx.hash }
-    } catch (error: any) {
-      console.error('Error placing bet:', error)
-      toast.error(error.reason || error.message || 'Failed to place bet')
-      throw error
-    } finally {
-      setLoading(false)
-    }
+    return executeSpectatorTransaction(
+      async () => {
+        const signer = await getSigner()
+        const contract = new ethers.Contract(SPECTATOR_CONTRACT_ADDRESS, ZeroSumSpectatorABI, signer)
+        
+        return await contract.placeBet(GAME_CONTRACT_ADDRESS, gameId, predictedWinner, {
+          value: ethers.parseEther(amount)
+        })
+      },
+      'Placing bet...',
+      'Bet placed successfully!',
+      'Failed to place bet'
+    )
   }
 
-  // Claim Betting Winnings
   const claimBettingWinnings = async (gameId: number) => {
-    setLoading(true)
-    try {
-      const signer = await getEthersSigner(config)
-      
-      if (!signer) {
-        throw new Error('Please connect your wallet')
-      }
-
-      const contract = new ethers.Contract(SPECTATOR_CONTRACT_ADDRESS, ZeroSumSpectatorABI, signer)
-      
-      const tx = await contract.claimBettingWinnings(GAME_CONTRACT_ADDRESS, gameId)
-      
-      toast.success('Claiming winnings...')
-      await tx.wait()
-      toast.success('Winnings claimed successfully!')
-      return { success: true, txHash: tx.hash }
-    } catch (error: any) {
-      console.error('Error claiming winnings:', error)
-      toast.error(error.reason || error.message || 'Failed to claim winnings')
-      throw error
-    } finally {
-      setLoading(false)
-    }
+    return executeSpectatorTransaction(
+      async () => {
+        const signer = await getSigner()
+        const contract = new ethers.Contract(SPECTATOR_CONTRACT_ADDRESS, ZeroSumSpectatorABI, signer)
+        
+        return await contract.claimBettingWinnings(GAME_CONTRACT_ADDRESS, gameId)
+      },
+      'Claiming winnings...',
+      'Winnings claimed successfully!',
+      'Failed to claim winnings'
+    )
   }
 
-  // Withdraw Spectator Balance
   const withdrawSpectatorBalance = async () => {
-    setLoading(true)
-    try {
-      const signer = await getEthersSigner(config)
-      
-      if (!signer) {
-        throw new Error('Please connect your wallet')
-      }
-
-      const contract = new ethers.Contract(SPECTATOR_CONTRACT_ADDRESS, ZeroSumSpectatorABI, signer)
-      
-      const tx = await contract.withdrawSpectatorBalance()
-      
-      toast.success('Withdrawing balance...')
-      await tx.wait()
-      toast.success('Balance withdrawn successfully!')
-      return { success: true, txHash: tx.hash }
-    } catch (error: any) {
-      console.error('Error withdrawing spectator balance:', error)
-      toast.error(error.reason || error.message || 'Failed to withdraw balance')
-      throw error
-    } finally {
-      setLoading(false)
-    }
+    return executeSpectatorTransaction(
+      async () => {
+        const signer = await getSigner()
+        const contract = new ethers.Contract(SPECTATOR_CONTRACT_ADDRESS, ZeroSumSpectatorABI, signer)
+        
+        return await contract.withdrawSpectatorBalance()
+      },
+      'Withdrawing balance...',
+      'Balance withdrawn successfully!',
+      'Failed to withdraw balance'
+    )
   }
 
   return {
@@ -695,78 +950,96 @@ export function useSpectatorContract() {
 
 // Hook for spectator/betting data
 export function useSpectatorData() {
-  const config = useConfig()
+  const { providerReady, getProvider } = useContractProvider()
 
-  // Get contract instance
-  const getSpectatorContract = () => {
-    const provider = getEthersProvider(config)
+  const getSpectatorContract = useCallback(() => {
+    if (!providerReady) return null
+    const provider = getProvider()
     if (!provider) return null
-
     return new ethers.Contract(SPECTATOR_CONTRACT_ADDRESS, ZeroSumSpectatorABI, provider)
+  }, [providerReady, getProvider])
+
+  const safeSpectatorCall = async <T>(
+    contractCall: () => Promise<T>,
+    defaultValue: T,
+    errorContext: string
+  ): Promise<T> => {
+    try {
+      if (!providerReady) {
+        console.log(`⚠️ ${errorContext}: Provider not ready`)
+        return defaultValue
+      }
+      return await contractCall()
+    } catch (error) {
+      console.error(`❌ ${errorContext}:`, error)
+      return defaultValue
+    }
   }
 
-  // Get Betting Info
   const getBettingInfo = async (gameId: number): Promise<BettingInfo | null> => {
-    try {
-      const contract = getSpectatorContract()
-      if (!contract) return null
+    return safeSpectatorCall(
+      async () => {
+        const contract = getSpectatorContract()
+        if (!contract) throw new Error('Contract not available')
 
-      const info = await contract.getGameBettingInfo(GAME_CONTRACT_ADDRESS, gameId)
-      
-      return {
-        totalBetAmount: ethers.formatEther(info.totalBetAmount),
-        numberOfBets: Number(info.numberOfBets),
-        bettingAllowed: info.bettingAllowed
-      }
-    } catch (error) {
-      console.error('Error getting betting info:', error)
-      return null
-    }
+        const info = await contract.getGameBettingInfo(GAME_CONTRACT_ADDRESS, gameId)
+        
+        return {
+          totalBetAmount: ethers.formatEther(info.totalBetAmount),
+          numberOfBets: Number(info.numberOfBets),
+          bettingAllowed: info.bettingAllowed
+        }
+      },
+      null,
+      `getBettingInfo(${gameId})`
+    )
   }
 
-  // Get Betting Odds
   const getBettingOdds = async (gameId: number, players: string[]): Promise<BettingOdds | null> => {
-    try {
-      const contract = getSpectatorContract()
-      if (!contract) return null
+    return safeSpectatorCall(
+      async () => {
+        const contract = getSpectatorContract()
+        if (!contract) throw new Error('Contract not available')
 
-      const odds = await contract.getBettingOdds(GAME_CONTRACT_ADDRESS, gameId, players)
-      
-      return {
-        betAmounts: odds.betAmounts.map((amount: any) => ethers.formatEther(amount)),
-        oddPercentages: odds.oddPercentages.map((percentage: any) => Number(percentage))
-      }
-    } catch (error) {
-      console.error('Error getting betting odds:', error)
-      return null
-    }
+        const odds = await contract.getBettingOdds(GAME_CONTRACT_ADDRESS, gameId, players)
+        
+        return {
+          betAmounts: odds.betAmounts.map((amount: any) => ethers.formatEther(amount)),
+          oddPercentages: odds.oddPercentages.map((percentage: any) => Number(percentage))
+        }
+      },
+      null,
+      `getBettingOdds(${gameId})`
+    )
   }
 
-  // Get Spectator Balance
   const getSpectatorBalance = async (address: string): Promise<string> => {
-    try {
-      const contract = getSpectatorContract()
-      if (!contract || !address) return "0"
+    if (!address) return "0"
+    
+    return safeSpectatorCall(
+      async () => {
+        const contract = getSpectatorContract()
+        if (!contract) throw new Error('Contract not available')
 
-      const balance = await contract.spectatorBalances(address)
-      return ethers.formatEther(balance)
-    } catch (error) {
-      console.error('Error getting spectator balance:', error)
-      return "0"
-    }
+        const balance = await contract.spectatorBalances(address)
+        return ethers.formatEther(balance)
+      },
+      "0",
+      `getSpectatorBalance(${address})`
+    )
   }
 
-  // Check if betting is allowed
   const isBettingAllowed = async (gameId: number): Promise<boolean> => {
-    try {
-      const contract = getSpectatorContract()
-      if (!contract) return false
+    return safeSpectatorCall(
+      async () => {
+        const contract = getSpectatorContract()
+        if (!contract) throw new Error('Contract not available')
 
-      return await contract.isBettingAllowed(GAME_CONTRACT_ADDRESS, gameId)
-    } catch (error) {
-      console.error('Error checking if betting is allowed:', error)
-      return false
-    }
+        return await contract.isBettingAllowed(GAME_CONTRACT_ADDRESS, gameId)
+      },
+      false,
+      `isBettingAllowed(${gameId})`
+    )
   }
 
   return {

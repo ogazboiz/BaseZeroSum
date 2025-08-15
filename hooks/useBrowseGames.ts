@@ -1,4 +1,4 @@
-// hooks/useBrowseGames.ts (EMERGENCY FIX - STOPS INFINITE CALLS)
+// hooks/useBrowseGames.ts - FIXED VERSION
 import { useState, useEffect, useRef } from 'react'
 import { useZeroSumData, GameMode, GameStatus } from './useZeroSumContract'
 
@@ -7,7 +7,7 @@ export interface BattleData {
   mode: string
   modeId: string
   creator: string
-  creatorAddress: string // Add creator's wallet address for security checks
+  creatorAddress: string
   entryFee: string
   prizePool: string
   timeLeft: string
@@ -28,7 +28,7 @@ export interface BattleFilter {
 }
 
 export function useBrowseGames() {
-  const { getGameCounter, getGame, getPlayers } = useZeroSumData()
+  const { getGameCounter, getGame, getPlayers, contractsReady, providerReady } = useZeroSumData()
   const [battles, setBattles] = useState<BattleData[]>([])
   const [loading, setLoading] = useState(true)
   const [debugInfo, setDebugInfo] = useState<any>({})
@@ -38,7 +38,6 @@ export function useBrowseGames() {
     { id: "strategic", label: "STRATEGIC", count: 0 },
   ])
 
-  // Prevent infinite re-renders
   const isLoadingRef = useRef(false)
   const stableDataCache = useRef<Map<number, { timeLeft: string; spectators: number }>>(new Map())
 
@@ -98,9 +97,17 @@ export function useBrowseGames() {
     return poolValue > 0.05 || spectators > 20
   }
 
-  // SIMPLE fetch function - NO useCallback to prevent dependency loops
+  // Main fetch function
   const fetchBattles = async () => {
-    // Prevent concurrent calls
+    console.log('🚀 fetchBattles called')
+    console.log('🔧 Contract status:', { contractsReady, providerReady })
+    
+    // CRITICAL: Wait for contracts to be ready
+    if (!contractsReady || !providerReady) {
+      console.log('⏳ Contracts not ready yet, will retry when ready')
+      return
+    }
+    
     if (isLoadingRef.current) {
       console.log('🛑 Already loading, skipping...')
       return
@@ -108,36 +115,35 @@ export function useBrowseGames() {
 
     isLoadingRef.current = true
     setLoading(true)
-    console.log('🔍 Fetching battles (safe mode)...')
     
     try {
+      console.log('📡 Calling getGameCounter()...')
       const gameCounter = await getGameCounter()
-      console.log('📊 Game counter:', gameCounter)
+      console.log('📊 Game counter result:', gameCounter)
       
       if (gameCounter === 0) {
         console.log('❌ No games found')
         setBattles([])
         setDebugInfo({ gameCounter: 0, message: 'No games created yet' })
-        setLoading(false)
-        isLoadingRef.current = false
         return
       }
 
+      console.log('✅ Games exist, processing...')
       const debugData = {
         gameCounter,
-        gamesChecked: [],
-        gamesFiltered: [],
-        errors: []
+        gamesChecked: [] as any[],
+        gamesFiltered: [] as number[],
+        errors: [] as any[]
       }
       
       const activeBattles: BattleData[] = []
       let quickDrawCount = 0
       let strategicCount = 0
       
-      // Check games one by one to avoid overwhelming RPC
       for (let i = 0; i < gameCounter; i++) {
         try {
-          // Add small delay to prevent RPC overload
+          console.log(`🔍 Processing game ${i}...`)
+          
           if (i > 0) {
             await new Promise(resolve => setTimeout(resolve, 100))
           }
@@ -147,13 +153,13 @@ export function useBrowseGames() {
             getPlayers(i)
           ])
 
-          console.log(`Game ${i}:`, {
+          console.log(`🎮 Game ${i} data:`, {
             exists: !!game,
             status: game?.status,
-            players: players?.length
+            players: players?.length,
+            entryFee: game?.entryFee
           })
 
-          // Simple validation - no complex logic
           const isValid = game && 
                           game.status === GameStatus.WAITING && 
                           players && 
@@ -171,6 +177,7 @@ export function useBrowseGames() {
           })
 
           if (isValid) {
+            console.log(`🎯 Game ${i} is valid!`)
             const modeInfo = getModeInfo(game.mode)
             const stableData = getStableData(i)
             const creator = players.length > 0 ? truncateAddress(players[0]) : "Unknown"
@@ -180,7 +187,7 @@ export function useBrowseGames() {
               mode: modeInfo.name,
               modeId: modeInfo.modeId,
               creator,
-              creatorAddress: players.length > 0 ? players[0] : "", // Add creator's actual address
+              creatorAddress: players.length > 0 ? players[0] : "",
               entryFee: game.entryFee,
               prizePool: game.prizePool,
               timeLeft: stableData.timeLeft,
@@ -204,13 +211,13 @@ export function useBrowseGames() {
             }
           }
 
-        } catch (error) {
-          console.error(`Error processing game ${i}:`, error)
+        } catch (error: any) {
+          console.error(`❌ Error processing game ${i}:`, error)
           debugData.errors.push({ gameId: i, error: error.message })
         }
       }
 
-      console.log('✅ Results:', {
+      console.log('🎯 Final Results:', {
         totalGames: gameCounter,
         activeBattles: activeBattles.length
       })
@@ -224,7 +231,7 @@ export function useBrowseGames() {
         { id: "strategic", label: "STRATEGIC", count: strategicCount },
       ])
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error fetching battles:', error)
       setDebugInfo({ error: error.message })
     } finally {
@@ -239,15 +246,25 @@ export function useBrowseGames() {
     fetchBattles()
   }
 
-  // SIMPLE useEffect - NO dependencies that could cause loops
+  // EFFECT 1: Initial load with delay
   useEffect(() => {
-    console.log('🚀 Initial load')
-    fetchBattles()
+    console.log('🚀 useBrowseGames initial effect')
+    const timer = setTimeout(() => {
+      console.log('⏰ Initial load starting...')
+      fetchBattles()
+    }, 2000) // 2 second delay
     
-    // NO AUTO-REFRESH FOR NOW - only manual refresh
-    // This prevents the infinite loop issue
-    
-  }, []) // Empty dependency array
+    return () => clearTimeout(timer)
+  }, [])
+
+  // EFFECT 2: Auto-fetch when contracts become ready
+  useEffect(() => {
+    console.log('🔗 Contract status changed:', { contractsReady, providerReady })
+    if (contractsReady && providerReady) {
+      console.log('🎯 Contracts are ready, auto-fetching battles...')
+      fetchBattles()
+    }
+  }, [contractsReady, providerReady])
 
   return {
     battles,

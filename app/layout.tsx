@@ -6,6 +6,7 @@ import "./globals.css"
 import { headers } from 'next/headers'
 import { AppKit } from "@/context/appkit"
 import { Providers } from "@/context/providers"
+import NetworkStatus from "@/components/shared/NetworkStatus"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -27,8 +28,11 @@ export default async function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <AppKit>
-      <Providers>{children}</Providers>
-      </AppKit>
+          <Providers>
+            {children}
+            <NetworkStatus />
+          </Providers>
+        </AppKit>
       </body>
     </html>
   )

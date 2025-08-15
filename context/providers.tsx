@@ -5,7 +5,7 @@ import { WagmiProvider } from 'wagmi';
 import { ReactNode } from 'react';
 import { config } from '@/config';
 import { Toaster } from 'react-hot-toast';
-
+import { GameProvider } from './GameContext';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -24,7 +24,7 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-   
+        <GameProvider>
           {children}
           <Toaster
             position="top-right"
@@ -48,7 +48,7 @@ export function Providers({ children }: ProvidersProps) {
               },
             }}
           />
-    
+        </GameProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );
