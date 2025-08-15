@@ -1,4 +1,4 @@
-// hooks/useZeroSumContracts.ts - UPDATED to match improved contract
+// hooks/useZeroSumContracts.ts - COMPLETE VERSION
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useConfig, useAccount } from 'wagmi'
 import { ethers } from 'ethers'
@@ -7,11 +7,11 @@ import { toast } from 'react-hot-toast'
 import { ZeroSumSimplifiedABI } from '../config/abis/ZeroSumSimplifiedABI'
 import { ZeroSumSpectatorABI } from '../config/abis/ZeroSumSpectatorABI'
 
-// Contract addresses - Update these with your deployed addresses
-const GAME_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_GAME_CONTRACT_ADDRESS || "0xAd22cC67E66F1F0b0D1Be33F53Bd0948796a460E"
-const SPECTATOR_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_SPECTATOR_CONTRACT_ADDRESS || "0x1e1A47d93Fb1Fd616bbC1445f9f387C27f3Afc56"
+// Contract addresses
+const GAME_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_GAME_CONTRACT_ADDRESS || "0xfb40c6BACc74019E01C0dD5b434CE896806D7579"
+const SPECTATOR_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_SPECTATOR_CONTRACT_ADDRESS || "0x151A0A2227B42D299b01a7D5AD3e1A81cB3BE1aE"
 
-// Types based on your updated contract
+// Types
 export enum GameMode {
   QUICK_DRAW = 0,
   STRATEGIC = 1
@@ -43,15 +43,14 @@ export interface PlayerStats {
   stakedAmount: string
 }
 
-// UPDATED: Enhanced PlayerView with new fields from your contract
 export interface PlayerView {
   number: number
   yourTurn: boolean
   timeLeft: number
   yourTimeouts: number
   opponentTimeouts: number
-  gameStuck: boolean // NEW
-  stuckPlayer: string // NEW
+  gameStuck: boolean
+  stuckPlayer: string
 }
 
 export interface StakingInfo {
@@ -60,7 +59,6 @@ export interface StakingInfo {
   rewards: string
 }
 
-// NEW: Game Summary interface matching your contract
 export interface GameSummary {
   gameId: number
   mode: GameMode
@@ -299,7 +297,6 @@ export function useZeroSumContract() {
     )
   }
 
-  // NEW: Cancel waiting games
   const cancelWaitingGame = async (gameId: number) => {
     return executeTransaction(
       async () => {
@@ -314,7 +311,6 @@ export function useZeroSumContract() {
     )
   }
 
-  // NEW: Force finish stuck games
   const forceFinishInactiveGame = async (gameId: number) => {
     return executeTransaction(
       async () => {
@@ -394,8 +390,8 @@ export function useZeroSumContract() {
     joinGame,
     makeMove,
     handleTimeout,
-    cancelWaitingGame, // NEW
-    forceFinishInactiveGame, // NEW
+    cancelWaitingGame,
+    forceFinishInactiveGame,
     withdraw,
     stake,
     unstake,
@@ -474,9 +470,175 @@ export function useZeroSumData() {
     }
   }
 
+  // Enhanced getUserGames with fallback
+  const getUserGames = useCallback(async (
+    userAddress: string, 
+    fromGameId: number = 0, 
+    limit: number = 50
+  ): Promise<{ gameIds: number[], games: GameData[] }> => {
+    if (!userAddress) {
+      console.log('❌ getUserGames: No user address provided')
+      return { gameIds: [], games: [] }
+    }
+
+    return safeContractCall(
+      async () => {
+        const contracts = getContracts()
+        if (!contracts) throw new Error('Contracts not ready')
+
+        console.log(`🔍 Calling getUserGames with:`, {
+          userAddress,
+          fromGameId,
+          limit,
+          contractAddress: GAME_CONTRACT_ADDRESS
+        })
+
+        // First try getUserGames method
+        try {
+          const result = await contracts.gameContract.getUserGames(userAddress, fromGameId, limit)
+          
+          console.log(`📊 Raw getUserGames result:`, {
+            gameIds: result.gameIds,
+            userGames: result.userGames,
+            gameIdsLength: result.gameIds?.length,
+            userGamesLength: result.userGames?.length
+          })
+          
+          const gameIds = (result.gameIds || []).map((id: any) => Number(id))
+          const games = (result.userGames || []).map((game: any) => {
+            console.log(`🎮 Processing game from contract:`, game)
+            
+            return {
+              gameId: Number(game.gameId),
+              mode: Number(game.mode) as GameMode,
+              currentNumber: Number(game.currentNumber),
+              currentPlayer: game.currentPlayer,
+              status: Number(game.status) as GameStatus,
+              entryFee: ethers.formatEther(game.entryFee || 0),
+              prizePool: ethers.formatEther(game.prizePool || 0),
+              winner: game.winner || '0x0000000000000000000000000000000000000000',
+              numberGenerated: Boolean(game.numberGenerated)
+            }
+          })
+
+          console.log(`✅ Processed getUserGames result:`, {
+            gameIds,
+            gamesCount: games.length,
+            games: games.map(g => ({ id: g.gameId, status: g.status, mode: g.mode }))
+          })
+
+          return { gameIds, games }
+        } catch (contractError: any) {
+          console.error(`❌ getUserGames contract call failed:`, contractError)
+          
+          // Fallback: Manual search if getUserGames fails
+          console.log(`🔧 Falling back to manual search...`)
+          return await manualUserGameSearch(contracts.gameContract, userAddress, limit)
+        }
+      },
+      { gameIds: [], games: [] },
+      `getUserGames(${userAddress}, ${fromGameId}, ${limit})`
+    )
+  }, [getContracts, contractsReady])
+
+  // Helper function for manual game search fallback
+  const manualUserGameSearch = async (
+    gameContract: any, 
+    userAddress: string, 
+    limit: number
+  ): Promise<{ gameIds: number[], games: GameData[] }> => {
+    try {
+      console.log(`🔍 Manual search for user games: ${userAddress}`)
+      
+      const gameCounter = await gameContract.gameCounter()
+      const totalGames = Number(gameCounter)
+      
+      console.log(`📊 Total games to search: ${totalGames - 1} (from 1 to ${totalGames - 1})`)
+      
+      const userGames: GameData[] = []
+      const gameIds: number[] = []
+      
+      // Search recent games first (like the contract does)
+      const startFrom = Math.max(1, totalGames - Math.min(limit * 2, 50))
+      
+      for (let gameId = totalGames - 1; gameId >= startFrom && userGames.length < limit; gameId--) {
+        try {
+          console.log(`🔍 Manual check: Game ${gameId}`)
+          
+          // Check isInGame mapping directly
+          const isInGameDirect = await gameContract.isInGame(gameId, userAddress)
+          console.log(`🎯 Game ${gameId}: isInGame[${gameId}][${userAddress}] = ${isInGameDirect}`)
+          
+          if (isInGameDirect) {
+            console.log(`✅ Found user in game ${gameId} via isInGame mapping`)
+            
+            const gameData = await gameContract.getGame(gameId)
+            const processedGame: GameData = {
+              gameId: Number(gameData.gameId),
+              mode: Number(gameData.mode) as GameMode,
+              currentNumber: Number(gameData.currentNumber),
+              currentPlayer: gameData.currentPlayer,
+              status: Number(gameData.status) as GameStatus,
+              entryFee: ethers.formatEther(gameData.entryFee || 0),
+              prizePool: ethers.formatEther(gameData.prizePool || 0),
+              winner: gameData.winner || '0x0000000000000000000000000000000000000000',
+              numberGenerated: Boolean(gameData.numberGenerated)
+            }
+            
+            userGames.push(processedGame)
+            gameIds.push(gameId)
+            
+            console.log(`📝 Added game ${gameId} to user games list`)
+          } else {
+            // Double-check with getPlayers
+            const players = await gameContract.getPlayers(gameId)
+            const isInPlayers = players.some((player: string) => 
+              player.toLowerCase() === userAddress.toLowerCase()
+            )
+            
+            if (isInPlayers) {
+              console.log(`⚠️ Found user in game ${gameId} via getPlayers but not in isInGame mapping!`)
+              
+              const gameData = await gameContract.getGame(gameId)
+              const processedGame: GameData = {
+                gameId: Number(gameData.gameId),
+                mode: Number(gameData.mode) as GameMode,
+                currentNumber: Number(gameData.currentNumber),
+                currentPlayer: gameData.currentPlayer,
+                status: Number(gameData.status) as GameStatus,
+                entryFee: ethers.formatEther(gameData.entryFee || 0),
+                prizePool: ethers.formatEther(gameData.prizePool || 0),
+                winner: gameData.winner || '0x0000000000000000000000000000000000000000',
+                numberGenerated: Boolean(gameData.numberGenerated)
+              }
+              
+              userGames.push(processedGame)
+              gameIds.push(gameId)
+              
+              console.log(`📝 Added game ${gameId} to user games list (via getPlayers)`)
+            }
+          }
+        } catch (gameError) {
+          console.error(`❌ Error checking game ${gameId}:`, gameError)
+        }
+      }
+      
+      console.log(`🎯 Manual search complete:`, {
+        searchedGames: totalGames - startFrom,
+        foundGames: userGames.length,
+        gameIds
+      })
+      
+      return { gameIds, games: userGames }
+    } catch (error) {
+      console.error(`❌ Manual search failed:`, error)
+      return { gameIds: [], games: [] }
+    }
+  }
+
   // Get Game Data with better validation
   const getGame = useCallback(async (gameId: number): Promise<GameData | null> => {
-    if (!gameId && gameId !== 0) {
+    if (!gameId || gameId < 1) {
       console.log('❌ Invalid game ID:', gameId)
       return null
     }
@@ -488,37 +650,27 @@ export function useZeroSumData() {
   
         console.log(`🔍 Fetching game data for ID: ${gameId}`)
         
-        // Check if the game exists by checking gameCounter
         const gameCounter = await contracts.gameContract.gameCounter()
         const totalGames = Number(gameCounter)
         
-        console.log(`📊 Total games on contract: ${totalGames}`)
+        console.log(`📊 Contract game counter: ${totalGames}`)
         console.log(`🎯 Requested game ID: ${gameId}`)
         
-        // Game counter starts from 1, so valid range is 1 to gameCounter-1
-        if (gameId < 1 || gameId >= totalGames) {
-          console.error(`❌ Game #${gameId} doesn't exist. Valid range: 1-${totalGames-1}`)
-          throw new Error(`Game #${gameId} doesn't exist. Total games: ${totalGames-1}`)
+        if (gameId >= totalGames) {
+          console.error(`❌ Game #${gameId} doesn't exist. Latest game: ${totalGames-1}`)
+          throw new Error(`Game #${gameId} doesn't exist. Latest game: ${totalGames-1}`)
         }
         
-        console.log(`✅ Game #${gameId} is within valid range, fetching...`)
+        console.log(`✅ Game #${gameId} is valid, fetching...`)
         const game = await contracts.gameContract.getGame(gameId)
         
-        if (!game) {
-          console.error(`❌ Game #${gameId} returned null/undefined data`)
-          throw new Error(`Game #${gameId} returned invalid data`)
-        }
-        
-        const gameIdFromContract = Number(game.gameId)
-        console.log(`📊 Contract returned gameId: ${gameIdFromContract}, expected: ${gameId}`)
-        
-        if (gameIdFromContract !== gameId) {
-          console.error(`❌ Game ID mismatch: requested ${gameId}, got ${gameIdFromContract}`)
-          throw new Error(`Game ID mismatch: requested ${gameId}, but contract returned ${gameIdFromContract}`)
+        if (!game || Number(game.gameId) === 0) {
+          console.error(`❌ Game #${gameId} returned invalid data`)
+          throw new Error(`Game #${gameId} not found`)
         }
         
         const gameData: GameData = {
-          gameId: gameIdFromContract,
+          gameId: Number(game.gameId),
           mode: Number(game.mode) as GameMode,
           currentNumber: Number(game.currentNumber),
           currentPlayer: game.currentPlayer,
@@ -529,13 +681,7 @@ export function useZeroSumData() {
           numberGenerated: game.numberGenerated
         }
         
-        console.log(`✅ Successfully fetched game #${gameId}:`, {
-          gameId: gameData.gameId,
-          status: gameData.status,
-          mode: gameData.mode,
-          currentNumber: gameData.currentNumber
-        })
-        
+        console.log(`✅ Successfully fetched game #${gameId}:`, gameData)
         return gameData
       },
       null,
@@ -556,14 +702,14 @@ export function useZeroSumData() {
 
         const players = await contracts.gameContract.getPlayers(gameId)
         console.log(`👥 Players for game ${gameId}:`, players)
-        return players
+        return players || []
       },
       [],
       `getPlayers(${gameId})`
     )
   }, [getContracts, contractsReady])
 
-  // UPDATED: Enhanced Player View with new fields
+  // Enhanced Player View with new fields
   const getPlayerView = useCallback(async (gameId: number): Promise<PlayerView | null> => {
     if (gameId < 1) {
       console.log('❌ Invalid game ID for getPlayerView:', gameId)
@@ -583,8 +729,8 @@ export function useZeroSumData() {
           timeLeft: Number(view.timeLeft),
           yourTimeouts: Number(view.yourTimeouts),
           opponentTimeouts: Number(view.opponentTimeouts),
-          gameStuck: view.gameStuck || false, // NEW
-          stuckPlayer: view.stuckPlayer || '0x0000000000000000000000000000000000000000' // NEW
+          gameStuck: view.gameStuck || false,
+          stuckPlayer: view.stuckPlayer || '0x0000000000000000000000000000000000000000'
         }
         
         console.log(`🎯 Enhanced player view for game ${gameId}:`, playerView)
@@ -592,11 +738,11 @@ export function useZeroSumData() {
       },
       null,
       `getPlayerView(${gameId})`,
-      true // Requires connection
+      true
     )
   }, [getContracts, contractsReady, isConnected, address])
 
-  // NEW: Get Game Summary in one call
+  // Get Game Summary in one call
   const getGameSummary = useCallback(async (gameId: number): Promise<GameSummary | null> => {
     if (gameId < 1) {
       console.log('❌ Invalid game ID for getGameSummary:', gameId)
@@ -630,7 +776,7 @@ export function useZeroSumData() {
     )
   }, [getContracts, contractsReady])
 
-  // NEW: Batch getter for multiple games
+  // Batch getter for multiple games
   const getGamesBatch = useCallback(async (gameIds: number[]): Promise<GameData[]> => {
     if (!gameIds.length) return []
 
@@ -655,41 +801,6 @@ export function useZeroSumData() {
       },
       [],
       `getGamesBatch([${gameIds.join(',')}])`
-    )
-  }, [getContracts, contractsReady])
-
-  // NEW: Get user's games efficiently
-  const getUserGames = useCallback(async (
-    userAddress: string, 
-    fromGameId: number = 0, 
-    limit: number = 10
-  ): Promise<{ gameIds: number[], games: GameData[] }> => {
-    if (!userAddress) return { gameIds: [], games: [] }
-
-    return safeContractCall(
-      async () => {
-        const contracts = getContracts()
-        if (!contracts) throw new Error('Contracts not ready')
-
-        const result = await contracts.gameContract.getUserGames(userAddress, fromGameId, limit)
-        
-        const gameIds = result.gameIds.map((id: any) => Number(id))
-        const games = result.userGames.map((game: any) => ({
-          gameId: Number(game.gameId),
-          mode: Number(game.mode) as GameMode,
-          currentNumber: Number(game.currentNumber),
-          currentPlayer: game.currentPlayer,
-          status: Number(game.status) as GameStatus,
-          entryFee: ethers.formatEther(game.entryFee),
-          prizePool: ethers.formatEther(game.prizePool),
-          winner: game.winner,
-          numberGenerated: game.numberGenerated
-        }))
-
-        return { gameIds, games }
-      },
-      { gameIds: [], games: [] },
-      `getUserGames(${userAddress}, ${fromGameId}, ${limit})`
     )
   }, [getContracts, contractsReady])
 
@@ -760,9 +871,11 @@ export function useZeroSumData() {
         if (!contracts) throw new Error('Contracts not ready')
 
         const counter = await contracts.gameContract.gameCounter()
-        return Number(counter)
+        const counterNum = Number(counter)
+        console.log(`🔢 Game counter: ${counterNum}`)
+        return counterNum
       },
-      1, // Default to 1 since your contract starts from 1
+      1, // Your contract starts from 1
       'getGameCounter()'
     )
   }, [getContracts, contractsReady])
@@ -830,6 +943,102 @@ export function useZeroSumData() {
     )
   }, [getContracts, contractsReady])
 
+  // Debug function to test contract interactions
+  const debugUserGames = useCallback(async (userAddress: string): Promise<any> => {
+    if (!userAddress) return { error: 'No address provided' }
+
+    return safeContractCall(
+      async () => {
+        const contracts = getContracts()
+        if (!contracts) throw new Error('Contracts not ready')
+
+        console.log(`🚀 Starting debug for user: ${userAddress}`)
+
+        // Step 1: Get basic contract info
+        const gameCounter = await contracts.gameContract.gameCounter()
+        const totalGames = Number(gameCounter)
+        
+        console.log(`📊 Contract has ${totalGames - 1} games (gameCounter: ${totalGames})`)
+
+        // Step 2: Test getUserGames method directly
+        let getUserGamesResult = null
+        let getUserGamesError = null
+        
+        try {
+          console.log(`🔍 Testing getUserGames(${userAddress}, 0, 20)...`)
+          getUserGamesResult = await contracts.gameContract.getUserGames(userAddress, 0, 20)
+          console.log(`✅ getUserGames succeeded:`, getUserGamesResult)
+        } catch (error: any) {
+          console.error(`❌ getUserGames failed:`, error)
+          getUserGamesError = error.message
+        }
+
+        // Step 3: Manual check of recent games
+        const manualResults: any[] = []
+        const recentGamesToCheck = Math.min(10, totalGames - 1)
+        
+        console.log(`🔍 Manually checking last ${recentGamesToCheck} games...`)
+        
+        for (let gameId = Math.max(1, totalGames - recentGamesToCheck); gameId < totalGames; gameId++) {
+          try {
+            // Check isInGame mapping
+            const isInGameResult = await contracts.gameContract.isInGame(gameId, userAddress)
+            
+            // Get players list
+            const players = await contracts.gameContract.getPlayers(gameId)
+            
+            // Get game data
+            const gameData = await contracts.gameContract.getGame(gameId)
+            
+            const result = {
+              gameId,
+              isInGame: isInGameResult,
+              players,
+              isInPlayers: players.some((p: string) => p.toLowerCase() === userAddress.toLowerCase()),
+              gameStatus: Number(gameData.status),
+              gameMode: Number(gameData.mode),
+              entryFee: ethers.formatEther(gameData.entryFee),
+              prizePool: ethers.formatEther(gameData.prizePool)
+            }
+            
+            manualResults.push(result)
+            
+            if (result.isInGame || result.isInPlayers) {
+              console.log(`✅ Found user in game ${gameId}:`, result)
+            }
+            
+          } catch (error) {
+            console.error(`❌ Error checking game ${gameId}:`, error)
+            manualResults.push({
+              gameId,
+              error: error.message
+            })
+          }
+        }
+
+        const foundGames = manualResults.filter(r => r.isInGame || r.isInPlayers)
+        
+        return {
+          success: true,
+          userAddress,
+          totalGames: totalGames - 1,
+          getUserGamesResult,
+          getUserGamesError,
+          manualResults,
+          foundGamesCount: foundGames.length,
+          foundGames,
+          summary: {
+            contractMethod: getUserGamesError ? 'FAILED' : 'SUCCESS',
+            manualSearch: `Found ${foundGames.length} games`,
+            gamesChecked: recentGamesToCheck
+          }
+        }
+      },
+      { error: 'Contract call failed' },
+      `debugUserGames(${userAddress})`
+    )
+  }, [getContracts, contractsReady])
+
   return {
     // State
     contractsReady,
@@ -850,7 +1059,10 @@ export function useZeroSumData() {
     // NEW functions matching your contract
     getGameSummary,
     getGamesBatch,
-    getUserGames
+    getUserGames, // Enhanced with debugging and fallback
+    
+    // Debug function
+    debugUserGames
   }
 }
 

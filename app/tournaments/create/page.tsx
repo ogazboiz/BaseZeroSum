@@ -112,7 +112,7 @@ export default function CreateTournamentPage() {
                           className="w-full"
                         />
                         <div className="text-center">
-                          <span className="text-3xl font-black text-amber-400">{entryFee[0]} ETH</span>
+                            <span className="text-3xl font-black text-amber-400">{entryFee[0]} MNT</span>
                         </div>
                       </div>
                     </div>
@@ -219,19 +219,19 @@ export default function CreateTournamentPage() {
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-slate-400">Entry Fee:</span>
-                        <span className="font-bold text-cyan-400">{entryFee[0]} ETH</span>
+                        <span className="font-bold text-cyan-400">{entryFee[0]} MNT</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-slate-400">Total Pool:</span>
-                        <span className="font-bold text-emerald-400">{(entryFee[0] * maxPlayers[0]).toFixed(2)} ETH</span>
+                        <span className="font-bold text-emerald-400">{(entryFee[0] * maxPlayers[0]).toFixed(2)} MNT</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-slate-400">Prize Pool:</span>
-                        <span className="font-bold text-emerald-400">{totalPrizePool.toFixed(2)} ETH</span>
+                        <span className="font-bold text-emerald-400">{totalPrizePool.toFixed(2)} MNT</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-slate-400">Platform Fee:</span>
-                        <span className="font-bold text-slate-400">{(entryFee[0] * maxPlayers[0] * 0.1).toFixed(2)} ETH</span>
+                        <span className="font-bold text-slate-400">{(entryFee[0] * maxPlayers[0] * 0.1).toFixed(2)} MNT</span>
                       </div>
                     </div>
                   </div>

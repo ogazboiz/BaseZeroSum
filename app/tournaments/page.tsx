@@ -43,6 +43,7 @@ export default function TournamentsPage() {
       icon: Eye,
       color: "bg-violet-500/20 text-violet-400 border-violet-500/30",
       difficulty: "Advanced",
+      comingSoon: true,
     },
     {
       id: 2,
@@ -57,6 +58,7 @@ export default function TournamentsPage() {
       icon: Zap,
       color: "bg-rose-500/20 text-rose-400 border-rose-500/30",
       difficulty: "Expert",
+      comingSoon: true,
     },
     {
       id: 3,
@@ -71,6 +73,7 @@ export default function TournamentsPage() {
       icon: Target,
       color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
       difficulty: "Beginner",
+      comingSoon: true,
     },
   ]
 
@@ -107,7 +110,7 @@ export default function TournamentsPage() {
       name: "Midnight Mystery Cup",
       type: "Hardcore Mystery",
       winner: "0x1234...5678",
-      prize: "4.75 ETH",
+      prize: "4.75 MNT",
       participants: 16,
       completedDate: "2 days ago",
       icon: Zap,
@@ -118,7 +121,7 @@ export default function TournamentsPage() {
       name: "Speed Draw Championship",
       type: "Quick Draw",
       winner: "0x8765...4321",
-      prize: "2.85 ETH",
+      prize: "2.85 MNT",
       participants: 32,
       completedDate: "1 week ago",
       icon: Target,
@@ -166,6 +169,21 @@ export default function TournamentsPage() {
           <p className="text-xl text-slate-300">Compete in bracket-style competitions for bigger prizes</p>
         </div>
 
+        {/* Coming Soon Overlay */}
+        <div className="relative mb-8">
+          <div className="bg-slate-900/20 backdrop-blur-sm border border-cyan-500/30 rounded-2xl p-6 text-center">
+            <div className="text-4xl mb-3">🚧</div>
+            <h2 className="text-2xl font-bold text-cyan-400 mb-2">Tournaments Coming Soon</h2>
+            <p className="text-slate-300 mb-4">
+              Tournament functionality is currently under development. You can view the planned tournaments below, but joining and participating will be available soon!
+            </p>
+            <div className="inline-flex items-center space-x-2 bg-cyan-500/20 border border-cyan-500/30 rounded-full px-4 py-2">
+              <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
+              <span className="text-sm font-medium text-cyan-400">Development in Progress</span>
+            </div>
+          </div>
+        </div>
+
         {/* AI Tournament Analytics Coming Soon */}
         <Card className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 shadow-2xl rounded-2xl mb-8">
           <CardContent className="p-6">
@@ -189,7 +207,7 @@ export default function TournamentsPage() {
           {[
             { label: "Active Tournaments", value: "3", icon: Trophy, color: "text-yellow-600" },
             { label: "Total Players", value: "89", icon: Users, color: "text-blue-600" },
-            { label: "Prize Pools", value: "13.52 ETH", icon: Coins, color: "text-green-600" },
+            { label: "Prize Pools", value: "13.52 MNT", icon: Coins, color: "text-green-600" },
             { label: "This Week", value: "2 Completed", icon: Calendar, color: "text-purple-600" },
           ].map((stat, index) => (
             <Card
@@ -262,11 +280,11 @@ export default function TournamentsPage() {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <p className="text-sm text-slate-400">Entry Fee</p>
-                          <p className="font-bold text-white">{tournament.entryFee} ETH</p>
+                          <p className="font-bold text-white">{tournament.entryFee} MNT</p>
                         </div>
                         <div>
                           <p className="text-sm text-slate-400">Prize Pool</p>
-                          <p className="font-bold text-green-600">{tournament.prizePool} ETH</p>
+                          <p className="font-bold text-green-600">{tournament.prizePool} MNT</p>
                         </div>
                       </div>
 
@@ -286,24 +304,11 @@ export default function TournamentsPage() {
                         </Badge>
                         <Button
                           size="sm"
-                          onClick={() =>
-                            tournament.status === "Active"
-                              ? handleWatchTournament(tournament.id)
-                              : handleJoinTournament(tournament.id)
-                          }
-                          className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-lg"
+                          disabled
+                          className="bg-slate-600 cursor-not-allowed text-slate-300 rounded-lg"
                         >
-                          {tournament.status === "Active" ? (
-                            <>
-                              <Eye className="w-4 h-4 mr-1" />
-                              Watch
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles className="w-4 h-4 mr-1" />
-                              Join
-                            </>
-                          )}
+                          <div className="w-4 h-4 mr-1">🚧</div>
+                          Coming Soon
                         </Button>
                       </div>
                     </CardContent>
@@ -340,11 +345,11 @@ export default function TournamentsPage() {
                             </div>
                             <div>
                               <p className="text-xs text-slate-400">Entry Fee</p>
-                              <p className="font-medium text-white">{tournament.entryFee} ETH</p>
+                              <p className="font-medium text-white">{tournament.entryFee} MNT</p>
                             </div>
                             <div>
                               <p className="text-xs text-slate-400">Est. Prize</p>
-                              <p className="font-medium text-green-600">{tournament.estimatedPrize} ETH</p>
+                              <p className="font-medium text-green-600">{tournament.estimatedPrize} MNT</p>
                             </div>
                           </div>
 

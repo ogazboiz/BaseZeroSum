@@ -20,7 +20,14 @@ import {
   Search,
   Filter,
   Award,
-  Zap
+  Zap,
+  ChevronUp,
+  ChevronDown,
+  Eye,
+  Clock,
+  Coins,
+  Target as TargetIcon,
+  Brain as BrainIcon
 } from "lucide-react"
 import { 
   useZeroSumData, 
@@ -53,6 +60,8 @@ interface LeaderboardCategory {
   icon: React.ReactNode
   sortKey: keyof PlayerStats
   sortDesc: boolean
+  color: string
+  bgColor: string
 }
 
 export default function FixedLeaderboardPage() {
@@ -71,6 +80,8 @@ export default function FixedLeaderboardPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("win-rate")
   const [searchTerm, setSearchTerm] = useState("")
   const [lastUpdated, setLastUpdated] = useState<string>("")
+  const [showStats, setShowStats] = useState(false)
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
   const leaderboardCategories: LeaderboardCategory[] = [
     {
@@ -79,7 +90,9 @@ export default function FixedLeaderboardPage() {
       description: "Highest win percentage",
       icon: <Trophy className="w-5 h-5" />,
       sortKey: "winRate",
-      sortDesc: true
+      sortDesc: true,
+      color: "text-yellow-400",
+      bgColor: "bg-yellow-500/20"
     },
     {
       id: "total-winnings",
@@ -87,7 +100,9 @@ export default function FixedLeaderboardPage() {
       description: "Most ETH earned",
       icon: <Crown className="w-5 h-5" />,
       sortKey: "totalWinnings",
-      sortDesc: true
+      sortDesc: true,
+      color: "text-emerald-400",
+      bgColor: "bg-emerald-500/20"
     },
     {
       id: "games-played",
@@ -95,7 +110,9 @@ export default function FixedLeaderboardPage() {
       description: "Most active players",
       icon: <Gamepad2 className="w-5 h-5" />,
       sortKey: "totalGames",
-      sortDesc: true
+      sortDesc: true,
+      color: "text-blue-400",
+      bgColor: "bg-blue-500/20"
     },
     {
       id: "games-created",
@@ -103,7 +120,9 @@ export default function FixedLeaderboardPage() {
       description: "Top game creators",
       icon: <Star className="w-5 h-5" />,
       sortKey: "gamesCreated",
-      sortDesc: true
+      sortDesc: true,
+      color: "text-purple-400",
+      bgColor: "bg-purple-500/20"
     },
     {
       id: "recent-activity",
@@ -111,7 +130,9 @@ export default function FixedLeaderboardPage() {
       description: "Most recently active",
       icon: <Zap className="w-5 h-5" />,
       sortKey: "lastActive",
-      sortDesc: true
+      sortDesc: true,
+      color: "text-orange-400",
+      bgColor: "bg-orange-500/20"
     }
   ]
 
@@ -315,16 +336,16 @@ export default function FixedLeaderboardPage() {
       const aNum = parseFloat(aValue)
       const bNum = parseFloat(bValue)
       if (!isNaN(aNum) && !isNaN(bNum)) {
-        return currentCategory.sortDesc ? bNum - aNum : aNum - bNum
+        return sortDirection === 'desc' ? bNum - aNum : aNum - bNum
       }
     }
     
     if (aValue instanceof Date && bValue instanceof Date) {
-      return currentCategory.sortDesc ? bValue.getTime() - aValue.getTime() : aValue.getTime() - bValue.getTime()
+      return sortDirection === 'desc' ? bValue.getTime() - aValue.getTime() : aValue.getTime() - bValue.getTime()
     }
     
     if (typeof aValue === 'number' && typeof bValue === 'number') {
-      return currentCategory.sortDesc ? bValue - aValue : aValue - bValue
+      return sortDirection === 'desc' ? bValue - aValue : aValue - bValue
     }
     
     return 0
@@ -342,18 +363,18 @@ export default function FixedLeaderboardPage() {
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
-      case 1: return <Trophy className="w-6 h-6 text-yellow-400" />
-      case 2: return <Medal className="w-6 h-6 text-gray-300" />
-      case 3: return <Award className="w-6 h-6 text-amber-600" />
+      case 1: return <Trophy className="w-8 h-8 text-yellow-400" />
+      case 2: return <Medal className="w-8 h-8 text-gray-300" />
+      case 3: return <Award className="w-8 h-8 text-amber-600" />
       default: return <span className="text-2xl font-bold text-slate-400">{rank}</span>
     }
   }
 
   const getRankColor = (rank: number) => {
     switch (rank) {
-      case 1: return "bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 border-yellow-500/30"
-      case 2: return "bg-gradient-to-r from-gray-500/20 to-gray-600/20 border-gray-500/30"
-      case 3: return "bg-gradient-to-r from-amber-500/20 to-amber-600/20 border-amber-500/30"
+      case 1: return "bg-gradient-to-br from-yellow-500/30 via-yellow-600/20 to-amber-500/20 border-yellow-400/50"
+      case 2: return "bg-gradient-to-br from-gray-500/30 via-gray-600/20 to-slate-500/20 border-gray-400/50"
+      case 3: return "bg-gradient-to-br from-amber-500/30 via-amber-600/20 to-orange-500/20 border-amber-400/50"
       default: return "bg-slate-800/60 border-slate-700/50"
     }
   }
@@ -379,6 +400,10 @@ export default function FixedLeaderboardPage() {
     }
   }
 
+  const toggleSortDirection = () => {
+    setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc')
+  }
+
   if (!providerReady) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 text-white">
@@ -398,22 +423,27 @@ export default function FixedLeaderboardPage() {
       <UnifiedGamingNavigation />
       
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Header */}
+        {/* Enhanced Header */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-yellow-500/20 to-amber-500/20 border border-yellow-500/30 rounded-full px-6 py-2 mb-6">
-            <Trophy className="w-5 h-5 text-yellow-400" />
-            <span className="text-yellow-400 font-bold">LEADERBOARD</span>
+          <div className="inline-flex items-center space-x-3 bg-gradient-to-r from-yellow-500/20 via-amber-500/20 to-orange-500/20 border border-yellow-500/30 rounded-full px-8 py-3 mb-8 shadow-lg">
+            <Trophy className="w-6 h-6 text-yellow-400" />
+            <span className="text-yellow-400 font-bold text-lg">LEADERBOARD</span>
           </div>
-          <h1 className="text-5xl font-black text-white mb-4">PLAYER RANKINGS</h1>
-          <p className="text-xl text-slate-300 font-medium">See who's dominating the battlefield</p>
-          <p className="text-sm text-slate-400 mt-2">
-            Last updated: {lastUpdated || "Never"}
-          </p>
+          <h1 className="text-6xl font-black text-white mb-6 bg-gradient-to-r from-yellow-400 via-amber-400 to-orange-400 bg-clip-text text-transparent">
+            PLAYER RANKINGS
+          </h1>
+          <p className="text-2xl text-slate-300 font-medium mb-2">See who's dominating the battlefield</p>
+          <div className="flex items-center justify-center space-x-4 text-sm text-slate-400">
+            <Clock className="w-4 h-4" />
+            <span>Last updated: {lastUpdated || "Never"}</span>
+            <span>•</span>
+            <span>{filteredData.length} players ranked</span>
+          </div>
         </div>
 
-        {/* Category Selector */}
-        <div className="mb-8">
-          <div className="flex gap-2 flex-wrap justify-center">
+        {/* Enhanced Category Selector */}
+        <div className="mb-10">
+          <div className="flex gap-3 flex-wrap justify-center">
             {leaderboardCategories.map((category) => (
               <Button
                 key={category.id}
@@ -421,9 +451,9 @@ export default function FixedLeaderboardPage() {
                 variant={selectedCategory === category.id ? "default" : "outline"}
                 className={`${
                   selectedCategory === category.id 
-                    ? 'bg-yellow-600 hover:bg-yellow-700 border-yellow-500' 
-                    : 'border-slate-600 text-slate-300 hover:text-white'
-                }`}
+                    ? `${category.bgColor} border-2 border-current ${category.color} hover:scale-105 transition-transform` 
+                    : 'border-slate-600 text-slate-300 hover:text-white hover:border-slate-500 hover:scale-105 transition-all'
+                } rounded-xl px-6 py-3 font-semibold`}
               >
                 {category.icon}
                 <span className="ml-2">{category.name}</span>
@@ -431,89 +461,118 @@ export default function FixedLeaderboardPage() {
             ))}
           </div>
           {currentCategory && (
-            <p className="text-center text-slate-400 mt-2">
-              {currentCategory.description}
-            </p>
+            <div className="text-center mt-4">
+              <p className="text-slate-400 text-lg">
+                {currentCategory.description}
+              </p>
+            </div>
           )}
         </div>
 
-        {/* Controls */}
+        {/* Enhanced Controls */}
         <div className="flex flex-col sm:flex-row gap-4 mb-8">
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
               <Input
                 placeholder="Search by address, win rate, or games..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-slate-800/50 border-slate-600/50 text-white rounded-xl"
+                className="pl-12 bg-slate-800/50 border-slate-600/50 text-white rounded-xl h-12 text-lg"
               />
             </div>
           </div>
           
-          <Button
-            onClick={fetchLeaderboardData}
-            disabled={isLoading}
-            className="bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl"
-          >
-            {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <RefreshCw className="w-4 h-4" />
-            )}
-            <span className="ml-2">{isLoading ? "Updating..." : "Refresh"}</span>
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              onClick={() => setShowStats(!showStats)}
+              variant="outline"
+              className="border-slate-600 text-slate-300 hover:text-white rounded-xl px-4"
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              {showStats ? "Hide" : "Show"} Stats
+            </Button>
+            
+            <Button
+              onClick={toggleSortDirection}
+              variant="outline"
+              className="border-slate-600 text-slate-300 hover:text-white rounded-xl px-4"
+            >
+              {sortDirection === 'desc' ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+            </Button>
+            
+            <Button
+              onClick={fetchLeaderboardData}
+              disabled={isLoading}
+              className="bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white rounded-xl px-6 h-12 font-semibold"
+            >
+              {isLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <RefreshCw className="w-5 h-5" />
+              )}
+              <span className="ml-2">{isLoading ? "Updating..." : "Refresh"}</span>
+            </Button>
+          </div>
         </div>
 
         {/* Loading/Error States */}
         {isLoading && (
-          <div className="mb-8 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-            <div className="flex items-center space-x-2">
-              <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
-              <p className="text-blue-400 font-medium">Updating leaderboard data...</p>
+          <div className="mb-8 p-6 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+            <div className="flex items-center space-x-3">
+              <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
+              <p className="text-blue-400 font-medium text-lg">Updating leaderboard data...</p>
             </div>
           </div>
         )}
         
         {error && (
-          <div className="mb-8 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-            <div className="flex items-center space-x-2">
-              <TrendingUp className="w-5 h-5 text-red-400" />
-              <p className="text-red-400 font-medium">Error: {error}</p>
+          <div className="mb-8 p-6 bg-red-500/10 border border-red-500/30 rounded-xl">
+            <div className="flex items-center space-x-3">
+              <TrendingUp className="w-6 h-6 text-red-400" />
+              <p className="text-red-400 font-medium text-lg">Error: {error}</p>
             </div>
           </div>
         )}
 
-        {/* Top 3 Podium */}
+        {/* Enhanced Top 3 Podium */}
         {top3.length > 0 && currentCategory && (
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white mb-6 text-center">🏆 TOP PERFORMERS</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="mb-12">
+            <h2 className="text-3xl font-bold text-white mb-8 text-center flex items-center justify-center">
+              <Trophy className="w-8 h-8 mr-3 text-yellow-400" />
+              TOP PERFORMERS
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {top3.map((player, index) => (
-                <Card key={player.address} className={`${getRankColor(index + 1)} transition-all hover:scale-105`}>
-                  <CardContent className="p-6 text-center">
-                    <div className="flex justify-center mb-4">
+                <Card key={player.address} className={`${getRankColor(index + 1)} transition-all hover:scale-105 hover:shadow-2xl border-2`}>
+                  <CardContent className="p-8 text-center">
+                    <div className="flex justify-center mb-6">
                       {getRankIcon(index + 1)}
                     </div>
-                    <h3 className="text-lg font-bold text-white mb-2">
+                    <h3 className="text-xl font-bold text-white mb-4 font-mono">
                       {formatAddress(player.address)}
                     </h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">{currentCategory.name}:</span>
-                        <span className="text-yellow-400 font-bold">{getDisplayValue(player, currentCategory)}</span>
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between items-center p-2 bg-slate-800/30 rounded-lg">
+                        <span className="text-slate-300">{currentCategory.name}:</span>
+                        <span className={`${currentCategory.color} font-bold text-lg`}>
+                          {getDisplayValue(player, currentCategory)}
+                        </span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Games:</span>
-                        <span className="text-white">{player.totalGames}</span>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-slate-800/30 p-2 rounded">
+                          <div className="text-slate-400">Games</div>
+                          <div className="text-white font-semibold">{player.totalGames}</div>
+                        </div>
+                        <div className="bg-slate-800/30 p-2 rounded">
+                          <div className="text-slate-400">Win Rate</div>
+                          <div className="text-emerald-400 font-semibold">{player.winRate}%</div>
+                        </div>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Win Rate:</span>
-                        <span className="text-emerald-400">{player.winRate}%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Winnings:</span>
-                        <span className="text-emerald-400">{player.totalWinnings} ETH</span>
+                      <div className="bg-emerald-500/20 p-2 rounded border border-emerald-500/30">
+                        <div className="text-emerald-400 font-semibold">
+                          {player.totalWinnings} ETH
+                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -523,41 +582,68 @@ export default function FixedLeaderboardPage() {
           </div>
         )}
 
-        {/* Full Leaderboard */}
+        {/* Enhanced Full Leaderboard */}
         {filteredData.length > 0 && currentCategory ? (
           <div>
-            <h2 className="text-2xl font-bold text-white mb-6 text-center">📊 COMPLETE RANKINGS</h2>
+            <div className="mb-6">
+              <h2 className="text-3xl font-bold text-white flex items-center justify-center">
+                <TrendingUp className="w-8 h-8 mr-3 text-blue-400" />
+                COMPLETE RANKINGS
+              </h2>
+            </div>
+            
             <div className="space-y-4">
               {rest.map((player, index) => (
-                <Card key={player.address} className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 hover:border-slate-600/50 transition-colors">
+                <Card key={player.address} className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 hover:border-slate-600/50 transition-all hover:shadow-lg hover:scale-[1.02]">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-slate-700/50 rounded-full flex items-center justify-center">
-                          <span className="text-lg font-bold text-slate-300">{index + 4}</span>
+                      <div className="flex items-center space-x-6">
+                        <div className="w-14 h-14 bg-gradient-to-br from-slate-700 to-slate-800 rounded-full flex items-center justify-center border-2 border-slate-600">
+                          <span className="text-xl font-bold text-slate-300">{index + 4}</span>
                         </div>
                         
                         <div>
-                          <h3 className="text-lg font-bold text-white mb-1">
+                          <h3 className="text-xl font-bold text-white mb-2 font-mono">
                             {formatAddress(player.address)}
                           </h3>
-                          <div className="flex items-center space-x-4 text-sm text-slate-400">
-                            <span>Created: {player.gamesCreated}</span>
-                            <span>Joined: {player.gamesJoined}</span>
-                            <span>Quick Draw: {player.quickDrawGames}</span>
-                            <span>Strategic: {player.strategicGames}</span>
-                          </div>
+                          
+                          {showStats && (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-slate-400">
+                              <div className="flex items-center space-x-2">
+                                <Star className="w-4 h-4 text-purple-400" />
+                                <span>Created: {player.gamesCreated}</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Users className="w-4 h-4 text-blue-400" />
+                                <span>Joined: {player.gamesJoined}</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <TargetIcon className="w-4 h-4 text-green-400" />
+                                <span>Quick Draw: {player.quickDrawGames}</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <BrainIcon className="w-4 h-4 text-indigo-400" />
+                                <span>Strategic: {player.strategicGames}</span>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                       
-                      <div className="text-right space-y-1">
-                        <div className="text-2xl font-bold text-yellow-400">
+                      <div className="text-right space-y-2">
+                        <div className={`text-3xl font-bold ${currentCategory.color}`}>
                           {getDisplayValue(player, currentCategory)}
                         </div>
-                        <div className="text-sm text-slate-400">
-                          {player.gamesWon}W / {player.gamesLost}L
+                        <div className="flex items-center justify-center space-x-4 text-sm">
+                          <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                            {player.gamesWon}W
+                          </Badge>
+                          <Badge variant="secondary" className="bg-red-500/20 text-red-400 border-red-500/30">
+                            {player.gamesLost}L
+                          </Badge>
                         </div>
-                        <div className="text-sm text-emerald-400">
+                        <div className="text-sm text-emerald-400 font-semibold flex items-center justify-center">
+                          <Coins className="w-4 h-4 mr-1" />
                           {player.totalWinnings} ETH
                         </div>
                       </div>
@@ -568,47 +654,47 @@ export default function FixedLeaderboardPage() {
             </div>
           </div>
         ) : !isLoading && (
-          <div className="text-center py-16">
-            <Trophy className="w-24 h-24 mx-auto mb-6 text-slate-500" />
-            <h3 className="text-2xl font-bold text-white mb-2">No players found</h3>
-            <p className="text-slate-400">
-              {searchTerm ? "Try adjusting your search" : "No players have completed games yet"}
+          <div className="text-center py-20">
+            <Trophy className="w-32 h-32 mx-auto mb-8 text-slate-500" />
+            <h3 className="text-3xl font-bold text-white mb-4">No players found</h3>
+            <p className="text-slate-400 text-lg">
+              {searchTerm ? "Try adjusting your search criteria" : "No players have completed games yet"}
             </p>
           </div>
         )}
 
-        {/* Stats Summary */}
+        {/* Enhanced Stats Summary */}
         {leaderboardData.length > 0 && (
-          <div className="mt-12 p-6 bg-slate-800/40 border border-slate-700/50 rounded-xl">
-            <h3 className="text-xl font-bold text-white mb-4 text-center flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 mr-2 text-yellow-400" />
+          <div className="mt-16 p-8 bg-gradient-to-r from-slate-800/40 to-slate-700/40 border border-slate-600/50 rounded-2xl backdrop-blur-sm">
+            <h3 className="text-2xl font-bold text-white mb-8 text-center flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 mr-3 text-yellow-400" />
               Leaderboard Statistics
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-              <div>
-                <div className="text-2xl font-bold text-emerald-400">{leaderboardData.length}</div>
-                <div className="text-sm text-slate-400">Active Players</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+              <div className="p-4 bg-slate-700/30 rounded-xl border border-slate-600/30">
+                <div className="text-3xl font-bold text-emerald-400 mb-2">{leaderboardData.length}</div>
+                <div className="text-slate-400 font-medium">Active Players</div>
               </div>
-              <div>
-                <div className="text-2xl font-bold text-blue-400">
+              <div className="p-4 bg-slate-700/30 rounded-xl border border-slate-600/30">
+                <div className="text-3xl font-bold text-blue-400 mb-2">
                   {leaderboardData.length > 0 
                     ? Math.round(leaderboardData.reduce((sum, p) => sum + p.winRate, 0) / leaderboardData.length)
                     : 0
                   }%
                 </div>
-                <div className="text-sm text-slate-400">Average Win Rate</div>
+                <div className="text-slate-400 font-medium">Average Win Rate</div>
               </div>
-              <div>
-                <div className="text-2xl font-bold text-amber-400">
+              <div className="p-4 bg-slate-700/30 rounded-xl border border-slate-600/30">
+                <div className="text-3xl font-bold text-amber-400 mb-2">
                   {leaderboardData.reduce((sum, p) => sum + p.totalGames, 0)}
                 </div>
-                <div className="text-sm text-slate-400">Total Games</div>
+                <div className="text-slate-400 font-medium">Total Games</div>
               </div>
-              <div>
-                <div className="text-2xl font-bold text-violet-400">
+              <div className="p-4 bg-slate-700/30 rounded-xl border border-slate-600/30">
+                <div className="text-3xl font-bold text-violet-400 mb-2">
                   {leaderboardData.reduce((sum, p) => sum + parseFloat(p.totalWinnings), 0).toFixed(4)} ETH
                 </div>
-                <div className="text-sm text-slate-400">Total Winnings</div>
+                <div className="text-slate-400 font-medium">Total Winnings</div>
               </div>
             </div>
           </div>

@@ -48,7 +48,7 @@ export default function GameSettings({ entryFee, onEntryFeeChange, gameSettings,
               className="w-full"
             />
             <div className="text-center">
-              <span className="text-3xl font-black text-amber-400">{entryFee[0]} ETH</span>
+                  <span className="text-3xl font-black text-amber-400">{entryFee[0]} MNT</span>
             </div>
           </div>
         </div>

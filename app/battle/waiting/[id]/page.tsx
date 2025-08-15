@@ -192,7 +192,7 @@ export default function UpdatedWaitingRoomPage() {
       try {
         await navigator.share({
           title: `Join my ${gameModeConfigs[gameData.mode].title} battle!`,
-          text: `I've created a ${gameModeConfigs[gameData.mode].title} battle with ${gameData.entryFee} ETH entry fee. Join me!`,
+          text: `I've created a ${gameModeConfigs[gameData.mode].title} battle with ${gameData.entryFee} MNT entry fee. Join me!`,
           url: shareUrl,
         })
       } catch (err) {
@@ -433,7 +433,7 @@ export default function UpdatedWaitingRoomPage() {
                       <span className="text-slate-300 font-medium">Entry Fee</span>
                     </div>
                     <div className="text-2xl font-black text-emerald-400">
-                      {parseFloat(gameData.entryFee).toFixed(4)} ETH
+                      {parseFloat(gameData.entryFee).toFixed(4)} MNT
                     </div>
                   </div>
                   
@@ -443,7 +443,7 @@ export default function UpdatedWaitingRoomPage() {
                       <span className="text-slate-300 font-medium">Prize Pool</span>
                     </div>
                     <div className="text-2xl font-black text-cyan-400">
-                      {parseFloat(gameData.prizePool).toFixed(4)} ETH
+                      {parseFloat(gameData.prizePool).toFixed(4)} MNT
                     </div>
                   </div>
                   
@@ -623,13 +623,13 @@ export default function UpdatedWaitingRoomPage() {
                 
                 <div className="bg-slate-900/40 rounded-lg p-3">
                   <p className="text-xs font-bold text-slate-400 mb-1">GAME BALANCE</p>
-                  <p className="font-black text-emerald-400">{parseFloat(userBalance).toFixed(4)} ETH</p>
+                  <p className="font-black text-emerald-400">{parseFloat(userBalance).toFixed(4)} MNT</p>
                 </div>
 
                 {parseFloat(userBalance) > 0 && (
                   <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
                     <p className="text-xs font-bold text-emerald-400 mb-1">AVAILABLE TO WITHDRAW</p>
-                    <p className="font-black text-emerald-400 mb-2">{parseFloat(userBalance).toFixed(4)} ETH</p>
+                    <p className="font-black text-emerald-400 mb-2">{parseFloat(userBalance).toFixed(4)} MNT</p>
                     <Button
                       onClick={handleWithdraw}
                       disabled={transactionLoading}

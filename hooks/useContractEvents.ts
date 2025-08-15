@@ -3,7 +3,7 @@ import { useEffect, useRef, useCallback } from 'react'
 import { usePublicClient } from 'wagmi'
 import { ethers } from 'ethers'
 
-const GAME_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_GAME_CONTRACT_ADDRESS || "0x5ecc48015485c2d4025a33Df8F5AF79eF5e8B96B"
+const GAME_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_GAME_CONTRACT_ADDRESS || "0xfb40c6BACc74019E01C0dD5b434CE896806D7579"
 
 // Event signatures for the game contract
 const EVENT_SIGNATURES = {

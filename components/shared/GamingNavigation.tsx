@@ -24,8 +24,8 @@ import { ethers } from "ethers"
 import { getEthersProvider } from "@/config/adapter"
 import MyGamesDropdown from "./MyGamesDropdown"
 
-// Simple ETH Balance Hook
-const useETHBalance = (address: string | undefined) => {
+// Simple MNT Balance Hook
+const useMNTBalance = (address: string | undefined) => {
   const config = useConfig()
   const [balance, setBalance] = useState<string>("0.0000")
   const [isLoading, setIsLoading] = useState(false)
@@ -42,7 +42,7 @@ const useETHBalance = (address: string | undefined) => {
       const formatted = parseFloat(ethers.formatEther(rawBalance)).toFixed(4)
       setBalance(formatted)
     } catch (err) {
-      console.error("Error fetching ETH balance:", err)
+      console.error("Error fetching MNT balance:", err)
       setBalance("0.0000")
     } finally {
       setIsLoading(false)
@@ -81,7 +81,7 @@ export default function UnifiedGamingNavigation() {
   const isConnected = appkitIsConnected || wagmiIsConnected
   
   // Simple balance hook
-  const ethBalance = useETHBalance(address)
+  const mntBalance = useMNTBalance(address)
 
   useEffect(() => setMounted(true), [])
 
@@ -197,13 +197,13 @@ export default function UnifiedGamingNavigation() {
               </Button>
             ) : isConnected ? (
               <>
-                {/* ETH Balance - Desktop */}
+                {/* MNT Balance - Desktop */}
                 <div className="hidden md:flex">
                   <Badge className="bg-slate-800/60 border border-emerald-500/30 rounded-lg px-3 py-1">
                     <div className="flex items-center space-x-2">
                       <Coins className="w-4 h-4 text-emerald-400" />
                       <span className="text-sm font-medium text-emerald-400">
-                        {ethBalance.isLoading ? "..." : `${ethBalance.balance} ETH`}
+                        {mntBalance.isLoading ? "..." : `${mntBalance.balance} MNT`}
                       </span>
                     </div>
                   </Badge>
@@ -324,10 +324,10 @@ export default function UnifiedGamingNavigation() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Coins className="w-4 h-4 text-emerald-400" />
-                        <span className="text-sm font-medium text-emerald-300">ETH Balance</span>
+                        <span className="text-sm font-medium text-emerald-300">MNT Balance</span>
                       </div>
                       <span className="text-sm font-bold text-emerald-400">
-                        {ethBalance.isLoading ? "..." : `${ethBalance.balance} ETH`}
+                        {mntBalance.isLoading ? "..." : `${mntBalance.balance} MNT`}
                       </span>
                     </div>
                   </div>

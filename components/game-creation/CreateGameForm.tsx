@@ -9,7 +9,7 @@ import GameSettings from "./GameSettings"
 import BattleSummary from "./BattleSummary"
 import { useZeroSumContract, GameMode } from "@/hooks/useZeroSumContract"
 import { toast } from "react-hot-toast"
-import type { GameMode } from "./GameModeSelector"
+import type { GameMode as GameModeType } from "./GameModeSelector"
 
 export default function CreateGameForm() {
   const router = useRouter()
@@ -33,7 +33,7 @@ export default function CreateGameForm() {
     setIsCreating(loading)
   }, [loading])
 
-  const gameModes: GameMode[] = [
+  const gameModes: GameModeType[] = [
     {
       id: "quick-draw",
       title: "Quick Draw",
@@ -44,7 +44,7 @@ export default function CreateGameForm() {
       icon: Target,
       gradient: "from-emerald-400 via-teal-500 to-cyan-600",
       bgGradient: "from-emerald-900/20 to-teal-900/20",
-      range: "0.0001 - 1.0 ETH",
+      range: "0.0001 - 1.0 MNT",
       rules: "Subtract 1 each turn - reach 0 to WIN!",
       avgDuration: "2-5 min",
     },
@@ -58,17 +58,44 @@ export default function CreateGameForm() {
       icon: Brain,
       gradient: "from-blue-400 via-indigo-500 to-purple-600",
       bgGradient: "from-blue-900/20 to-indigo-900/20",
-      range: "0.01 - 2.0 ETH",
+      range: "0.01 - 2.0 MNT",
       rules: "DON'T reach 0 - force opponent to hit 0!",
       avgDuration: "5-15 min",
     },
-    // Remove mystery modes as they're not implemented in the contract yet
+    {
+      id: "pure-mystery",
+      title: "Pure Mystery",
+      subtitle: "COMING SOON",
+      description: "Numbers stay hidden forever. Pure intuition battle!",
+      players: "2 Players",
+      difficulty: "★★★★☆",
+      icon: Eye,
+      gradient: "from-violet-400 via-purple-500 to-fuchsia-600",
+      bgGradient: "from-violet-900/20 to-purple-900/20",
+      range: "0.5 - 10 MNT",
+      rules: "Hidden numbers - pure strategy!",
+      avgDuration: "3-6 min",
+      comingSoon: true,
+    },
+    {
+      id: "hardcore-mystery",
+      title: "Hardcore Mystery",
+      subtitle: "COMING SOON",
+      description: "One wrong move = game over! Ultimate challenge.",
+      players: "2 Players",
+      difficulty: "★★★★★",
+      icon: Zap,
+      gradient: "from-rose-400 via-pink-500 to-red-600",
+      bgGradient: "from-rose-900/20 to-rose-900/20",
+      range: "1.0 - 25 MNT",
+      rules: "Instant death on wrong move!",
+      avgDuration: "2-5 min",
+      comingSoon: true,
+    },
   ]
 
-  // Filter only the implemented game modes
-  const availableGameModes = gameModes.filter(mode => 
-    mode.id === "quick-draw" || mode.id === "strategic"
-  )
+  // Filter only the implemented game modes (not coming soon)
+  const availableGameModes: GameModeType[] = gameModes.filter(mode => !mode.comingSoon)
 
   const handleCreateBattle = async () => {
     if (!isConnected) {

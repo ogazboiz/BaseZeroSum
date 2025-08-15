@@ -65,15 +65,15 @@ export default function BattleSummary({ selectedMode, gameModes, entryFee, gameS
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-slate-400">Entry Fee:</span>
-                <span className="font-bold text-cyan-400">{entryFee[0]} ETH</span>
+                <span className="font-bold text-cyan-400">{entryFee[0]} MNT</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-400">Prize Pool:</span>
-                <span className="font-bold text-emerald-400">{prizePool.toFixed(2)} ETH</span>
+                <span className="font-bold text-emerald-400">{prizePool.toFixed(2)} MNT</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-400">Platform Fee:</span>
-                <span className="font-bold text-slate-400">0.01 ETH</span>
+                <span className="font-bold text-slate-400">0.01 MNT</span>
               </div>
             </div>
           </div>

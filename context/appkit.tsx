@@ -1,7 +1,7 @@
 "use client";
 import { createAppKit } from "@reown/appkit/react";
 import { EthersAdapter } from "@reown/appkit-adapter-ethers";
-import { sepolia, mantle, mantleSepoliaTestnet } from "@reown/appkit/networks";
+import {  mantleSepoliaTestnet, mantle } from "@reown/appkit/networks";
 import type { AppKitNetwork } from "@reown/appkit/networks";
 import { ReactNode } from "react";
 
@@ -16,7 +16,7 @@ const mainnetNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [
 
 const testnetNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [
   mantleSepoliaTestnet,
-  sepolia, // Keep Sepolia for testing fallback
+  // sepolia, // Keep Sepolia for testing fallback
 ];
 
 // Use appropriate networks based on environment

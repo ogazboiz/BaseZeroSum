@@ -47,7 +47,7 @@ import { toast } from "react-hot-toast"
 import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
 
 // Mock balance hooks - replace with your actual balance hooks
-const useETHBalance = (address: string | undefined) => {
+const useMNTBalance = (address: string | undefined) => {
   return {
     formatted: "2.45",
     isLoading: false,
@@ -71,7 +71,7 @@ const usePlayerStats = (address: string | undefined) => {
     wins: 24,
     losses: 8,
     rank: 47,
-    totalEarnings: "12.5 ETH",
+    totalEarnings: "12.5 MNT",
     winRate: 75,
     isLoading: false
   }
@@ -161,7 +161,7 @@ export default function HomePage() {
   const isConnected = appkitIsConnected || wagmiIsConnected
 
   // Balance and stats hooks
-  const ethBalance = useETHBalance(address)
+  const mntBalance = useMNTBalance(address)
   const zsBalance = useZSTokenBalance(address)
   const playerStats = usePlayerStats(address)
 
@@ -185,8 +185,8 @@ export default function HomePage() {
   const liveStats = {
     playersOnline: "1,247",
     activeGames: "89",
-    totalPrizePool: "234.7 ETH",
-    biggestWin: "12.5 ETH",
+    totalPrizePool: "234.7 MNT",
+    biggestWin: "12.5 MNT",
   }
 
   const featuredGames = [
@@ -202,7 +202,7 @@ export default function HomePage() {
       gradient: "from-emerald-400 via-teal-500 to-cyan-600",
       bgPattern: "from-emerald-50 to-teal-50",
       glowColor: "shadow-emerald-500/30",
-      prize: "0.1-2.0 ETH",
+      prize: "0.1-2.0 MNT",
       playersActive: 45,
     },
     {
@@ -217,13 +217,13 @@ export default function HomePage() {
       gradient: "from-blue-400 via-indigo-500 to-purple-600",
       bgPattern: "from-blue-50 to-indigo-50",
       glowColor: "shadow-blue-500/30",
-      prize: "0.25-5.0 ETH",
+      prize: "0.25-5.0 MNT",
       playersActive: 32,
     },
     {
       id: "pure-mystery",
       title: "Pure Mystery",
-      subtitle: "HIDDEN WARFARE",
+      subtitle: "COMING SOON",
       description: "Numbers stay hidden forever. Pure intuition battle!",
       players: "1v1",
       avgDuration: "3-6 min",
@@ -232,13 +232,14 @@ export default function HomePage() {
       gradient: "from-violet-400 via-purple-500 to-fuchsia-600",
       bgPattern: "from-violet-50 to-purple-50",
       glowColor: "shadow-violet-500/30",
-      prize: "0.5-10 ETH",
-      playersActive: 28,
+      prize: "0.5-10 MNT",
+      playersActive: 0,
+      comingSoon: true,
     },
     {
       id: "hardcore-mystery",
       title: "Hardcore Mystery",
-      subtitle: "INSTANT DEATH",
+      subtitle: "COMING SOON",
       description: "One wrong move = game over! Ultimate challenge.",
       players: "1v1",
       avgDuration: "2-5 min",
@@ -247,8 +248,9 @@ export default function HomePage() {
       gradient: "from-rose-400 via-pink-500 to-red-600",
       bgPattern: "from-rose-50 to-pink-50",
       glowColor: "shadow-rose-500/30",
-      prize: "1.0-25 ETH",
-      playersActive: 19,
+      prize: "1.0-25 MNT",
+      playersActive: 0,
+      comingSoon: true,
     },
   ]
 
@@ -469,8 +471,8 @@ export default function HomePage() {
         <div className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-20 right-10 w-96 h-96 bg-gradient-to-r from-violet-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
         <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-full blur-3xl animate-pulse delay-2000"></div>
-      </div>
-
+                            </div>
+                            
       {/* Unified Gaming Navigation */}
       <UnifiedGamingNavigation />
 
@@ -641,15 +643,24 @@ export default function HomePage() {
           {featuredGames.map((game, index) => (
             <Card
               key={index}
-              className={`relative overflow-hidden bg-gradient-to-br ${game.bgPattern} border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 transform hover:scale-105 cursor-pointer group ${game.glowColor} hover:shadow-2xl`}
+              className={`relative overflow-hidden bg-gradient-to-br ${game.bgPattern} border-0 shadow-2xl transition-all duration-500 group ${game.glowColor} ${game.comingSoon ? 'cursor-not-allowed' : 'hover:shadow-3xl transform hover:scale-105 cursor-pointer'}`}
             >
               {/* Background Pattern */}
               <div className="absolute inset-0 bg-slate-900/90"></div>
 
               {/* Glow Effect */}
               <div
-                className={`absolute inset-0 bg-gradient-to-r ${game.gradient} opacity-0 group-hover:opacity-20 transition-opacity duration-500`}
+                className={`absolute inset-0 bg-gradient-to-r ${game.gradient} opacity-0 transition-opacity duration-500 ${game.comingSoon ? '' : 'group-hover:opacity-20'}`}
               ></div>
+
+              {/* Coming Soon Badge - Minimal */}
+              {game.comingSoon && (
+                <div className="absolute top-4 right-4 z-20">
+                  <div className="bg-cyan-500/90 backdrop-blur-md rounded-full px-3 py-1 border border-cyan-400/50">
+                    <div className="text-xs font-bold text-white">🚧 COMING SOON</div>
+                  </div>
+                </div>
+              )}
 
               <CardHeader className="relative z-10 pb-4">
                 <div className="flex items-start justify-between mb-4">
@@ -659,8 +670,8 @@ export default function HomePage() {
                     <game.icon className="w-8 h-8 text-white" />
                   </div>
                   <div className="text-right">
-                    <Badge className="bg-slate-800/60 text-emerald-400 border-emerald-500/30 font-bold">
-                      {game.playersActive} ACTIVE
+                    <Badge className={`${game.comingSoon ? 'bg-slate-700/60 text-slate-300 border-slate-500/30' : 'bg-slate-800/60 text-emerald-400 border-emerald-500/30'} font-bold`}>
+                      {game.comingSoon ? 'COMING SOON' : `${game.playersActive} ACTIVE`}
                     </Badge>
                   </div>
                 </div>
@@ -694,11 +705,21 @@ export default function HomePage() {
                 </div>
 
                 <Button
-                  onClick={() => handleCreateGame(game.id)}
-                  className={`w-full bg-gradient-to-r ${game.gradient} hover:shadow-lg text-white font-black py-4 rounded-xl transition-all transform group-hover:scale-105`}
+                  onClick={game.comingSoon ? undefined : () => handleCreateGame(game.id)}
+                  disabled={game.comingSoon}
+                  className={`w-full ${game.comingSoon ? 'bg-slate-700/80 text-slate-300 cursor-not-allowed border border-slate-500/50' : `bg-gradient-to-r ${game.gradient} hover:shadow-lg text-white`} font-black py-4 rounded-xl transition-all transform ${game.comingSoon ? '' : 'group-hover:scale-105'}`}
                 >
+                  {game.comingSoon ? (
+                    <>
+                      <div className="w-5 h-5 mr-2">🚧</div>
+                      COMING SOON
+                    </>
+                  ) : (
+                    <>
                   <Play className="w-5 h-5 mr-2" />
                   {isConnected ? "ENTER BATTLE" : "CONNECT TO PLAY"}
+                    </>
+                  )}
                 </Button>
               </CardContent>
             </Card>

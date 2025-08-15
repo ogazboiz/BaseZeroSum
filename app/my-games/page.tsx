@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -26,40 +26,191 @@ import {
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAccount } from "wagmi"
-import { useGameContext } from "@/context/GameContext"
 import { useGameNavigation } from "@/hooks/useGameNavigation"
 import { toast } from "react-hot-toast"
 import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
-import { DebugPanel } from "@/components/debug/DebugPanel" // Add this import
+import SimpleDebugMyGames from "@/components/debug/SimpleDebugMyGames"
+
+// Direct hook imports
+import { useZeroSumData, GameData, GameMode, GameStatus } from "@/hooks/useZeroSumContract"
+
+// Enhanced game interface for UI
+interface EnhancedGameData extends GameData {
+  myTurn: boolean
+  isCreator: boolean
+  players: string[]
+  timeLeft: number
+  status: "waiting" | "active" | "completed"
+  mode: "Quick Draw" | "Strategic"
+}
 
 export default function MyGamesPage() {
   const router = useRouter()
   const { address, isConnected } = useAccount()
+  
+  // Direct hook usage instead of GameContext
   const { 
-    myGames, 
-    gameStats: stats, 
-    isLoading, 
-    error, 
-    fetchMyGames,
-    getMyTurnGames,
-    hasUrgentActions
-  } = useGameContext()
+    getUserGames, 
+    getPlayerView, 
+    getPlayers,
+    contractsReady,
+    providerReady 
+  } = useZeroSumData()
   
   // Use the navigation hook
   const { navigateToGame } = useGameNavigation()
   
-  // Get derived data
-  const activeGames = myGames.filter(g => g.status === "active")
-  const waitingGames = myGames.filter(g => g.status === "waiting")
-  const completedGames = myGames.filter(g => g.status === "completed")
-  const myTurnGames = getMyTurnGames()
-  
-  // Refresh function
-  const refresh = () => fetchMyGames(true)
+  // Local state for games
+  const [myGames, setMyGames] = useState<EnhancedGameData[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [lastFetch, setLastFetch] = useState<number>(0)
   
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedFilter, setSelectedFilter] = useState<"all" | "waiting" | "active" | "completed" | "my-turn">("all")
-  const [showDebug, setShowDebug] = useState(false) // Add debug toggle
+  const [showDebug, setShowDebug] = useState(false)
+
+  // Fetch my games function
+  const fetchMyGames = async (force = false) => {
+    if (!address || !isConnected || !contractsReady) {
+      console.log('⚠️ Cannot fetch games:', { address, isConnected, contractsReady })
+      return
+    }
+
+    // Avoid too frequent fetches unless forced
+    const now = Date.now()
+    if (!force && (now - lastFetch) < 3000) {
+      console.log('⚠️ Skipping fetch - too recent')
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      console.log('🔄 Fetching my games for:', address)
+      
+      // Get user's games
+      const result = await getUserGames(address, 0, 50)
+      console.log('📊 Got games from hook:', result)
+      
+      if (!result.games || result.games.length === 0) {
+        console.log('ℹ️ No games found for user')
+        setMyGames([])
+        setLastFetch(now)
+        return
+      }
+
+      // Enhance each game with additional data
+      const enhancedGames: EnhancedGameData[] = []
+      
+      for (const game of result.games) {
+        try {
+          console.log(`🎮 Processing game ${game.gameId}...`)
+          
+          // Get players for this game
+          const players = await getPlayers(game.gameId)
+          console.log(`👥 Game ${game.gameId} players:`, players)
+          
+          // Get player view if game is active
+          let playerView = null
+          let myTurn = false
+          let timeLeft = 0
+          
+          if (game.status === GameStatus.ACTIVE) {
+            try {
+              playerView = await getPlayerView(game.gameId)
+              myTurn = playerView?.yourTurn || false
+              timeLeft = playerView?.timeLeft || 0
+              console.log(`🎯 Game ${game.gameId} player view:`, { myTurn, timeLeft })
+            } catch (viewError) {
+              console.warn(`⚠️ Could not get player view for game ${game.gameId}:`, viewError)
+            }
+          }
+          
+          // Check if user is creator (first player)
+          const isCreator = players.length > 0 && players[0].toLowerCase() === address.toLowerCase()
+          
+          // Convert status and mode to string format
+          const statusString = game.status === GameStatus.WAITING ? "waiting" :
+                              game.status === GameStatus.ACTIVE ? "active" : "completed"
+          
+          const modeString = game.mode === GameMode.QUICK_DRAW ? "Quick Draw" : "Strategic"
+          
+          const enhancedGame: EnhancedGameData = {
+            ...game,
+            myTurn,
+            isCreator,
+            players,
+            timeLeft,
+            status: statusString as "waiting" | "active" | "completed",
+            mode: modeString as "Quick Draw" | "Strategic"
+          }
+          
+          enhancedGames.push(enhancedGame)
+          console.log(`✅ Enhanced game ${game.gameId}:`, enhancedGame)
+          
+        } catch (gameError) {
+          console.error(`❌ Error processing game ${game.gameId}:`, gameError)
+          // Still add the basic game data
+          enhancedGames.push({
+            ...game,
+            myTurn: false,
+            isCreator: false,
+            players: [],
+            timeLeft: 0,
+            status: game.status === GameStatus.WAITING ? "waiting" :
+                   game.status === GameStatus.ACTIVE ? "active" : "completed",
+            mode: game.mode === GameMode.QUICK_DRAW ? "Quick Draw" : "Strategic"
+          } as EnhancedGameData)
+        }
+      }
+      
+      console.log(`✅ Processed ${enhancedGames.length} games total`)
+      setMyGames(enhancedGames)
+      setLastFetch(now)
+      
+    } catch (fetchError: any) {
+      console.error('❌ Failed to fetch my games:', fetchError)
+      setError(fetchError.message || 'Failed to fetch games')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Fetch games when component mounts or dependencies change
+  useEffect(() => {
+    if (isConnected && address && contractsReady && providerReady) {
+      console.log('🚀 Auto-fetching games on mount/connection')
+      fetchMyGames()
+    } else {
+      console.log('⏳ Waiting for connection...', { isConnected, address, contractsReady, providerReady })
+    }
+  }, [isConnected, address, contractsReady, providerReady])
+
+  // Refresh function
+  const refresh = () => {
+    console.log('🔄 Manual refresh triggered')
+    fetchMyGames(true)
+  }
+
+  // Calculate derived stats
+  const stats = {
+    totalGames: myGames.length,
+    activeGames: myGames.filter(g => g.status === "active").length,
+    waitingGames: myGames.filter(g => g.status === "waiting").length,
+    completedGames: myGames.filter(g => g.status === "completed").length,
+    gamesAsCreator: myGames.filter(g => g.isCreator).length,
+    gamesAsPlayer: myGames.filter(g => !g.isCreator).length,
+    totalWinnings: myGames
+      .filter(g => g.status === "completed" && g.winner?.toLowerCase() === address?.toLowerCase())
+      .reduce((sum, g) => sum + parseFloat(g.prizePool), 0)
+      .toFixed(4)
+  }
+
+  // Get games where it's my turn
+  const myTurnGames = myGames.filter(g => g.myTurn && g.status === "active")
+  const hasUrgentActions = () => myTurnGames.length > 0
 
   // Filter games based on search and filter
   const filteredGames = myGames.filter((game) => {
@@ -134,7 +285,7 @@ export default function MyGamesPage() {
         {/* Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 rounded-full px-6 py-2 mb-6">
-            <span className="text-cyan-400 font-bold">MY GAMES</span>
+            <span className="text-cyan-400 font-bold">MY GAMES (DIRECT HOOK)</span>
             {hasUrgentActions() && (
               <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
             )}
@@ -143,7 +294,7 @@ export default function MyGamesPage() {
           <p className="text-xl text-slate-300 font-medium">Track and manage all your battles</p>
           
           {/* Debug Toggle */}
-          <div className="mt-4">
+          <div className="mt-4 flex items-center justify-center space-x-4">
             <Button
               onClick={() => setShowDebug(!showDebug)}
               variant="outline"
@@ -153,6 +304,14 @@ export default function MyGamesPage() {
               <Bug className="w-4 h-4 mr-2" />
               {showDebug ? 'Hide' : 'Show'} Debug Info
             </Button>
+            
+            {/* Connection Status */}
+            <div className="flex items-center space-x-2 text-sm">
+              <div className={`w-2 h-2 rounded-full ${contractsReady ? 'bg-green-400' : 'bg-red-400'}`}></div>
+              <span className="text-slate-400">
+                {contractsReady ? 'Connected' : 'Connecting...'}
+              </span>
+            </div>
           </div>
           
           {/* Urgent Actions Alert */}
@@ -169,9 +328,7 @@ export default function MyGamesPage() {
         </div>
 
         {/* Debug Panel */}
-        {showDebug && (
-          <DebugPanel debugInfo={{ message: "Debug info not available in context" }} userAddress={address} />
-        )}
+        {showDebug && <SimpleDebugMyGames />}
 
         {/* Stats Cards */}
         <div className="grid md:grid-cols-5 gap-6 mb-8">
@@ -293,35 +450,43 @@ export default function MyGamesPage() {
           </Button>
         </div>
 
-                 {/* Loading/Error States */}
-         {isLoading && myGames.length > 0 && (
-           <div className="mb-8 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-             <div className="flex items-center space-x-2">
-               <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
-               <p className="text-blue-400 font-medium">Refreshing game data...</p>
-             </div>
-           </div>
-         )}
-         
-         {error && (
-           <div className="mb-8 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-             <div className="flex items-center space-x-2">
-               <AlertTriangle className="w-5 h-5 text-red-400" />
-               <p className="text-red-400 font-medium">Error: {error}</p>
-             </div>
-           </div>
-         )}
+        {/* Loading/Error States */}
+        {isLoading && myGames.length > 0 && (
+          <div className="mb-8 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+              <p className="text-blue-400 font-medium">Refreshing game data...</p>
+            </div>
+          </div>
+        )}
+        
+        {error && (
+          <div className="mb-8 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="w-5 h-5 text-red-400" />
+              <p className="text-red-400 font-medium">Error: {error}</p>
+              <Button 
+                onClick={() => setError(null)} 
+                size="sm" 
+                variant="outline"
+                className="border-red-500/30 text-red-400 ml-auto"
+              >
+                Dismiss
+              </Button>
+            </div>
+          </div>
+        )}
 
-                 {/* Games List */}
-         {isLoading && myGames.length === 0 ? (
-           <div className="flex items-center justify-center min-h-[400px]">
-             <div className="text-center">
-               <Loader2 className="w-16 h-16 animate-spin mx-auto mb-4 text-cyan-400" />
-               <p className="text-xl font-bold text-white">Loading your games...</p>
-               <p className="text-slate-400">Fetching from blockchain</p>
-             </div>
-           </div>
-         ) : filteredGames.length === 0 ? (
+        {/* Games List */}
+        {isLoading && myGames.length === 0 ? (
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <Loader2 className="w-16 h-16 animate-spin mx-auto mb-4 text-cyan-400" />
+              <p className="text-xl font-bold text-white">Loading your games...</p>
+              <p className="text-slate-400">Fetching directly from contract</p>
+            </div>
+          </div>
+        ) : filteredGames.length === 0 ? (
           <div className="text-center py-16">
             <Gamepad2 className="w-24 h-24 mx-auto mb-6 text-slate-500" />
             <h3 className="text-2xl font-bold text-white mb-2">No games found</h3>
@@ -427,21 +592,21 @@ export default function MyGamesPage() {
                     </div>
                     
                     <div className="flex flex-col space-y-2">
-                        <Button 
-                          onClick={() => navigateToGame(game.gameId)}
-                          className={`${
-                            game.myTurn && game.status === "active"
-                              ? 'bg-red-600 hover:bg-red-700 animate-pulse'
-                              : 'bg-cyan-600 hover:bg-cyan-700'
-                          } text-white rounded-lg min-w-[120px]`}>
-                          <ExternalLink className="w-4 h-4 mr-2" />
-                          {game.status === "active" 
-                            ? game.myTurn ? "MAKE MOVE" : "Continue"
-                            : game.status === "waiting" 
-                              ? "Enter Game" 
-                              : "View Game"
-                          }
-                        </Button>
+                      <Button 
+                        onClick={() => navigateToGame(game.gameId)}
+                        className={`${
+                          game.myTurn && game.status === "active"
+                            ? 'bg-red-600 hover:bg-red-700 animate-pulse'
+                            : 'bg-cyan-600 hover:bg-cyan-700'
+                        } text-white rounded-lg min-w-[120px]`}>
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                        {game.status === "active" 
+                          ? game.myTurn ? "MAKE MOVE" : "Continue"
+                          : game.status === "waiting" 
+                            ? "Enter Game" 
+                            : "View Game"
+                        }
+                      </Button>
                       
                       {game.status === "waiting" && (
                         <div className="text-center">
@@ -449,11 +614,11 @@ export default function MyGamesPage() {
                             {game.isCreator ? "Waiting for opponent..." : "Game starting soon..."}
                           </p>
                           {game.isCreator && (
-                                                         <Button
-                               onClick={() => {
-                                 navigator.clipboard.writeText(`${window.location.origin}/battle/${game.gameId}`)
-                                 toast.success("Game link copied!")
-                               }}
+                            <Button
+                              onClick={() => {
+                                navigator.clipboard.writeText(`${window.location.origin}/battle/${game.gameId}`)
+                                toast.success("Game link copied!")
+                              }}
                               variant="outline"
                               size="sm"
                               className="mt-1 text-xs border-slate-600 text-slate-300"
@@ -515,13 +680,13 @@ export default function MyGamesPage() {
                 Browse All Battles
               </Button>
             </Link>
-                         {myTurnGames.length > 0 && (
-                <Button 
-                  onClick={() => navigateToGame(myTurnGames[0].gameId)}
-                  className="bg-red-600 hover:bg-red-700 text-white rounded-xl px-8 py-3 animate-pulse">
-                  <Timer className="w-5 h-5 mr-2" />
-                  Play Now!
-                </Button>
+            {myTurnGames.length > 0 && (
+              <Button 
+                onClick={() => navigateToGame(myTurnGames[0].gameId)}
+                className="bg-red-600 hover:bg-red-700 text-white rounded-xl px-8 py-3 animate-pulse">
+                <Timer className="w-5 h-5 mr-2" />
+                Play Now!
+              </Button>
             )}
           </div>
         </div>
@@ -553,6 +718,45 @@ export default function MyGamesPage() {
                 <div className="text-sm text-slate-400">Total Winnings</div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Debug Info */}
+        {showDebug && (
+          <div className="mt-8 p-4 bg-slate-800/40 border border-slate-600/50 rounded-xl">
+            <h4 className="font-semibold text-white mb-2">Debug Information:</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="text-slate-400">Provider Ready:</span>
+                <span className={`ml-2 ${providerReady ? 'text-green-400' : 'text-red-400'}`}>
+                  {providerReady ? 'Yes' : 'No'}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400">Contracts Ready:</span>
+                <span className={`ml-2 ${contractsReady ? 'text-green-400' : 'text-red-400'}`}>
+                  {contractsReady ? 'Yes' : 'No'}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400">Games Loaded:</span>
+                <span className="ml-2 text-cyan-400">{myGames.length}</span>
+              </div>
+              <div>
+                <span className="text-slate-400">Last Fetch:</span>
+                <span className="ml-2 text-slate-300">
+                  {lastFetch ? new Date(lastFetch).toLocaleTimeString() : 'Never'}
+                </span>
+              </div>
+            </div>
+            
+            <Button 
+              onClick={() => fetchMyGames(true)} 
+              size="sm" 
+              className="mt-3 bg-purple-600 hover:bg-purple-700"
+            >
+              Force Refresh
+            </Button>
           </div>
         )}
       </div>

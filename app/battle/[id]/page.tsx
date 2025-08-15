@@ -686,7 +686,7 @@ export default function FixedBattlePage() {
                         : "This battle is waiting for a second player."}
                     </p>
                     <p className="text-slate-400 text-sm">
-                      Entry Fee: {parseFloat(gameState.entryFee).toFixed(4)} ETH • Prize Pool: {parseFloat(gameState.prizePool).toFixed(4)} ETH
+                      Entry Fee: {parseFloat(gameState.entryFee).toFixed(4)} MNT • Prize Pool: {parseFloat(gameState.prizePool).toFixed(4)} MNT
                     </p>
                     
                     {gameState.canJoin && (
@@ -701,7 +701,7 @@ export default function FixedBattlePage() {
                           ) : (
                             <Swords className="w-5 h-5 mr-2" />
                           )}
-                          {transactionLoading ? "JOINING..." : `JOIN BATTLE (${parseFloat(gameState.entryFee).toFixed(4)} ETH)`}
+                          {transactionLoading ? "JOINING..." : `JOIN BATTLE (${parseFloat(gameState.entryFee).toFixed(4)} MNT)`}
                         </Button>
                       </div>
                     )}
@@ -1021,7 +1021,7 @@ export default function FixedBattlePage() {
                                `${gameState.players[1]?.slice(0, 8)}... (Opponent)`}
                     </p>
                     <p className="text-slate-400 text-sm">
-                      Final number: {gameState.currentNumber} • Prize Pool: {parseFloat(gameState.prizePool).toFixed(4)} ETH
+                      Final number: {gameState.currentNumber} • Prize Pool: {parseFloat(gameState.prizePool).toFixed(4)} MNT
                     </p>
                   </div>
                   
@@ -1058,11 +1058,11 @@ export default function FixedBattlePage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-900/40 rounded-lg p-3">
                     <p className="text-xs font-bold text-slate-400 mb-1">ENTRY FEE</p>
-                    <p className="font-black text-cyan-400">{parseFloat(gameState.entryFee).toFixed(4)} ETH</p>
+                    <p className="font-black text-cyan-400">{parseFloat(gameState.entryFee).toFixed(4)} MNT</p>
                   </div>
                   <div className="bg-slate-900/40 rounded-lg p-3">
                     <p className="text-xs font-bold text-slate-400 mb-1">PRIZE POOL</p>
-                    <p className="font-black text-emerald-400">{parseFloat(gameState.prizePool).toFixed(4)} ETH</p>
+                    <p className="font-black text-emerald-400">{parseFloat(gameState.prizePool).toFixed(4)} MNT</p>
                   </div>
                 </div>
 
@@ -1171,13 +1171,13 @@ export default function FixedBattlePage() {
                 
                 <div className="bg-slate-900/40 rounded-lg p-3">
                   <p className="text-xs font-bold text-slate-400 mb-1">GAME BALANCE</p>
-                  <p className="font-black text-emerald-400">{parseFloat(userBalance).toFixed(4)} ETH</p>
+                  <p className="font-black text-emerald-400">{parseFloat(userBalance).toFixed(4)} MNT</p>
                 </div>
 
                 {parseFloat(userBalance) > 0 && (
                   <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
                     <p className="text-xs font-bold text-emerald-400 mb-1">AVAILABLE TO WITHDRAW</p>
-                    <p className="font-black text-emerald-400">{parseFloat(userBalance).toFixed(4)} ETH</p>
+                        <p className="font-black text-emerald-400">{parseFloat(userBalance).toFixed(4)} MNT</p>
                     <Button
                       onClick={handleWithdraw}
                       disabled={transactionLoading}

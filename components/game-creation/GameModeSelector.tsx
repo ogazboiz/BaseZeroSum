@@ -16,6 +16,7 @@ export interface GameMode {
   range: string
   rules: string
   avgDuration: string
+  comingSoon?: boolean
 }
 
 interface GameModeSelectorProps {
@@ -38,18 +39,32 @@ export default function GameModeSelector({ gameModes, selectedMode, onModeSelect
           {gameModes.map((mode) => (
             <div
               key={mode.id}
-              className={`relative p-6 rounded-2xl border-2 cursor-pointer transition-all duration-300 transform hover:scale-105 ${
-                selectedMode === mode.id
-                  ? `bg-gradient-to-br ${mode.bgGradient} border-slate-500/50 shadow-2xl`
-                  : "border-slate-700/50 hover:border-slate-600/50 bg-slate-900/40"
+              className={`relative p-6 rounded-2xl border-2 transition-all duration-300 ${
+                mode.comingSoon 
+                  ? 'cursor-not-allowed opacity-60' 
+                  : `cursor-pointer transform hover:scale-105 ${
+                      selectedMode === mode.id
+                        ? `bg-gradient-to-br ${mode.bgGradient} border-slate-500/50 shadow-2xl`
+                        : "border-slate-700/50 hover:border-slate-600/50 bg-slate-900/40"
+                    }`
               }`}
-              onClick={() => onModeSelect(mode.id)}
+              onClick={() => !mode.comingSoon && onModeSelect(mode.id)}
             >
               {/* Glow Effect */}
               {selectedMode === mode.id && (
                 <div
                   className={`absolute inset-0 bg-gradient-to-r ${mode.gradient} opacity-10 rounded-2xl`}
                 ></div>
+              )}
+
+              {/* Coming Soon Overlay */}
+              {mode.comingSoon && (
+                <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-20 flex items-center justify-center rounded-2xl">
+                  <div className="text-center">
+                    <div className="text-2xl mb-2">🚧</div>
+                    <div className="text-sm font-bold text-cyan-400">COMING SOON</div>
+                  </div>
+                </div>
               )}
 
               <div className="relative z-10">
