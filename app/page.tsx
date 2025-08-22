@@ -221,25 +221,9 @@ export default function HomePage() {
       playersActive: 32,
     },
     {
-      id: "pure-mystery",
-      title: "Pure Mystery",
-      subtitle: "COMING SOON",
-      description: "Numbers stay hidden forever. Pure intuition battle!",
-      players: "1v1",
-      avgDuration: "3-6 min",
-      difficulty: "★★★★☆",
-      icon: Eye,
-      gradient: "from-violet-400 via-purple-500 to-fuchsia-600",
-      bgPattern: "from-violet-50 to-purple-50",
-      glowColor: "shadow-violet-500/30",
-      prize: "0.5-10 MNT",
-      playersActive: 0,
-      comingSoon: true,
-    },
-    {
       id: "hardcore-mystery",
       title: "Hardcore Mystery",
-      subtitle: "COMING SOON",
+      subtitle: "LIVE NOW",
       description: "One wrong move = game over! Ultimate challenge.",
       players: "1v1",
       avgDuration: "2-5 min",
@@ -249,8 +233,24 @@ export default function HomePage() {
       bgPattern: "from-rose-50 to-pink-50",
       glowColor: "shadow-rose-500/30",
       prize: "1.0-25 MNT",
-      playersActive: 0,
-      comingSoon: true,
+      playersActive: 12,
+      comingSoon: false,
+    },
+    {
+      id: "last-stand",
+      title: "Last Stand",
+      subtitle: "BATTLE ROYALE",
+      description: "8 players enter, 1 survivor emerges! Eliminate opponents with strategic moves.",
+      players: "8 Players",
+      avgDuration: "10-15 min",
+      difficulty: "★★★★☆",
+      icon: Swords,
+      gradient: "from-orange-400 via-pink-500 to-red-600",
+      bgPattern: "from-orange-50 to-pink-50",
+      glowColor: "shadow-orange-500/30",
+      prize: "2.0-50 MNT",
+      playersActive: 28,
+      comingSoon: false,
     },
   ]
 
@@ -388,7 +388,14 @@ export default function HomePage() {
       toast.error("Please connect your wallet to create battles!")
       return
     }
-    router.push(`/create?mode=${gameMode}`)
+    
+    // Route Hardcore Mystery games to the hardcore create page
+    if (gameMode === "hardcore-mystery") {
+      router.push("/create/hardcore")
+    } else {
+      // Last Stand and other games go to normal create page
+      router.push(`/create?mode=${gameMode}`)
+    }
   }
 
   // Soundtrack control functions
@@ -821,17 +828,18 @@ export default function HomePage() {
                 >
                   Strategic
                 </li>
-                <li
-                  onClick={() => handleCreateGame("pure-mystery")}
-                  className="hover:text-cyan-400 cursor-pointer transition-colors"
-                >
-                  Pure Mystery
-                </li>
+
                 <li
                   onClick={() => handleCreateGame("hardcore-mystery")}
                   className="hover:text-cyan-400 cursor-pointer transition-colors"
                 >
                   Hardcore Mystery
+                </li>
+                <li
+                  onClick={() => handleCreateGame("last-stand")}
+                  className="hover:text-cyan-400 cursor-pointer transition-colors"
+                >
+                  Last Stand
                 </li>
               </ul>
             </div>

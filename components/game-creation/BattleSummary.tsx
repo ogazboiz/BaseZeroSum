@@ -16,9 +16,11 @@ interface BattleSummaryProps {
   }
   isCreating: boolean
   onCreateBattle: () => void
+  isConnected: boolean
+  contractMode: any
 }
 
-export default function BattleSummary({ selectedMode, gameModes, entryFee, gameSettings, isCreating, onCreateBattle }: BattleSummaryProps) {
+export default function BattleSummary({ selectedMode, gameModes, entryFee, gameSettings, isCreating, onCreateBattle, isConnected, contractMode }: BattleSummaryProps) {
   const selectedGameMode = gameModes.find((mode) => mode.id === selectedMode)
   const prizePool = entryFee[0] * 1.9 // 90% of total entry fees
 

@@ -1,13 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAccount } from "wagmi"
-import { Target, Brain, Eye, Zap } from "lucide-react"
+import { Target, Brain, Eye, Zap, Users } from "lucide-react"
 import GameModeSelector from "./GameModeSelector"
 import GameSettings from "./GameSettings"
 import BattleSummary from "./BattleSummary"
 import { useZeroSumContract, GameMode } from "@/hooks/useZeroSumContract"
+import { useHardcoreMysteryContract, GameMode as HardcoreGameMode } from "@/hooks/useHardcoreMysteryContracts"
 import { toast } from "react-hot-toast"
 import type { GameMode as GameModeType } from "./GameModeSelector"
 
@@ -15,7 +16,8 @@ export default function CreateGameForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { address, isConnected } = useAccount()
-  const { createQuickDraw, createStrategic, loading } = useZeroSumContract()
+  const { createQuickDraw, createStrategic, loading: zeroSumLoading } = useZeroSumContract()
+  const { createHardcoreMysteryGame, createLastStandGame, loading: hardcoreLoading } = useHardcoreMysteryContract()
   
   const modeFromUrl = searchParams.get("mode")
 
@@ -24,14 +26,56 @@ export default function CreateGameForm() {
   const [gameSettings, setGameSettings] = useState({
     isPrivate: false,
     allowSpectators: true,
-    timeout: 90, // Fixed at 5 minutes (300 seconds) to match contract
+    timeout: 90, // Fixed at 90 seconds to match contract
   })
   const [isCreating, setIsCreating] = useState(false)
 
+  // Helper functions for entry fee validation
+  const getMaxEntryFee = useCallback(() => {
+    switch (selectedMode) {
+      case "quick-draw":
+        return 1.0
+      case "strategic":
+        return 2.0
+      case "hardcore-mystery":
+        return 25.0
+      case "last-stand":
+        return 25.0
+      default:
+        return 1.0
+    }
+  }, [selectedMode])
+
+  const getMinEntryFee = useCallback(() => {
+    switch (selectedMode) {
+      case "quick-draw":
+        return 0.0001
+      case "strategic":
+        return 0.001
+      case "hardcore-mystery":
+        return 0.001
+      case "last-stand":
+        return 0.001
+      default:
+        return 0.0001
+    }
+  }, [selectedMode])
+
   // Update creating state based on contract loading
   useEffect(() => {
-    setIsCreating(loading)
-  }, [loading])
+    setIsCreating(zeroSumLoading || hardcoreLoading)
+  }, [zeroSumLoading, hardcoreLoading])
+
+  // Update entry fee when mode changes to ensure it's within valid range
+  useEffect(() => {
+    const currentFee = entryFee[0]
+    const minFee = getMinEntryFee()
+    const maxFee = getMaxEntryFee()
+    
+    if (currentFee < minFee || currentFee > maxFee) {
+      setEntryFee([minFee])
+    }
+  }, [selectedMode, entryFee, getMinEntryFee, getMaxEntryFee])
 
   const gameModes: GameModeType[] = [
     {
@@ -80,17 +124,30 @@ export default function CreateGameForm() {
     {
       id: "hardcore-mystery",
       title: "Hardcore Mystery",
-      subtitle: "COMING SOON",
-      description: "One wrong move = game over! Ultimate challenge.",
+      subtitle: "ULTIMATE CHALLENGE",
+      description: "One wrong move = game over! Ultimate challenge with hidden numbers and instant death.",
       players: "2 Players",
       difficulty: "★★★★★",
       icon: Zap,
       gradient: "from-rose-400 via-pink-500 to-red-600",
       bgGradient: "from-rose-900/20 to-rose-900/20",
-      range: "1.0 - 25 MNT",
-      rules: "Instant death on wrong move!",
+      range: "0.001 - 25.0 MNT",
+      rules: "Hidden numbers - instant death on wrong move!",
       avgDuration: "2-5 min",
-      comingSoon: true,
+    },
+    {
+      id: "last-stand",
+      title: "Last Stand",
+      subtitle: "BATTLE ROYALE",
+      description: "8-player survival battle! Last player standing wins. Hidden numbers with instant elimination on wrong moves.",
+      players: "8 Players",
+      difficulty: "★★★★★",
+      icon: Users,
+      gradient: "from-orange-400 via-red-500 to-pink-600",
+      bgGradient: "from-orange-900/20 to-red-900/20",
+      range: "0.001 - 25.0 MNT",
+      rules: "8 players, last survivor wins! Instant death on wrong moves!",
+      avgDuration: "10-20 min",
     },
   ]
 
@@ -119,6 +176,10 @@ export default function CreateGameForm() {
         result = await createQuickDraw(entryFeeValue)
       } else if (selectedMode === "strategic") {
         result = await createStrategic(entryFeeValue)
+      } else if (selectedMode === "hardcore-mystery") {
+        result = await createHardcoreMysteryGame(entryFeeValue)
+      } else if (selectedMode === "last-stand") {
+        result = await createLastStandGame(entryFeeValue)
       } else {
         toast.error("Selected game mode is not available yet!")
         return
@@ -127,7 +188,13 @@ export default function CreateGameForm() {
       if (result.success) {
         // Redirect to waiting room or browse page with the created game
         if (result.gameId) {
-          router.push(`/battle/waiting/${result.gameId}?mode=${selectedMode}&entryFee=${entryFeeValue}`)
+          // Route to appropriate waiting room based on game mode
+          if (selectedMode === "hardcore-mystery") {
+            router.push(`/battle/hardcore/waiting/${result.gameId}?mode=${selectedMode}&entryFee=${entryFeeValue}`)
+          } else {
+            // Last Stand and other modes go to normal waiting room
+            router.push(`/battle/waiting/${result.gameId}?mode=${selectedMode}&entryFee=${entryFeeValue}`)
+          }
         } else {
           router.push(`/browse?created=true&mode=${selectedMode}`)
         }
@@ -137,43 +204,6 @@ export default function CreateGameForm() {
       // Error handling is done in the hook via toast
     } finally {
       setIsCreating(false)
-    }
-  }
-
-  // Validate entry fee for selected mode
-  const validateEntryFee = (fee: number, mode: string): boolean => {
-    if (mode === "quick-draw") {
-      return fee >= 0.0001 && fee <= 1.0
-    } else if (mode === "strategic") {
-      return fee >= 0.001 && fee <= 2.0
-    }
-    return true
-  }
-
-  // Update entry fee constraints based on selected mode
-  useEffect(() => {
-    const currentFee = entryFee[0]
-    if (!validateEntryFee(currentFee, selectedMode)) {
-      if (selectedMode === "quick-draw") {
-        // For Quick Draw, ensure fee is between 0.0001 and 1.0
-        const newFee = Math.max(0.0001, Math.min(currentFee, 1.0))
-        setEntryFee([newFee])
-      } else if (selectedMode === "strategic") {
-        // For Strategic, ensure fee is between 0.001 and 2.0
-        const newFee = Math.max(0.001, Math.min(currentFee, 2.0))
-        setEntryFee([newFee])
-      }
-    }
-  }, [selectedMode])
-
-  const getMaxEntryFee = () => {
-    switch (selectedMode) {
-      case "quick-draw":
-        return 1.0
-      case "strategic":
-        return 2.0
-      default:
-        return 1.0
     }
   }
 
@@ -216,6 +246,7 @@ export default function CreateGameForm() {
             gameSettings={gameSettings}
             onGameSettingsChange={setGameSettings}
             maxEntryFee={getMaxEntryFee()}
+            minEntryFee={getMinEntryFee()}
             selectedMode={selectedMode}
           />
         </div>
@@ -230,7 +261,11 @@ export default function CreateGameForm() {
             isCreating={isCreating}
             onCreateBattle={handleCreateBattle}
             isConnected={isConnected}
-            contractMode={selectedMode === "quick-draw" ? GameMode.QUICK_DRAW : GameMode.STRATEGIC}
+            contractMode={selectedMode === "quick-draw" ? GameMode.QUICK_DRAW : 
+                         selectedMode === "strategic" ? GameMode.STRATEGIC :
+                         selectedMode === "hardcore-mystery" ? HardcoreGameMode.HARDCORE_MYSTERY :
+                         selectedMode === "last-stand" ? HardcoreGameMode.LAST_STAND :
+                         GameMode.QUICK_DRAW}
           />
         </div>
       </div>
@@ -245,7 +280,7 @@ export default function CreateGameForm() {
               <li>• Starting number: 15-50 (randomly generated)</li>
               <li>• Each turn: subtract exactly 1</li>
               <li>• Goal: be the first to reach 0</li>
-              <li>• Turn timeout: 5 minutes</li>
+              <li>• Turn timeout: 90 seconds</li>
               <li>• 2 timeouts = you lose</li>
             </ul>
           </div>
@@ -255,8 +290,30 @@ export default function CreateGameForm() {
               <li>• Starting number: 80-200 (randomly generated)</li>
               <li>• Each turn: subtract 10-30% of current number</li>
               <li>• Goal: force opponent to reach 0</li>
-              <li>• Turn timeout: 5 minutes</li>
+              <li>• Turn timeout: 90 seconds</li>
               <li>• 2 timeouts = you lose</li>
+            </ul>
+          </div>
+        </div>
+        <div className="grid md:grid-cols-2 gap-6 mt-4">
+          <div>
+            <h4 className="text-lg font-bold text-rose-400 mb-2">Hardcore Mystery Mode:</h4>
+            <ul className="text-slate-300 space-y-1 text-sm">
+              <li>• Starting number: Hidden (0-100 range)</li>
+              <li>• Each turn: subtract any valid number</li>
+              <li>• Goal: reach exactly 0 to win</li>
+              <li>• Turn timeout: 90 seconds</li>
+              <li>• Wrong move = instant loss!</li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="text-lg font-bold text-orange-400 mb-2">Last Stand Mode:</h4>
+            <ul className="text-slate-300 space-y-1 text-sm">
+              <li>• 8-player battle royale survival</li>
+              <li>• Hidden numbers with instant elimination</li>
+              <li>• Goal: be the last player standing</li>
+              <li>• Turn timeout: 90 seconds</li>
+              <li>• Wrong move = instant elimination!</li>
             </ul>
           </div>
         </div>

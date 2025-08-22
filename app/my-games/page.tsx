@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -21,41 +21,72 @@ import {
   Timer,
   Users,
   Crown,
-  Bug
+  Bug,
+  Zap,
+  Swords,
+  TrendingUp,
+  Wallet,
+  BarChart3
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAccount } from "wagmi"
 import { useGameNavigation } from "@/hooks/useGameNavigation"
+import { useGameContext } from "@/context/GameContext"
 import { toast } from "react-hot-toast"
 import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
 import SimpleDebugMyGames from "@/components/debug/SimpleDebugMyGames"
 
-// Direct hook imports
-import { useZeroSumData, GameData, GameMode, GameStatus } from "@/hooks/useZeroSumContract"
-
-// Enhanced game interface for UI
-interface EnhancedGameData extends GameData {
+// Enhanced game interface for UI - supports both ZeroSum and Hardcore
+// NOTE: Game ID offset system to prevent duplicates across contracts:
+// - ZeroSum games: Keep original IDs (1, 2, 3, 4, 5...)
+// - Hardcore games: Add 10000 offset (10001, 10002, 10003, 10004, 10005...)
+interface EnhancedGameData {
+  gameId: number
+  mode: "Quick Draw" | "Strategic" | "Hardcore Mystery" | "Last Stand"
+  currentNumber?: number // Only for ZeroSum games
+  currentPlayer: string
+  status: "waiting" | "active" | "completed"
+  entryFee: string
+  prizePool: string
+  winner?: string
+  numberGenerated?: boolean // Only for ZeroSum games
+  maxPlayers?: number // Only for Hardcore games
+  moveCount?: number // Only for Hardcore games
+  isStarted?: boolean // Only for Hardcore games
+  
+  // User-specific
   myTurn: boolean
   isCreator: boolean
   players: string[]
   timeLeft: number
-  status: "waiting" | "active" | "completed"
-  mode: "Quick Draw" | "Strategic"
+  
+  // Contract type
+  contractType: 'zerosum' | 'hardcore'
 }
 
 export default function MyGamesPage() {
   const router = useRouter()
   const { address, isConnected } = useAccount()
   
-  // Direct hook usage instead of GameContext
+  console.log('🔌 Wallet state:', { address, isConnected })
+  
+  // Use GameContext instead of direct hooks to prevent duplicate fetching
   const { 
-    getUserGames, 
-    getPlayerView, 
-    getPlayers,
-    contractsReady,
-    providerReady 
-  } = useZeroSumData()
+    myGames: contextGames, 
+    gameStats, 
+    isLoading: contextLoading, 
+    error: contextError,
+    fetchMyGames: contextFetchMyGames,
+    lastFetchTime
+  } = useGameContext()
+  
+  console.log('🎮 GameContext state:', { 
+    gamesCount: contextGames.length, 
+    isLoading: contextLoading, 
+    error: contextError,
+    lastFetchTime 
+  })
   
   // Use the navigation hook
   const { navigateToGame } = useGameNavigation()
@@ -70,147 +101,64 @@ export default function MyGamesPage() {
   const [selectedFilter, setSelectedFilter] = useState<"all" | "waiting" | "active" | "completed" | "my-turn">("all")
   const [showDebug, setShowDebug] = useState(false)
 
-  // Fetch my games function
-  const fetchMyGames = async (force = false) => {
-    if (!address || !isConnected || !contractsReady) {
-      console.log('⚠️ Cannot fetch games:', { address, isConnected, contractsReady })
-      return
-    }
-
-    // Avoid too frequent fetches unless forced
-    const now = Date.now()
-    if (!force && (now - lastFetch) < 3000) {
-      console.log('⚠️ Skipping fetch - too recent')
-      return
-    }
-
-    setIsLoading(true)
-    setError(null)
-    
-    try {
-      console.log('🔄 Fetching my games for:', address)
+  // Fetch games from context
+  const fetchMyGames = useCallback(async (force = false) => {
+    if (force || Date.now() - lastFetch > 30000) { // 30 second cache
+      console.log('🔄 Fetching my games...')
+      setIsLoading(true)
+      setError(null)
       
-      // Get user's games
-      const result = await getUserGames(address, 0, 50)
-      console.log('📊 Got games from hook:', result)
-      
-      if (!result.games || result.games.length === 0) {
-        console.log('ℹ️ No games found for user')
-        setMyGames([])
-        setLastFetch(now)
-        return
+      try {
+        await contextFetchMyGames()
+        setLastFetch(Date.now())
+      } catch (err) {
+        console.error('❌ Error fetching games:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch games')
+      } finally {
+        setIsLoading(false)
       }
-
-      // Enhance each game with additional data
-      const enhancedGames: EnhancedGameData[] = []
-      
-      for (const game of result.games) {
-        try {
-          console.log(`🎮 Processing game ${game.gameId}...`)
-          
-          // Get players for this game
-          const players = await getPlayers(game.gameId)
-          console.log(`👥 Game ${game.gameId} players:`, players)
-          
-          // Get player view if game is active
-          let playerView = null
-          let myTurn = false
-          let timeLeft = 0
-          
-          if (game.status === GameStatus.ACTIVE) {
-            try {
-              playerView = await getPlayerView(game.gameId)
-              myTurn = playerView?.yourTurn || false
-              timeLeft = playerView?.timeLeft || 0
-              console.log(`🎯 Game ${game.gameId} player view:`, { myTurn, timeLeft })
-            } catch (viewError) {
-              console.warn(`⚠️ Could not get player view for game ${game.gameId}:`, viewError)
-            }
-          }
-          
-          // Check if user is creator (first player)
-          const isCreator = players.length > 0 && players[0].toLowerCase() === address.toLowerCase()
-          
-          // Convert status and mode to string format
-          const statusString = game.status === GameStatus.WAITING ? "waiting" :
-                              game.status === GameStatus.ACTIVE ? "active" : "completed"
-          
-          const modeString = game.mode === GameMode.QUICK_DRAW ? "Quick Draw" : "Strategic"
-          
-          const enhancedGame: EnhancedGameData = {
-            ...game,
-            myTurn,
-            isCreator,
-            players,
-            timeLeft,
-            status: statusString as "waiting" | "active" | "completed",
-            mode: modeString as "Quick Draw" | "Strategic"
-          }
-          
-          enhancedGames.push(enhancedGame)
-          console.log(`✅ Enhanced game ${game.gameId}:`, enhancedGame)
-          
-        } catch (gameError) {
-          console.error(`❌ Error processing game ${game.gameId}:`, gameError)
-          // Still add the basic game data
-          enhancedGames.push({
-            ...game,
-            myTurn: false,
-            isCreator: false,
-            players: [],
-            timeLeft: 0,
-            status: game.status === GameStatus.WAITING ? "waiting" :
-                   game.status === GameStatus.ACTIVE ? "active" : "completed",
-            mode: game.mode === GameMode.QUICK_DRAW ? "Quick Draw" : "Strategic"
-          } as EnhancedGameData)
-        }
-      }
-      
-      console.log(`✅ Processed ${enhancedGames.length} games total`)
-      setMyGames(enhancedGames)
-      setLastFetch(now)
-      
-    } catch (fetchError: any) {
-      console.error('❌ Failed to fetch my games:', fetchError)
-      setError(fetchError.message || 'Failed to fetch games')
-    } finally {
-      setIsLoading(false)
     }
-  }
+  }, [contextFetchMyGames, lastFetch])
 
-  // Fetch games when component mounts or dependencies change
+  // Initial fetch
   useEffect(() => {
-    if (isConnected && address && contractsReady && providerReady) {
-      console.log('🚀 Auto-fetching games on mount/connection')
+    if (isConnected && address) {
       fetchMyGames()
-    } else {
-      console.log('⏳ Waiting for connection...', { isConnected, address, contractsReady, providerReady })
     }
-  }, [isConnected, address, contractsReady, providerReady])
+  }, [isConnected, address, fetchMyGames])
+
+  // Update local games when context changes
+  useEffect(() => {
+    if (contextGames.length > 0) {
+      setMyGames(contextGames)
+    }
+  }, [contextGames])
 
   // Refresh function
-  const refresh = () => {
-    console.log('🔄 Manual refresh triggered')
+  const refresh = useCallback(() => {
     fetchMyGames(true)
-  }
+  }, [fetchMyGames])
 
-  // Calculate derived stats
+  // Calculate stats
   const stats = {
     totalGames: myGames.length,
     activeGames: myGames.filter(g => g.status === "active").length,
     waitingGames: myGames.filter(g => g.status === "waiting").length,
     completedGames: myGames.filter(g => g.status === "completed").length,
+    myTurnGames: myGames.filter(g => g.myTurn && g.status === "active").length,
     gamesAsCreator: myGames.filter(g => g.isCreator).length,
     gamesAsPlayer: myGames.filter(g => !g.isCreator).length,
     totalWinnings: myGames
       .filter(g => g.status === "completed" && g.winner?.toLowerCase() === address?.toLowerCase())
-      .reduce((sum, g) => sum + parseFloat(g.prizePool), 0)
+      .reduce((sum, g) => sum + parseFloat(g.entryFee) * 2, 0)
       .toFixed(4)
   }
 
-  // Get games where it's my turn
+  // Get games that need immediate attention
   const myTurnGames = myGames.filter(g => g.myTurn && g.status === "active")
-  const hasUrgentActions = () => myTurnGames.length > 0
+  const urgentGames = myGames.filter(g => g.status === "active" && g.timeLeft <= 60)
+
+  const hasUrgentActions = () => myTurnGames.length > 0 || urgentGames.length > 0
 
   // Filter games based on search and filter
   const filteredGames = myGames.filter((game) => {
@@ -227,10 +175,10 @@ export default function MyGamesPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "active": return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-      case "waiting": return "bg-amber-500/20 text-amber-400 border-amber-500/30"
-      case "completed": return "bg-violet-500/20 text-violet-400 border-violet-500/30"
-      default: return "bg-slate-500/20 text-slate-400 border-slate-500/30"
+      case "active": return "bg-emerald-600/30 text-emerald-100 border-emerald-500/50"
+      case "waiting": return "bg-amber-600/30 text-amber-100 border-amber-500/50"
+      case "completed": return "bg-violet-600/30 text-violet-100 border-violet-500/50"
+      default: return "bg-slate-600/30 text-slate-100 border-slate-500/50"
     }
   }
 
@@ -244,9 +192,13 @@ export default function MyGamesPage() {
   }
 
   const getModeIcon = (mode: string) => {
-    return mode === "Quick Draw" ? 
-      <Target className="w-6 h-6 text-white" /> : 
-      <Brain className="w-6 h-6 text-white" />
+    switch (mode) {
+      case "Quick Draw": return <Target className="w-6 h-6 text-white" />
+      case "Strategic": return <Brain className="w-6 h-6 text-white" />
+      case "Hardcore Mystery": return <Zap className="w-6 h-6 text-white" />
+      case "Last Stand": return <Swords className="w-6 h-6 text-white" />
+      default: return <Gamepad2 className="w-6 h-6 text-white" />
+    }
   }
 
   const formatTimeLeft = (seconds: number) => {
@@ -257,9 +209,18 @@ export default function MyGamesPage() {
   }
 
   const getUrgencyColor = (timeLeft: number) => {
-    if (timeLeft <= 30) return "text-red-400"
-    if (timeLeft <= 60) return "text-amber-400"
-    return "text-slate-300"
+    if (timeLeft <= 30) return "text-red-200"
+    if (timeLeft <= 60) return "text-amber-200"
+    return "text-slate-200"
+  }
+
+  // Utility functions for game ID offset system
+  const isHardcoreGame = (gameId: number) => gameId > 10000
+  const getActualGameId = (gameId: number, contractType: 'zerosum' | 'hardcore') => {
+    if (contractType === 'hardcore') {
+      return gameId - 10000
+    }
+    return gameId
   }
 
   if (!isConnected) {
@@ -285,7 +246,7 @@ export default function MyGamesPage() {
         {/* Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 rounded-full px-6 py-2 mb-6">
-            <span className="text-cyan-400 font-bold">MY GAMES (DIRECT HOOK)</span>
+            <span className="text-cyan-400 font-bold">MY GAMES (ZeroSum + Hardcore)</span>
             {hasUrgentActions() && (
               <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
             )}
@@ -305,13 +266,19 @@ export default function MyGamesPage() {
               {showDebug ? 'Hide' : 'Show'} Debug Info
             </Button>
             
-            {/* Connection Status */}
-            <div className="flex items-center space-x-2 text-sm">
-              <div className={`w-2 h-2 rounded-full ${contractsReady ? 'bg-green-400' : 'bg-red-400'}`}></div>
-              <span className="text-slate-400">
-                {contractsReady ? 'Connected' : 'Connecting...'}
-              </span>
-            </div>
+            <Button
+              onClick={() => {
+                console.log('🔄 Manual debug refresh clicked')
+                console.log('Current state:', { myGames: myGames.length, isLoading, error, address, isConnected, contextLoading, contextError })
+                fetchMyGames(true)
+              }}
+              variant="outline"
+              size="sm"
+              className="border-red-600 text-red-400 hover:text-red-300"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Debug Refresh
+            </Button>
           </div>
           
           {/* Urgent Actions Alert */}
@@ -330,88 +297,86 @@ export default function MyGamesPage() {
         {/* Debug Panel */}
         {showDebug && <SimpleDebugMyGames />}
 
-        {/* Stats Cards */}
-        <div className="grid md:grid-cols-5 gap-6 mb-8">
-          <Card className="bg-emerald-900/20 border-emerald-500/30">
-            <CardContent className="p-6 text-center">
-              <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Play className="w-6 h-6 text-emerald-400" />
-              </div>
-              <div className="text-2xl font-black text-emerald-400">{stats.activeGames}</div>
-              <div className="text-sm text-emerald-300">Active Games</div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-amber-900/20 border-amber-500/30">
-            <CardContent className="p-6 text-center">
-              <div className="w-12 h-12 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Clock className="w-6 h-6 text-amber-400" />
-              </div>
-              <div className="text-2xl font-black text-amber-400">{stats.waitingGames}</div>
-              <div className="text-sm text-amber-300">Waiting</div>
-            </CardContent>
-          </Card>
-
-          <Card className={`${myTurnGames.length > 0 ? 'bg-red-900/20 border-red-500/30' : 'bg-blue-900/20 border-blue-500/30'}`}>
-            <CardContent className="p-6 text-center">
-              <div className={`w-12 h-12 ${myTurnGames.length > 0 ? 'bg-red-500/20' : 'bg-blue-500/20'} rounded-full flex items-center justify-center mx-auto mb-3`}>
-                <Timer className={`w-6 h-6 ${myTurnGames.length > 0 ? 'text-red-400' : 'text-blue-400'}`} />
-              </div>
-              <div className={`text-2xl font-black ${myTurnGames.length > 0 ? 'text-red-400' : 'text-blue-400'}`}>
-                {myTurnGames.length}
-              </div>
-              <div className={`text-sm ${myTurnGames.length > 0 ? 'text-red-300' : 'text-blue-300'}`}>
-                My Turn
+        {/* Consolidated Stats Section */}
+        <div className="grid lg:grid-cols-3 gap-6 mb-8">
+          {/* Main Stats Card */}
+          <Card className="lg:col-span-2 bg-gradient-to-br from-slate-800/90 to-slate-700/90 border border-slate-600/60 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-xl font-bold text-white flex items-center">
+                <BarChart3 className="w-5 h-5 mr-2 text-cyan-300" />
+                Game Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center p-4 bg-emerald-600/30 rounded-xl border border-emerald-500/50 shadow-lg">
+                  <div className="text-3xl font-black text-emerald-100">{stats.totalGames}</div>
+                  <div className="text-sm text-emerald-50 font-medium">Total Games</div>
+                </div>
+                <div className="text-center p-4 bg-blue-600/30 rounded-xl border border-blue-500/50 shadow-lg">
+                  <div className="text-3xl font-black text-blue-100">{stats.activeGames}</div>
+                  <div className="text-sm text-blue-50 font-medium">Active</div>
+                </div>
+                <div className="text-center p-4 bg-amber-600/30 rounded-xl border border-amber-500/50 shadow-lg">
+                  <div className="text-2xl font-black text-amber-100">{stats.waitingGames}</div>
+                  <div className="text-sm text-amber-50 font-medium">Waiting</div>
+                </div>
+                <div className="text-center p-4 bg-violet-600/30 rounded-xl border border-violet-500/50 shadow-lg">
+                  <div className="text-2xl font-black text-violet-100">{stats.completedGames}</div>
+                  <div className="text-sm text-violet-50 font-medium">Completed</div>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-violet-900/20 border-violet-500/30">
-            <CardContent className="p-6 text-center">
-              <div className="w-12 h-12 bg-violet-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Trophy className="w-6 h-6 text-violet-400" />
-              </div>
-              <div className="text-2xl font-black text-violet-400">{stats.completedGames}</div>
-              <div className="text-sm text-violet-300">Completed</div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-cyan-900/20 border-cyan-500/30">
-            <CardContent className="p-6 text-center">
-              <div className="w-12 h-12 bg-cyan-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Gamepad2 className="w-6 h-6 text-cyan-400" />
-              </div>
-              <div className="text-2xl font-black text-cyan-400">{stats.totalGames}</div>
-              <div className="text-sm text-cyan-300">Total Games</div>
+          {/* Urgent Actions Card */}
+          <Card className="bg-gradient-to-br from-red-700/80 to-orange-700/80 border border-red-500/60 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-xl font-bold text-white flex items-center">
+                <Timer className="w-5 h-5 mr-2 text-red-200" />
+                Urgent Actions
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {myTurnGames.length > 0 ? (
+                <div className="text-center">
+                  <div className="text-4xl font-black text-red-100 mb-2">{myTurnGames.length}</div>
+                  <div className="text-sm text-red-50 font-medium mb-3">Games Waiting</div>
+                  <Button 
+                    onClick={() => navigateToGame(myTurnGames[0].gameId)}
+                    className="w-full bg-red-500 hover:bg-red-600 text-white animate-pulse shadow-lg"
+                  >
+                    <Play className="w-4 h-4 mr-2" />
+                    Play Now!
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <div className="text-4xl font-black text-green-200 mb-2">✓</div>
+                  <div className="text-sm text-green-100 font-medium">All Caught Up</div>
+                  <p className="text-xs text-slate-100 mt-2">No urgent actions needed</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Controls */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-8">
-          <div className="flex-1">
-            <Input
-              placeholder="Search by game ID or mode..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-slate-800/50 border-slate-600/50 text-white rounded-xl"
-            />
-          </div>
-          
-          <div className="flex gap-2 flex-wrap">
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
+          <div className="flex items-center space-x-2">
             <Button
               onClick={() => setSelectedFilter("all")}
               variant={selectedFilter === "all" ? "default" : "outline"}
-              className="bg-cyan-600 hover:bg-cyan-700 border-cyan-500"
+              className="bg-slate-600 hover:bg-slate-700 border-slate-500"
             >
               All ({stats.totalGames})
             </Button>
             <Button
               onClick={() => setSelectedFilter("my-turn")}
               variant={selectedFilter === "my-turn" ? "default" : "outline"}
-              className={`${myTurnGames.length > 0 ? 'bg-red-600 hover:bg-red-700 border-red-500' : 'bg-blue-600 hover:bg-blue-700 border-blue-500'}`}
+              className="bg-red-600 hover:bg-red-700 border-red-500"
             >
-              My Turn ({myTurnGames.length})
+              My Turn ({stats.myTurnGames})
             </Button>
             <Button
               onClick={() => setSelectedFilter("waiting")}
@@ -436,18 +401,30 @@ export default function MyGamesPage() {
             </Button>
           </div>
 
-          <Button
-            onClick={refresh}
-            disabled={isLoading}
-            className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl"
-          >
-            {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <RefreshCw className="w-4 h-4" />
-            )}
-            <span className="ml-2">Refresh</span>
-          </Button>
+          <div className="flex items-center space-x-3">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+              <Input
+                placeholder="Search games..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 bg-slate-800/50 border-slate-600 text-white w-64"
+              />
+            </div>
+            
+            <Button
+              onClick={refresh}
+              disabled={isLoading}
+              className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl"
+            >
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
+              <span className="ml-2">Refresh</span>
+            </Button>
+          </div>
         </div>
 
         {/* Loading/Error States */}
@@ -476,6 +453,23 @@ export default function MyGamesPage() {
             </div>
           </div>
         )}
+         
+        {/* ZeroSum Contract Status Warning */}
+        {myGames.filter(g => g.contractType === 'zerosum').length === 0 && 
+         myGames.filter(g => g.contractType === 'hardcore').length > 0 && (
+          <div className="mb-8 p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="w-5 h-5 text-amber-400" />
+              <div>
+                <p className="text-amber-400 font-medium">ZeroSum Games Not Loading</p>
+                <p className="text-amber-300 text-sm mt-1">
+                  Hardcore Mystery games are working, but ZeroSum games (Quick Draw & Strategic) are not loading. 
+                  This may be due to network connectivity issues with the ZeroSum contract.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Games List */}
         {isLoading && myGames.length === 0 ? (
@@ -483,7 +477,7 @@ export default function MyGamesPage() {
             <div className="text-center">
               <Loader2 className="w-16 h-16 animate-spin mx-auto mb-4 text-cyan-400" />
               <p className="text-xl font-bold text-white">Loading your games...</p>
-              <p className="text-slate-400">Fetching directly from contract</p>
+              <p className="text-slate-400">Fetching from ZeroSum and Hardcore contracts</p>
             </div>
           </div>
         ) : filteredGames.length === 0 ? (
@@ -514,91 +508,142 @@ export default function MyGamesPage() {
         ) : (
           <div className="grid gap-4">
             {filteredGames.map((game) => (
-              <Card key={game.gameId} className={`bg-slate-800/60 backdrop-blur-sm border transition-colors ${
-                game.myTurn && game.status === "active" 
-                  ? 'border-red-500/50 hover:border-red-500/70' 
-                  : 'border-slate-700/50 hover:border-slate-600/50'
-              }`}>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className={`w-16 h-16 bg-gradient-to-br ${
-                        game.mode === "Quick Draw" 
-                          ? "from-emerald-400 to-teal-600" 
-                          : "from-blue-400 to-indigo-600"
-                      } rounded-xl flex items-center justify-center`}>
-                        {getModeIcon(game.mode)}
-                      </div>
-                      
-                      <div>
-                        <div className="flex items-center space-x-3 mb-2">
-                          <h3 className="text-xl font-black text-white">Battle #{game.gameId}</h3>
-                          <Badge className={getStatusColor(game.status)}>
-                            <div className="flex items-center space-x-1">
-                              {getStatusIcon(game.status)}
-                              <span>{game.status.toUpperCase()}</span>
-                            </div>
-                          </Badge>
-                          {game.isCreator && (
-                            <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">
-                              <Crown className="w-3 h-3 mr-1" />
-                              CREATOR
-                            </Badge>
-                          )}
-                          {game.myTurn && game.status === "active" && (
-                            <Badge className="bg-red-500/20 text-red-400 border-red-500/30 animate-pulse">
-                              <Timer className="w-3 h-3 mr-1" />
-                              YOUR TURN
-                            </Badge>
-                          )}
-                        </div>
-                        
-                        <div className="text-slate-300 space-y-1">
-                          <div className="flex items-center space-x-4">
-                            <p><span className="font-semibold">Mode:</span> {game.mode}</p>
-                            <p><span className="font-semibold">Players:</span> {game.players.length}/2</p>
-                          </div>
-                          <div className="flex items-center space-x-4">
-                            <p><span className="font-semibold">Entry Fee:</span> {parseFloat(game.entryFee).toFixed(4)} ETH</p>
-                            <p><span className="font-semibold">Prize Pool:</span> {parseFloat(game.prizePool).toFixed(4)} ETH</p>
-                          </div>
-                          {game.status === "active" && game.currentNumber && (
-                            <p><span className="font-semibold">Current Number:</span> {game.currentNumber}</p>
-                          )}
-                          {game.status === "completed" && game.winner && (
-                            <p><span className="font-semibold">Winner:</span> 
-                              <span className={`ml-1 ${
-                                game.winner.toLowerCase() === address?.toLowerCase() 
-                                  ? 'text-emerald-400 font-bold' 
-                                  : 'text-slate-400'
-                              }`}>
-                                {game.winner.toLowerCase() === address?.toLowerCase() 
-                                  ? '🏆 You Won!' 
-                                  : 'Opponent Won'
-                                }
-                              </span>
-                            </p>
-                          )}
-                          {game.timeLeft > 0 && game.status === "active" && (
-                            <p>
-                              <span className="font-semibold">Time Left:</span> 
-                              <span className={`ml-1 font-mono ${getUrgencyColor(game.timeLeft)}`}>
-                                {formatTimeLeft(game.timeLeft)}
-                              </span>
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                             <Card key={game.gameId} className={`bg-slate-800/80 backdrop-blur-sm border transition-all duration-200 hover:shadow-lg ${
+                 game.myTurn && game.status === "active" 
+                   ? 'border-red-500/60 hover:border-red-500/80 shadow-red-500/30' 
+                   : 'border-slate-600/60 hover:border-slate-500/70'
+               }`}>
+                 <CardContent className="p-6">
+                   <div className="flex items-center justify-between">
+                     <div className="flex items-center space-x-4">
+                       <div className={`w-16 h-16 bg-gradient-to-br ${
+                         game.mode === "Quick Draw" 
+                           ? "from-emerald-500 to-teal-600" 
+                           : game.mode === "Strategic"
+                           ? "from-blue-500 to-indigo-600"
+                           : game.mode === "Hardcore Mystery"
+                           ? "from-rose-500 to-red-600"
+                           : "from-orange-500 to-pink-600"
+                       } rounded-xl flex items-center justify-center shadow-lg`}>
+                         {getModeIcon(game.mode)}
+                       </div>
+                       
+                       <div className="flex-1">
+                         <div className="flex items-center space-x-3 mb-3">
+                           <h3 className="text-xl font-black text-white">Battle #{game.gameId}</h3>
+                           <Badge className={getStatusColor(game.status)}>
+                             <div className="flex items-center space-x-1">
+                               {getStatusIcon(game.status)}
+                               <span>{game.status.toUpperCase()}</span>
+                             </div>
+                           </Badge>
+                           {game.isCreator && (
+                             <Badge className="bg-blue-600/30 text-blue-100 border-blue-500/50">
+                               <Crown className="w-3 h-3 mr-1" />
+                               CREATOR
+                             </Badge>
+                           )}
+                           {game.myTurn && game.status === "active" && (
+                             <Badge className="bg-red-600/30 text-red-100 border-red-500/50 animate-pulse">
+                               <Timer className="w-3 h-3 mr-1" />
+                               YOUR TURN
+                             </Badge>
+                           )}
+                         </div>
+                         
+                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                           <div>
+                             <span className="text-slate-300">Mode:</span>
+                             <span className="ml-2 text-white font-medium">{game.mode}</span>
+                           </div>
+                           <div>
+                             <span className="text-slate-300">Contract:</span>
+                             <span className={`ml-2 font-medium ${
+                               game.contractType === 'hardcore' 
+                                 ? 'text-rose-300' 
+                                 : 'text-blue-300'
+                             }`}>
+                               {game.contractType === 'hardcore' ? 'Hardcore' : 'ZeroSum'}
+                             </span>
+                           </div>
+                           <div>
+                             <span className="text-slate-300">Players:</span>
+                             <span className="ml-2 text-white font-medium">
+                               {game.players.length}/{game.contractType === 'hardcore' ? (game.maxPlayers || 2) : 2}
+                             </span>
+                           </div>
+                           <div>
+                             <span className="text-slate-300">Entry Fee:</span>
+                             <span className="ml-2 text-emerald-300 font-medium">
+                               {parseFloat(game.entryFee).toFixed(4)} MNT
+                             </span>
+                           </div>
+                         </div>
+                         
+                         {game.status === "active" && game.currentNumber && (
+                           <div className="mt-3 p-3 bg-slate-700/50 rounded-lg border border-slate-600/30">
+                             <span className="text-slate-300">Current Number:</span>
+                             <span className="ml-2 text-cyan-300 font-bold text-lg">{game.currentNumber}</span>
+                           </div>
+                         )}
+                         
+                         {game.status === "completed" && game.winner && (
+                           <div className="mt-3 p-3 bg-slate-700/50 rounded-lg border border-slate-600/30">
+                             <span className="text-slate-300">Winner:</span>
+                             <span className={`ml-2 font-bold text-lg ${
+                               game.winner.toLowerCase() === address?.toLowerCase() 
+                                 ? 'text-emerald-300' 
+                                 : 'text-slate-300'
+                             }`}>
+                               {game.winner.toLowerCase() === address?.toLowerCase() 
+                                 ? '🏆 You Won!' 
+                                 : 'Opponent Won'
+                               }
+                             </span>
+                           </div>
+                         )}
+                         
+                         {game.timeLeft > 0 && game.status === "active" && (
+                           <div className="mt-3 p-3 bg-slate-700/50 rounded-lg border border-slate-600/30">
+                             <span className="text-slate-300">Time Left:</span>
+                             <span className={`ml-2 font-mono font-bold text-lg ${getUrgencyColor(game.timeLeft)}`}>
+                               {formatTimeLeft(game.timeLeft)}
+                             </span>
+                           </div>
+                         )}
+                       </div>
+                     </div>
                     
-                    <div className="flex flex-col space-y-2">
+                    <div className="flex flex-col space-y-3 min-w-[140px]">
                       <Button 
-                        onClick={() => navigateToGame(game.gameId)}
+                        onClick={() => {
+                          if (game.contractType === 'hardcore') {
+                            // Check if it's Last Stand mode - route to normal waiting room
+                            if (game.mode === "Last Stand") {
+                              // Last Stand games go to normal waiting room
+                              if (game.status === "waiting") {
+                                router.push(`/battle/waiting/${game.gameId}`)
+                              } else {
+                                router.push(`/battle/${game.gameId}`)
+                              }
+                            } else {
+                              // Hardcore Mystery games go to hardcore waiting room
+                              const actualGameId = getActualGameId(game.gameId, 'hardcore')
+                              if (game.status === "waiting") {
+                                router.push(`/battle/hardcore/waiting/${actualGameId}`)
+                              } else {
+                                router.push(`/battle/hardcore/${actualGameId}`)
+                              }
+                            }
+                          } else {
+                            navigateToGame(game.gameId)
+                          }
+                        }}
                         className={`${
                           game.myTurn && game.status === "active"
                             ? 'bg-red-600 hover:bg-red-700 animate-pulse'
                             : 'bg-cyan-600 hover:bg-cyan-700'
-                        } text-white rounded-lg min-w-[120px]`}>
+                        } text-white rounded-lg w-full`}>
                         <ExternalLink className="w-4 h-4 mr-2" />
                         {game.status === "active" 
                           ? game.myTurn ? "MAKE MOVE" : "Continue"
@@ -610,18 +655,23 @@ export default function MyGamesPage() {
                       
                       {game.status === "waiting" && (
                         <div className="text-center">
-                          <p className="text-xs text-amber-400">
+                          <p className="text-xs text-amber-400 mb-2">
                             {game.isCreator ? "Waiting for opponent..." : "Game starting soon..."}
                           </p>
                           {game.isCreator && (
                             <Button
                               onClick={() => {
-                                navigator.clipboard.writeText(`${window.location.origin}/battle/${game.gameId}`)
+                                const url = game.contractType === 'hardcore' 
+                                  ? game.mode === "Last Stand"
+                                    ? `${window.location.origin}/battle/${game.status === "waiting" ? "waiting/" : ""}${game.gameId}`
+                                    : `${window.location.origin}/battle/hardcore/${game.status === "waiting" ? "waiting/" : ""}${getActualGameId(game.gameId, 'hardcore')}`
+                                  : `${window.location.origin}/battle/${game.gameId}`
+                                navigator.clipboard.writeText(url)
                                 toast.success("Game link copied!")
                               }}
                               variant="outline"
                               size="sm"
-                              className="mt-1 text-xs border-slate-600 text-slate-300"
+                              className="w-full text-xs border-slate-600 text-slate-300"
                             >
                               Copy Link
                             </Button>
@@ -652,7 +702,7 @@ export default function MyGamesPage() {
                           </p>
                           {game.winner?.toLowerCase() === address?.toLowerCase() && (
                             <p className="text-xs text-emerald-300">
-                              +{parseFloat(game.prizePool).toFixed(4)} ETH
+                              +{(parseFloat(game.entryFee) * 2).toFixed(4)} MNT
                             </p>
                           )}
                         </div>
@@ -691,35 +741,38 @@ export default function MyGamesPage() {
           </div>
         </div>
 
-        {/* Player Stats Summary */}
-        {stats.totalGames > 0 && (
-          <div className="mt-12 p-6 bg-slate-800/40 border border-slate-700/50 rounded-xl">
-            <h3 className="text-xl font-bold text-white mb-4 text-center">Your Gaming Stats</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-              <div>
-                <div className="text-2xl font-bold text-emerald-400">{stats.gamesAsCreator}</div>
-                <div className="text-sm text-slate-400">Games Created</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-blue-400">{stats.gamesAsPlayer}</div>
-                <div className="text-sm text-slate-400">Games Joined</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-amber-400">
-                  {stats.completedGames > 0 
-                    ? Math.round((myGames.filter(g => g.status === "completed" && g.winner?.toLowerCase() === address?.toLowerCase()).length / stats.completedGames) * 100)
-                    : 0
-                  }%
-                </div>
-                <div className="text-sm text-slate-400">Win Rate</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-violet-400">{stats.totalWinnings} ETH</div>
-                <div className="text-sm text-slate-400">Total Winnings</div>
-              </div>
-            </div>
-          </div>
-        )}
+                 {/* Player Stats Summary */}
+         {stats.totalGames > 0 && (
+           <div className="mt-12 p-6 bg-gradient-to-br from-slate-800/60 to-slate-700/60 border border-slate-600/60 rounded-xl">
+             <h3 className="text-xl font-bold text-white mb-6 text-center flex items-center justify-center">
+               <TrendingUp className="w-5 h-5 mr-2 text-cyan-300" />
+               Your Gaming Stats
+             </h3>
+             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+               <div className="p-4 bg-slate-700/50 rounded-lg border border-slate-600/50">
+                 <div className="text-2xl font-bold text-emerald-200">{stats.gamesAsCreator}</div>
+                 <div className="text-sm text-slate-200">Games Created</div>
+               </div>
+               <div className="p-4 bg-slate-700/50 rounded-lg border border-slate-600/50">
+                 <div className="text-2xl font-bold text-blue-200">{stats.gamesAsPlayer}</div>
+                 <div className="text-sm text-slate-200">Games Joined</div>
+               </div>
+               <div className="p-4 bg-slate-700/50 rounded-lg border border-slate-600/50">
+                 <div className="text-2xl font-bold text-amber-200">
+                   {stats.completedGames > 0 
+                     ? Math.round((myGames.filter(g => g.status === "completed" && g.winner?.toLowerCase() === address?.toLowerCase()).length / stats.completedGames) * 100)
+                     : 0
+                   }%
+                 </div>
+                 <div className="text-sm text-slate-200">Win Rate</div>
+               </div>
+               <div className="p-4 bg-slate-700/50 rounded-lg border border-slate-600/50">
+                 <div className="text-2xl font-bold text-violet-200">{stats.totalWinnings} MNT</div>
+                 <div className="text-sm text-slate-200">Total Winnings</div>
+               </div>
+             </div>
+           </div>
+         )}
 
         {/* Debug Info */}
         {showDebug && (
@@ -727,15 +780,15 @@ export default function MyGamesPage() {
             <h4 className="font-semibold text-white mb-2">Debug Information:</h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
-                <span className="text-slate-400">Provider Ready:</span>
-                <span className={`ml-2 ${providerReady ? 'text-green-400' : 'text-red-400'}`}>
-                  {providerReady ? 'Yes' : 'No'}
+                <span className="text-slate-400">Context Ready:</span>
+                <span className={`ml-2 ${!contextError ? 'text-green-400' : 'text-red-400'}`}>
+                  {!contextError ? 'Yes' : 'No'}
                 </span>
               </div>
               <div>
-                <span className="text-slate-400">Contracts Ready:</span>
-                <span className={`ml-2 ${contractsReady ? 'text-green-400' : 'text-red-400'}`}>
-                  {contractsReady ? 'Yes' : 'No'}
+                <span className="text-slate-400">Loading:</span>
+                <span className={`ml-2 ${contextLoading ? 'text-yellow-400' : 'text-green-400'}`}>
+                  {contextLoading ? 'Yes' : 'No'}
                 </span>
               </div>
               <div>

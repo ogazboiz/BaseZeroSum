@@ -148,6 +148,14 @@ export default function JoinBattlePage() {
     }
   }, [address, battle.creatorAddress, router])
 
+  // Refresh game data when wallet address changes (wallet switching)
+  useEffect(() => {
+    if (address && battleId) {
+      console.log('🔄 Wallet address changed, refreshing join battle data...', address)
+      fetchGameData()
+    }
+  }, [address, battleId, fetchGameData])
+
   const handleJoinBattle = async () => {
     if (!isConnected) {
       toast.error("Please connect your wallet to join this battle!")

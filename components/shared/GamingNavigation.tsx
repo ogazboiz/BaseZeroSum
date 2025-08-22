@@ -25,17 +25,24 @@ import { getEthersProvider } from "@/config/adapter"
 import MyGamesDropdown from "./MyGamesDropdown"
 
 // Simple MNT Balance Hook
-const useMNTBalance = (address: string | undefined) => {
+function useMNTBalance(address: string | undefined) {
   const config = useConfig()
   const [balance, setBalance] = useState<string>("0.0000")
   const [isLoading, setIsLoading] = useState(false)
+  
+  // Store provider in ref to avoid repeated getEthersProvider calls
+  const providerRef = useRef<any>(null)
 
   const fetchBalance = async () => {
     if (!address || !config) return
 
     setIsLoading(true)
     try {
-      const provider = getEthersProvider(config)
+      // Use stored provider or get new one
+      if (!providerRef.current) {
+        providerRef.current = getEthersProvider(config)
+      }
+      const provider = providerRef.current
       if (!provider) throw new Error("Provider not available")
 
       const rawBalance = await provider.getBalance(address)
@@ -253,6 +260,14 @@ export default function UnifiedGamingNavigation() {
                         >
                           <Swords className="w-4 h-4" />
                           My Games
+                        </Link>
+                        <Link
+                          href="/my-bets"
+                          className="flex items-center w-full gap-3 px-3 py-2 text-sm text-slate-300 transition-colors rounded-lg hover:bg-slate-800/60 hover:text-white"
+                          onClick={() => setIsDropdownOpen(false)}
+                        >
+                          <Coins className="w-4 h-4" />
+                          My Bets
                         </Link>
                         <Link
                           href="/leaderboard"

@@ -1,5 +1,5 @@
 import { createConfig, http } from 'wagmi';
-import { mantle, mantleSepoliaTestnet } from 'wagmi/chains';
+import {  mantleSepoliaTestnet } from 'wagmi/chains';
 
 // ZeroSum Contract Addresses - Updated to match .env file
 export const ZEROSUM_CONTRACT_ADDRESSES = {
@@ -25,14 +25,29 @@ export const getContractAddresses = () => {
 };
 
 export const WAGMI_CHAINS = {
-  mantle,
   mantleSepoliaTestnet,
 };
 
+// Multiple RPC endpoints for better reliability
+const MANTLE_SEPOLIA_RPCS = [
+  process.env.NEXT_PUBLIC_MANTLE_SEPOLIA_RPC || 'https://rpc.sepolia.mantle.xyz',
+  'https://sepolia.mantle.xyz',
+  'https://mantle-sepolia.dwellir.com',
+];
+
+// Get timeout and retry settings from environment or use defaults
+const RPC_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_RPC_TIMEOUT) || 10000;
+const RPC_RETRY_COUNT = parseInt(process.env.NEXT_PUBLIC_RPC_RETRY_COUNT) || 2;
+const RPC_RETRY_DELAY = parseInt(process.env.NEXT_PUBLIC_RPC_RETRY_DELAY) || 1000;
+
 export const wagmiConfig = createConfig({
-  chains: [mantle, mantleSepoliaTestnet],
+  chains: [mantleSepoliaTestnet],
   transports: {
-    [mantle.id]: http(),
-    [mantleSepoliaTestnet.id]: http('https://rpc.sepolia.mantle.xyz'),
+    [mantleSepoliaTestnet.id]: http(MANTLE_SEPOLIA_RPCS[0], {
+      // Add timeout and retry configuration
+      timeout: RPC_TIMEOUT,
+      retryCount: RPC_RETRY_COUNT,
+      retryDelay: RPC_RETRY_DELAY,
+    }),
   },
 });

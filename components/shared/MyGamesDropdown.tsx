@@ -17,9 +17,8 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useAccount } from "wagmi"
-import { useZeroSumData } from "@/hooks/useZeroSumContract"
+import { useGameContext } from "@/context/GameContext"
 import { toast } from "react-hot-toast"
-import { ethers } from "ethers"
 
 interface MyGame {
   gameId: number
@@ -35,64 +34,49 @@ interface MyGame {
 
 export default function MyGamesDropdown() {
   const { address, isConnected } = useAccount()
-  const { getGameCounter, getGame, getPlayers, getPlayerView } = useZeroSumData()
+  const { myGames: contextGames, fetchMyGames: contextFetchMyGames } = useGameContext()
   
   const [isOpen, setIsOpen] = useState(false)
   const [myGames, setMyGames] = useState<MyGame[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [totalGames, setTotalGames] = useState(0)
 
-  // Fetch user's games
+  // Convert context games to local format
+  const convertContextGames = () => {
+    if (!contextGames || contextGames.length === 0) {
+      setMyGames([])
+      setTotalGames(0)
+      return
+    }
+
+    const convertedGames: MyGame[] = contextGames.map(game => ({
+      gameId: game.gameId,
+      status: game.status,
+      mode: game.mode,
+      entryFee: game.entryFee,
+      prizePool: game.prizePool,
+      isCreator: game.isCreator,
+      isPlayer: true, // All games in context are user's games
+      currentPlayer: game.currentPlayer,
+      myTurn: game.myTurn
+    }))
+
+    setMyGames(convertedGames)
+    setTotalGames(convertedGames.length)
+  }
+
+  // Update local games when context games change
+  useEffect(() => {
+    convertContextGames()
+  }, [contextGames])
+
+  // Fetch user's games using context
   const fetchMyGames = async () => {
     if (!address || !isConnected) return
     
     try {
       setIsLoading(true)
-      
-      // Get total number of games
-      const gameCount = await getGameCounter()
-      setTotalGames(gameCount)
-      
-      const games: MyGame[] = []
-      
-      // Check last 50 games for user participation
-      const startGame = Math.max(0, gameCount - 50)
-      
-      for (let i = startGame; i < gameCount; i++) {
-        try {
-          const gameData = await getGame(i)
-          if (gameData) {
-            const players = await getPlayers(i)
-            
-            // Check if user is in this game
-            const isPlayer = players.includes(address)
-            const isCreator = players[0] === address
-            
-            if (isPlayer) {
-              // Get player view to check if it's user's turn
-              const playerView = await getPlayerView(i)
-              
-              games.push({
-                gameId: i,
-                status: gameData.status === 0 ? "waiting" : 
-                       gameData.status === 1 ? "active" : "completed",
-                mode: gameData.mode === 0 ? "Quick Draw" : "Strategic",
-                               entryFee: gameData.entryFee ? (typeof gameData.entryFee === 'bigint' ? ethers.formatEther(gameData.entryFee) : gameData.entryFee.toString()) : "0",
-               prizePool: gameData.prizePool ? (typeof gameData.prizePool === 'bigint' ? ethers.formatEther(gameData.prizePool) : gameData.prizePool.toString()) : "0",
-                isCreator,
-                isPlayer,
-                currentPlayer: gameData.currentPlayer,
-                myTurn: playerView?.yourTurn || false
-              })
-            }
-          }
-        } catch (error) {
-          // Skip games that can't be fetched
-          continue
-        }
-      }
-      
-      setMyGames(games)
+      await contextFetchMyGames()
     } catch (error) {
       console.error("Failed to fetch my games:", error)
       toast.error("Failed to load your games")

@@ -35,6 +35,11 @@ import {
   GameStatus, 
   GameMode 
 } from "@/hooks/useZeroSumContract"
+import { 
+  useHardcoreMysteryData, 
+  GameMode as HardcoreGameMode, 
+  GameStatus as HardcoreGameStatus 
+} from "@/hooks/useHardcoreMysteryContracts"
 import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
 
 interface PlayerStats {
@@ -48,6 +53,8 @@ interface PlayerStats {
   winRate: number
   quickDrawGames: number
   strategicGames: number
+  hardcoreMysteryGames: number
+  lastStandGames: number
   averagePrizePool: string
   lastActive: Date
   recentGames: number[]
@@ -73,6 +80,15 @@ export default function FixedLeaderboardPage() {
     contractsReady,
     providerReady
   } = useZeroSumData()
+
+  // Hardcore Mystery contract hooks
+  const {
+    getGameCounter: getHardcoreGameCounter,
+    getGame: getHardcoreGame,
+    getPlayers: getHardcorePlayers,
+    contractsReady: hardcoreContractsReady,
+    providerReady: hardcoreProviderReady
+  } = useHardcoreMysteryData()
 
   const [leaderboardData, setLeaderboardData] = useState<PlayerStats[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -133,12 +149,22 @@ export default function FixedLeaderboardPage() {
       sortDesc: true,
       color: "text-orange-400",
       bgColor: "bg-orange-500/20"
+    },
+    {
+      id: "hardcore-mystery",
+      name: "Hardcore Mystery",
+      description: "Most Hardcore Mystery games",
+      icon: <Zap className="w-5 h-5" />,
+      sortKey: "hardcoreMysteryGames",
+      sortDesc: true,
+      color: "text-rose-400",
+      bgColor: "bg-rose-500/20"
     }
   ]
 
   // ✅ OPTIMIZED: Fetch leaderboard data efficiently using new functions
   const fetchLeaderboardData = useCallback(async () => {
-    if (!contractsReady) return
+    if (!contractsReady && !hardcoreContractsReady) return
 
     console.log('🏆 Fetching leaderboard data (OPTIMIZED)...')
     setIsLoading(true)
@@ -214,6 +240,8 @@ export default function FixedLeaderboardPage() {
           let totalWinnings = 0
           let quickDrawGames = 0
           let strategicGames = 0
+          let hardcoreMysteryGames = 0
+          let lastStandGames = 0
           let lastActive = new Date(0)
           const recentGames: number[] = []
 
@@ -264,6 +292,61 @@ export default function FixedLeaderboardPage() {
             }
           }
 
+          // Process Hardcore Mystery games if contracts are ready
+          if (hardcoreContractsReady) {
+            try {
+              const hardcoreGameCounter = await getHardcoreGameCounter()
+              if (hardcoreGameCounter > 0) {
+                // Check last 50 Hardcore games for user participation
+                const maxHardcoreGamesToCheck = Math.min(hardcoreGameCounter, 50)
+                
+                for (let i = hardcoreGameCounter; i >= Math.max(1, hardcoreGameCounter - maxHardcoreGamesToCheck + 1); i--) {
+                  try {
+                    const hardcoreGame = await getHardcoreGame(i)
+                    if (hardcoreGame) {
+                      const hardcorePlayers = await getHardcorePlayers(i)
+                      const isInHardcoreGame = hardcorePlayers.includes(address)
+                      
+                      if (isInHardcoreGame) {
+                        const isCreator = hardcorePlayers.length > 0 && hardcorePlayers[0].toLowerCase() === address.toLowerCase()
+                        const isWinner = hardcoreGame.winner && hardcoreGame.winner.toLowerCase() === address.toLowerCase()
+                        
+                        // Only count finished games for win/loss stats
+                        if (hardcoreGame.status === HardcoreGameStatus.FINISHED) {
+                          if (isWinner) {
+                            gamesWon++
+                            totalWinnings += parseFloat(hardcoreGame.prizePool)
+                          } else {
+                            gamesLost++
+                          }
+                        }
+                        
+                        // Count creator vs joiner
+                        if (isCreator) {
+                          gamesCreated++
+                        } else {
+                          gamesJoined++
+                        }
+                        
+                        // Count by game mode
+                        if (hardcoreGame.mode === HardcoreGameMode.HARDCORE_MYSTERY) {
+                          hardcoreMysteryGames++
+                        } else {
+                          lastStandGames++
+                        }
+                      }
+                    }
+                  } catch (error) {
+                    // Skip games that can't be fetched
+                    continue
+                  }
+                }
+              }
+            } catch (error) {
+              console.warn('Failed to fetch Hardcore Mystery games:', error)
+            }
+          }
+
           const totalGames = gamesWon + gamesLost
           const winRate = totalGames > 0 ? Math.round((gamesWon / totalGames) * 100) : 0
           const averagePrizePool = gamesWon > 0 ? (totalWinnings / gamesWon).toFixed(4) : "0"
@@ -279,6 +362,8 @@ export default function FixedLeaderboardPage() {
             winRate,
             quickDrawGames,
             strategicGames,
+            hardcoreMysteryGames,
+            lastStandGames,
             averagePrizePool,
             lastActive,
             recentGames
@@ -312,14 +397,14 @@ export default function FixedLeaderboardPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [contractsReady, getGameCounter, getGamesBatch, getPlayers, getUserGames])
+  }, [contractsReady, hardcoreContractsReady, getGameCounter, getGamesBatch, getPlayers, getUserGames, getHardcoreGameCounter, getHardcoreGame, getHardcorePlayers])
 
   // Initial data fetch
   useEffect(() => {
-    if (providerReady) {
+    if (providerReady || hardcoreProviderReady) {
       fetchLeaderboardData()
     }
-  }, [providerReady, fetchLeaderboardData])
+  }, [providerReady, hardcoreProviderReady, fetchLeaderboardData])
 
   // Get current category
   const currentCategory = leaderboardCategories.find(cat => cat.id === selectedCategory)
@@ -395,6 +480,8 @@ export default function FixedLeaderboardPage() {
         return player.gamesCreated.toString()
       case "recent-activity":
         return player.lastActive.toLocaleDateString()
+      case "hardcore-mystery":
+        return player.hardcoreMysteryGames.toString()
       default:
         return player.winRate.toString()
     }
@@ -404,7 +491,7 @@ export default function FixedLeaderboardPage() {
     setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc')
   }
 
-  if (!providerReady) {
+  if (!providerReady && !hardcoreProviderReady) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 text-white">
         <UnifiedGamingNavigation />
@@ -432,7 +519,7 @@ export default function FixedLeaderboardPage() {
           <h1 className="text-6xl font-black text-white mb-6 bg-gradient-to-r from-yellow-400 via-amber-400 to-orange-400 bg-clip-text text-transparent">
             PLAYER RANKINGS
           </h1>
-          <p className="text-2xl text-slate-300 font-medium mb-2">See who's dominating the battlefield</p>
+          <p className="text-2xl text-slate-300 font-medium mb-2">See who's dominating across all game modes</p>
           <div className="flex items-center justify-center space-x-4 text-sm text-slate-400">
             <Clock className="w-4 h-4" />
             <span>Last updated: {lastUpdated || "Never"}</span>
@@ -625,6 +712,14 @@ export default function FixedLeaderboardPage() {
                                 <BrainIcon className="w-4 h-4 text-indigo-400" />
                                 <span>Strategic: {player.strategicGames}</span>
                               </div>
+                              <div className="flex items-center space-x-2">
+                                <Zap className="w-4 h-4 text-rose-400" />
+                                <span>Hardcore: {player.hardcoreMysteryGames}</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Users className="w-4 h-4 text-orange-400" />
+                                <span>Last Stand: {player.lastStandGames}</span>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -670,7 +765,7 @@ export default function FixedLeaderboardPage() {
               <TrendingUp className="w-6 h-6 mr-3 text-yellow-400" />
               Leaderboard Statistics
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center mb-8">
               <div className="p-4 bg-slate-700/30 rounded-xl border border-slate-600/30">
                 <div className="text-3xl font-bold text-emerald-400 mb-2">{leaderboardData.length}</div>
                 <div className="text-slate-400 font-medium">Active Players</div>
@@ -695,6 +790,41 @@ export default function FixedLeaderboardPage() {
                   {leaderboardData.reduce((sum, p) => sum + parseFloat(p.totalWinnings), 0).toFixed(4)} ETH
                 </div>
                 <div className="text-slate-400 font-medium">Total Winnings</div>
+              </div>
+            </div>
+            
+            {/* Game Type Breakdown */}
+            <div className="border-t border-slate-600/50 pt-8">
+              <h4 className="text-xl font-bold text-white mb-6 text-center">Game Type Breakdown</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+                <div className="p-4 bg-emerald-500/20 rounded-xl border border-emerald-500/30">
+                  <TargetIcon className="w-8 h-8 mx-auto mb-2 text-emerald-400" />
+                  <div className="text-2xl font-bold text-emerald-400 mb-1">
+                    {leaderboardData.reduce((sum, p) => sum + p.quickDrawGames, 0)}
+                  </div>
+                  <div className="text-emerald-300 text-sm font-medium">Quick Draw</div>
+                </div>
+                <div className="p-4 bg-blue-500/20 rounded-xl border border-blue-500/30">
+                  <BrainIcon className="w-8 h-8 mx-auto mb-2 text-blue-400" />
+                  <div className="text-2xl font-bold text-blue-400 mb-1">
+                    {leaderboardData.reduce((sum, p) => sum + p.strategicGames, 0)}
+                  </div>
+                  <div className="text-blue-300 text-sm font-medium">Strategic</div>
+                </div>
+                <div className="p-4 bg-rose-500/20 rounded-xl border border-rose-500/30">
+                  <Zap className="w-8 h-8 mx-auto mb-2 text-rose-400" />
+                  <div className="text-2xl font-bold text-rose-400 mb-1">
+                    {leaderboardData.reduce((sum, p) => sum + p.hardcoreMysteryGames, 0)}
+                  </div>
+                  <div className="text-rose-300 text-sm font-medium">Hardcore Mystery</div>
+                </div>
+                <div className="p-4 bg-orange-500/20 rounded-xl border border-orange-500/30">
+                  <Users className="w-8 h-8 mx-auto mb-2 text-orange-400" />
+                  <div className="text-2xl font-bold text-orange-400 mb-1">
+                    {leaderboardData.reduce((sum, p) => sum + p.lastStandGames, 0)}
+                  </div>
+                  <div className="text-orange-300 text-sm font-medium">Last Stand</div>
+                </div>
               </div>
             </div>
           </div>

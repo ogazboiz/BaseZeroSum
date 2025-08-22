@@ -9,7 +9,7 @@ import { ZeroSumSpectatorABI } from '../config/abis/ZeroSumSpectatorABI'
 
 // Contract addresses
 const GAME_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_GAME_CONTRACT_ADDRESS || "0xfb40c6BACc74019E01C0dD5b434CE896806D7579"
-const SPECTATOR_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_SPECTATOR_CONTRACT_ADDRESS || "0x151A0A2227B42D299b01a7D5AD3e1A81cB3BE1aE"
+const SPECTATOR_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_SPECTATOR_CONTRACT_ADDRESS || "0x1620024163b8C9CE917b82932093A6De22Ba89d8"
 
 // Types
 export enum GameMode {
@@ -420,9 +420,25 @@ export function useZeroSumData() {
           const gameContract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, provider)
           const spectatorContract = new ethers.Contract(SPECTATOR_CONTRACT_ADDRESS, ZeroSumSpectatorABI, provider)
           
+          // Mark contracts as ready immediately - they're created successfully
           contractsRef.current = { gameContract, spectatorContract }
           setContractsReady(true)
           console.log('✅ Contracts initialized and ready')
+          
+          // Test connection in background (non-blocking)
+          const testContractConnection = async () => {
+            try {
+              console.log('🧪 Testing contract connection in background...')
+              const gameCounter = await gameContract.getGameCounter()
+              console.log('✅ Contract connection test successful, game counter:', gameCounter)
+            } catch (error) {
+              console.warn('⚠️ Contract connection test failed (non-blocking):', error)
+              // Don't set contractsReady to false here - let them work anyway
+            }
+          }
+          
+          // Test in background without blocking the UI
+          testContractConnection().catch(() => {})
         } catch (error) {
           console.error('❌ Contract initialization failed:', error)
           setContractsReady(false)

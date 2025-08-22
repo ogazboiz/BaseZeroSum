@@ -7,7 +7,8 @@
 // } as const;
 export const MantleSepoliaTestnetContractAddresses = {
   ZERO_SUM_SIMPLIFIED: '0xfb40c6BACc74019E01C0dD5b434CE896806D7579' as `0x${string}`,
-  ZERO_SUM_SPECTATOR: '0x151A0A2227B42D299b01a7D5AD3e1A81cB3BE1aE' as `0x${string}`,
+  ZERO_SUM_SPECTATOR: '0x1620024163b8C9CE917b82932093A6De22Ba89d8' as `0x${string}`,
+  HARDCORE_MYSTERY: '0x2E56044dB3be726772D6E5afFD7BD813C6895025' as `0x${string}`,
 } as const;
 
 // Helper function to get contract addresses based on environment
@@ -18,12 +19,14 @@ export const getContractAddresses = () => {
     return {
       ZERO_SUM_SIMPLIFIED: MantleSepoliaTestnetContractAddresses.ZERO_SUM_SIMPLIFIED,
       ZERO_SUM_SPECTATOR: MantleSepoliaTestnetContractAddresses.ZERO_SUM_SPECTATOR,
+      HARDCORE_MYSTERY: MantleSepoliaTestnetContractAddresses.HARDCORE_MYSTERY,
     };
   } else {
     // Testnet addresses (using same addresses for now, can be updated later)
     return {
       ZERO_SUM_SIMPLIFIED: MantleSepoliaTestnetContractAddresses.ZERO_SUM_SIMPLIFIED,
       ZERO_SUM_SPECTATOR: MantleSepoliaTestnetContractAddresses.ZERO_SUM_SPECTATOR,
+      HARDCORE_MYSTERY: MantleSepoliaTestnetContractAddresses.HARDCORE_MYSTERY,
     };
   }
 };
@@ -43,5 +46,10 @@ export const CONTRACT_METADATA = {
     name: 'ZeroSum Spectator',
     description: 'Spectator contract for viewing game status',
     address: MantleSepoliaTestnetContractAddresses.ZERO_SUM_SPECTATOR,
+  },
+  HARDCORE_MYSTERY: {
+    name: 'ZeroSum Hardcore Mystery',
+    description: 'Hardcore mystery games with hidden numbers and Last Stand battle royale mode',
+    address: MantleSepoliaTestnetContractAddresses.HARDCORE_MYSTERY,
   },
 } as const;

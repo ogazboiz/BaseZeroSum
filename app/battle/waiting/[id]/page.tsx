@@ -21,10 +21,11 @@ import {
   ArrowLeft,
   RefreshCw,
   AlertTriangle,
-  Trophy
+  Trophy,
+  Zap
 } from "lucide-react"
 import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { toast } from "react-hot-toast"
 import { useAccount } from "wagmi"
 import { 
@@ -34,33 +35,45 @@ import {
   GameStatus,
   GameMode
 } from "@/hooks/useZeroSumContract"
+import { 
+  useHardcoreMysteryData,
+  useHardcoreMysteryContract,
+  HardcoreMysteryGame,
+  GameStatus as HardcoreGameStatus,
+  GameMode as HardcoreGameMode
+} from "@/hooks/useHardcoreMysteryContracts"
 import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
 
 export default function UpdatedWaitingRoomPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { address, isConnected } = useAccount()
   
   const battleId = params.id as string
   const gameId = battleId ? parseInt(battleId) : null
+  const gameMode = searchParams.get("mode") || "quick-draw"
+  const isHardcoreGame = gameMode === "hardcore-mystery"
 
-  // Blockchain hooks
-  const {
-    getGame,
-    getPlayers,
-    getPlayerBalance,
-    contractsReady,
-    providerReady
-  } = useZeroSumData()
+  // Blockchain hooks - use appropriate contract based on game mode
+  const zeroSumData = useZeroSumData()
+  const hardcoreData = useHardcoreMysteryData()
+  
+  // Get the appropriate contract data based on game mode
+  const contractData = isHardcoreGame ? hardcoreData : zeroSumData
+  const { getGame, getPlayers, contractsReady, providerReady } = contractData
+  
+  const zeroSumContract = useZeroSumContract()
+  const hardcoreContract = useHardcoreMysteryContract()
   
   const {
     cancelWaitingGame,
     withdraw,
     loading: transactionLoading
-  } = useZeroSumContract()
+  } = isHardcoreGame ? hardcoreContract : zeroSumContract
 
   // State management
-  const [gameData, setGameData] = useState<GameData | null>(null)
+  const [gameData, setGameData] = useState<GameData | HardcoreMysteryGame | null>(null)
   const [players, setPlayers] = useState<string[]>([])
   const [userBalance, setUserBalance] = useState("0")
   const [isLoading, setIsLoading] = useState(true)
@@ -91,6 +104,40 @@ export default function UpdatedWaitingRoomPage() {
     },
   }
 
+  // Hardcore game mode configuration
+  const hardcoreGameModeConfig = {
+    [HardcoreGameMode.HARDCORE_MYSTERY]: {
+      title: "Hardcore Mystery",
+      icon: Zap,
+      gradient: "from-rose-400 via-pink-500 to-red-600",
+      bgGradient: "from-rose-900/20 to-rose-900/20",
+      rules: "Hidden numbers - instant death on wrong move!",
+      difficulty: "★★★★★",
+      avgDuration: "2-5 min",
+    },
+  }
+
+  // Determine the current game mode configuration
+  const getCurrentGameConfig = () => {
+    if (isHardcoreGame) {
+      return hardcoreGameModeConfig[HardcoreGameMode.HARDCORE_MYSTERY]
+    }
+    
+    // For ZeroSum games, determine mode from gameData or default to Quick Draw
+    if (gameData) {
+      if (gameData.mode === GameMode.QUICK_DRAW) {
+        return gameModeConfigs[GameMode.QUICK_DRAW]
+      } else if (gameData.mode === GameMode.STRATEGIC) {
+        return gameModeConfigs[GameMode.STRATEGIC]
+      }
+    }
+    
+    // Default to Quick Draw
+    return gameModeConfigs[GameMode.QUICK_DRAW]
+  }
+
+  const config = getCurrentGameConfig()
+
   // Fetch game data
   const fetchGameData = useCallback(async () => {
     if (!gameId || !isConnected || !address || !contractsReady) {
@@ -103,11 +150,10 @@ export default function UpdatedWaitingRoomPage() {
     setError(null)
 
     try {
-      // Parallel fetch for better performance
-      const [game, gamePlayers, balance] = await Promise.all([
+      // Fetch game data and players
+      const [game, gamePlayers] = await Promise.all([
         getGame(gameId),
-        getPlayers(gameId),
-        getPlayerBalance(address)
+        getPlayers(gameId)
       ])
 
       if (!game) {
@@ -124,16 +170,32 @@ export default function UpdatedWaitingRoomPage() {
       if (!isUserCreator) {
         // User is not the creator, redirect to battle page
         console.log('⚠️ User is not the creator, redirecting to battle page')
-        router.push(`/battle/${gameId}`)
+        const battleUrl = isHardcoreGame ? `/battle/hardcore/${gameId}` : `/battle/${gameId}`
+        router.push(battleUrl)
         return
       }
 
       // Check if game has started (opponent joined)
-      if (game.status !== GameStatus.WAITING) {
+      const isWaiting = isHardcoreGame ? 
+        game.status === HardcoreGameStatus.WAITING : 
+        game.status === GameStatus.WAITING
+      
+      if (!isWaiting) {
         console.log('🎮 Game has started, redirecting to battle page')
         toast.success("Opponent joined! Battle starting...")
-        router.push(`/battle/${gameId}`)
+        const battleUrl = isHardcoreGame ? `/battle/hardcore/${gameId}` : `/battle/${gameId}`
+        router.push(battleUrl)
         return
+      }
+
+      // Get user balance only for ZeroSum games
+      let balance = "0"
+      if (!isHardcoreGame && zeroSumData.getPlayerBalance) {
+        try {
+          balance = await zeroSumData.getPlayerBalance(address)
+        } catch (balanceError) {
+          console.warn('Could not fetch user balance:', balanceError)
+        }
       }
 
       setGameData(game)
@@ -147,7 +209,7 @@ export default function UpdatedWaitingRoomPage() {
     } finally {
       setIsPolling(false)
     }
-  }, [gameId, isConnected, address, contractsReady, getGame, getPlayers, getPlayerBalance, router])
+  }, [gameId, isConnected, address, contractsReady, getGame, getPlayers, router])
 
   // Initial data fetch
   useEffect(() => {
@@ -157,17 +219,34 @@ export default function UpdatedWaitingRoomPage() {
     }
   }, [providerReady, fetchGameData])
 
+  // Refresh game data when wallet address changes (wallet switching)
+  useEffect(() => {
+    if (providerReady && contractsReady && address) {
+      console.log('🔄 Wallet address changed, refreshing waiting game data...', address)
+      setIsLoading(true)
+      fetchGameData().finally(() => setIsLoading(false))
+    }
+  }, [address, providerReady, contractsReady, fetchGameData])
+
   // Set share URL
   useEffect(() => {
     if (typeof window !== 'undefined' && gameId) {
-      const url = `${window.location.origin}/battle/${gameId}`
+      const url = isHardcoreGame 
+        ? `${window.location.origin}/battle/hardcore/${gameId}`
+        : `${window.location.origin}/battle/${gameId}`
       setShareUrl(url)
     }
-  }, [gameId])
+  }, [gameId, isHardcoreGame])
 
   // Polling for opponent joining
   useEffect(() => {
-    if (!gameData || gameData.status !== GameStatus.WAITING) return
+    if (!gameData) return
+    
+    const isWaiting = isHardcoreGame ? 
+      gameData.status === HardcoreGameStatus.WAITING : 
+      gameData.status === GameStatus.WAITING
+    
+    if (!isWaiting) return
 
     const pollInterval = setInterval(() => {
       console.log('🔄 Polling for opponent...')
@@ -175,7 +254,7 @@ export default function UpdatedWaitingRoomPage() {
     }, 15000) // Check every 15 seconds
 
     return () => clearInterval(pollInterval)
-  }, [gameData?.status, fetchGameData])
+  }, [gameData?.status, fetchGameData, isHardcoreGame])
 
   // Action handlers
   const handleCopyLink = async () => {
@@ -190,9 +269,10 @@ export default function UpdatedWaitingRoomPage() {
   const handleShareBattle = async () => {
     if (navigator.share && gameData) {
       try {
+        const gameTitle = config.title
         await navigator.share({
-          title: `Join my ${gameModeConfigs[gameData.mode].title} battle!`,
-          text: `I've created a ${gameModeConfigs[gameData.mode].title} battle with ${gameData.entryFee} MNT entry fee. Join me!`,
+          title: `Join my ${gameTitle} battle!`,
+          text: `I've created a ${gameTitle} battle with ${gameData.entryFee} MNT entry fee. Join me!`,
           url: shareUrl,
         })
       } catch (err) {
@@ -223,7 +303,8 @@ export default function UpdatedWaitingRoomPage() {
 
   const handleViewBattle = () => {
     if (gameId) {
-      router.push(`/battle/${gameId}`)
+      const battleUrl = isHardcoreGame ? `/battle/hardcore/${gameId}` : `/battle/${gameId}`
+      router.push(battleUrl)
     }
   }
 
@@ -242,8 +323,7 @@ export default function UpdatedWaitingRoomPage() {
     }
   }
 
-  // Get game config
-  const config = gameData ? gameModeConfigs[gameData.mode] : gameModeConfigs[GameMode.QUICK_DRAW]
+  // Game config is already defined above
 
   // Loading state
   if (!isConnected) {
@@ -339,12 +419,16 @@ export default function UpdatedWaitingRoomPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             <Link href="/" className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/25">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${
+                isHardcoreGame 
+                  ? 'bg-gradient-to-br from-rose-400 to-red-600 shadow-rose-500/25' 
+                  : 'bg-gradient-to-br from-cyan-400 to-blue-600 shadow-cyan-500/25'
+              }`}>
                 <Gamepad2 className="w-7 h-7 text-white" />
               </div>
               <div>
                 <span className="text-3xl font-black bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 bg-clip-text text-transparent">
-                  ZEROSUM
+                  {isHardcoreGame ? "HARDCORE" : "ZEROSUM"}
                 </span>
                 <div className="text-xs text-slate-400 font-medium">WAITING ROOM</div>
               </div>
@@ -443,7 +527,7 @@ export default function UpdatedWaitingRoomPage() {
                       <span className="text-slate-300 font-medium">Prize Pool</span>
                     </div>
                     <div className="text-2xl font-black text-cyan-400">
-                      {parseFloat(gameData.prizePool).toFixed(4)} MNT
+                      {(parseFloat(gameData.entryFee) * 2).toFixed(4)} MNT
                     </div>
                   </div>
                   

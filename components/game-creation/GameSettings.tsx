@@ -16,9 +16,12 @@ interface GameSettingsProps {
     timeout: number
   }
   onGameSettingsChange: (settings: any) => void
+  maxEntryFee: number
+  minEntryFee: number
+  selectedMode: string
 }
 
-export default function GameSettings({ entryFee, onEntryFeeChange, gameSettings, onGameSettingsChange }: GameSettingsProps) {
+export default function GameSettings({ entryFee, onEntryFeeChange, gameSettings, onGameSettingsChange, maxEntryFee, minEntryFee, selectedMode }: GameSettingsProps) {
   const handleSettingChange = (key: string, value: any) => {
     onGameSettingsChange({ ...gameSettings, [key]: value })
   }
@@ -42,18 +45,21 @@ export default function GameSettings({ entryFee, onEntryFeeChange, gameSettings,
             <Slider
               value={entryFee}
               onValueChange={onEntryFeeChange}
-              max={2}
-              min={0.01}
-              step={0.01}
+              max={maxEntryFee}
+              min={minEntryFee}
+              step={selectedMode === "quick-draw" ? 0.0001 : selectedMode === "strategic" ? 0.001 : 0.1}
               className="w-full"
             />
             <div className="text-center">
                   <span className="text-3xl font-black text-amber-400">{entryFee[0]} MNT</span>
             </div>
+            <div className="text-center text-sm text-slate-400">
+              Range: {minEntryFee} - {maxEntryFee} MNT
+            </div>
           </div>
         </div>
 
-        {/* Timeout - Fixed at 3 minutes */}
+        {/* Timeout - Fixed at 90 seconds */}
         <div className="space-y-4">
           <div className="flex items-center space-x-3">
             <Clock className="w-6 h-6 text-red-400" />

@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react'
 import { useAccount } from 'wagmi'
 import { useZeroSumData, GameMode, GameStatus } from '@/hooks/useZeroSumContract'
+import { useHardcoreMysteryData, GameMode as HardcoreGameMode, GameStatus as HardcoreGameStatus } from '@/hooks/useHardcoreMysteryContracts'
 import { ethers } from 'ethers'
 
 // Interfaces remain the same but with better TypeScript
@@ -19,10 +20,23 @@ export interface GameData {
   prizePool: string
 }
 
+export interface HardcoreGameData {
+  gameId: number
+  status: HardcoreGameStatus
+  mode: HardcoreGameMode
+  currentPlayer: string
+  winner: string
+  entryFee: string
+  prizePool: string
+  maxPlayers: number
+  moveCount: number
+  isStarted: boolean
+}
+
 export interface MyGame {
   gameId: number
   status: "waiting" | "active" | "completed"
-  mode: "Quick Draw" | "Strategic"
+  mode: "Quick Draw" | "Strategic" | "Hardcore Mystery" | "Last Stand"
   entryFee: string
   prizePool: string
   isCreator: boolean
@@ -33,9 +47,11 @@ export interface MyGame {
   players: string[]
   winner?: string
   currentNumber?: number
-  numberGenerated: boolean
-  gameData: GameData
+  numberGenerated?: boolean
+  gameData?: GameData
+  hardcoreGameData?: HardcoreGameData
   lastUpdated: number // Add timestamp for cache management
+  contractType: 'zerosum' | 'hardcore'
 }
 
 export interface GameStats {
@@ -164,6 +180,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
     providerReady
   } = useZeroSumData()
   
+  // Add Hardcore Mystery contract hooks
+  const {
+    getGame: getHardcoreGame,
+    getPlayers: getHardcorePlayers,
+    getPlayerView: getHardcorePlayerView,
+    getGameCounter: getHardcoreGameCounter,
+    contractsReady: hardcoreContractsReady,
+    providerReady: hardcoreProviderReady
+  } = useHardcoreMysteryData()
+  
   const [myGames, setMyGames] = useState<MyGame[]>([])
   const [gameStats, setGameStats] = useState<GameStats>({
     totalGames: 0,
@@ -214,7 +240,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     return { isPlayer, isCreator }
   }
 
-  // Enhanced single game processor
+  // Enhanced single game processor for ZeroSum games
   const processGameData = async (gameId: number, userAddress: string): Promise<MyGame | null> => {
     const cacheKey = `processed-game-${gameId}-${userAddress}`
     
@@ -226,7 +252,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
     
     try {
-      console.log(`🔍 [GameContext] Processing game ${gameId}`)
+      console.log(`🔍 [GameContext] Processing ZeroSum game ${gameId}`)
       
       const [gameData, players] = await Promise.all([
         getGame(gameId),
@@ -285,7 +311,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
         currentNumber: gameData.numberGenerated ? Number(gameData.currentNumber) : undefined,
         numberGenerated: gameData.numberGenerated,
         gameData,
-        lastUpdated: Date.now()
+        hardcoreGameData: undefined,
+        lastUpdated: Date.now(),
+        contractType: 'zerosum'
       }
 
       // Cache with appropriate TTL
@@ -295,7 +323,101 @@ export function GameProvider({ children }: { children: ReactNode }) {
       return processedGame
 
     } catch (error) {
-      console.error(`❌ [GameContext] Error processing game ${gameId}:`, error)
+      console.error(`❌ [GameContext] Error processing ZeroSum game ${gameId}:`, error)
+      gameCache.set(cacheKey, null, 10000) // Cache error for 10 seconds
+      return null
+    }
+  }
+
+  // Process Hardcore Mystery games
+  const processHardcoreGameData = async (gameId: number, userAddress: string): Promise<MyGame | null> => {
+    const cacheKey = `processed-hardcore-game-${gameId}-${userAddress}`
+    
+    // Check cache first
+    const cached = gameCache.get<MyGame>(cacheKey)
+    if (cached) {
+      console.log(`💾 [GameContext] Cache hit for Hardcore game ${gameId}`)
+      return cached
+    }
+    
+    try {
+      console.log(`🔍 [GameContext] Processing Hardcore game ${gameId}`)
+      
+      const [gameData, players] = await Promise.all([
+        getHardcoreGame(gameId),
+        getHardcorePlayers(gameId)
+      ])
+      
+      if (!gameData || !players) {
+        console.log(`❌ [GameContext] No data for Hardcore game ${gameId}`)
+        return null
+      }
+
+      // Check if user is involved in this game
+      const { isPlayer, isCreator } = isUserInvolvedInGame(players, userAddress)
+      if (!isPlayer) {
+        console.log(`❌ [GameContext] User not involved in Hardcore game ${gameId}`)
+        return null
+      }
+
+      // Get player view if game is active
+      let myTurn = false
+      let timeLeft = 0
+      if (gameData.status === HardcoreGameStatus.ACTIVE) {
+        try {
+          const playerView = await getHardcorePlayerView(gameId)
+          myTurn = playerView?.yourTurn || false
+          timeLeft = playerView?.timeLeft || 0
+          console.log(`🎯 [GameContext] Hardcore game ${gameId}: MyTurn=${myTurn}, TimeLeft=${timeLeft}`)
+        } catch (error) {
+          console.warn(`[GameContext] Could not get player view for Hardcore game ${gameId}:`, error)
+        }
+      }
+
+      // Convert Hardcore game mode to string
+      const getHardcoreGameModeString = (mode: HardcoreGameMode): "Hardcore Mystery" | "Last Stand" => {
+        return mode === HardcoreGameMode.HARDCORE_MYSTERY ? "Hardcore Mystery" : "Last Stand"
+      }
+
+      // Convert Hardcore game status to string
+      const getHardcoreGameStatusString = (status: HardcoreGameStatus): "waiting" | "active" | "completed" => {
+        switch (status) {
+          case HardcoreGameStatus.WAITING: return "waiting"
+          case HardcoreGameStatus.ACTIVE: return "active"
+          case HardcoreGameStatus.FINISHED: return "completed"
+          default: return "waiting"
+        }
+      }
+
+      const processedGame: MyGame = {
+        gameId: gameId + 10000, // Add offset to avoid duplicate IDs with ZeroSum
+        status: getHardcoreGameStatusString(gameData.status),
+        mode: getHardcoreGameModeString(gameData.mode),
+        entryFee: gameData.entryFee,
+        prizePool: gameData.prizePool,
+        isCreator,
+        isPlayer,
+        currentPlayer: gameData.currentPlayer || ethers.ZeroAddress,
+        myTurn,
+        timeLeft,
+        players,
+        winner: gameData.winner && gameData.winner !== ethers.ZeroAddress ? gameData.winner : undefined,
+        currentNumber: undefined, // Hardcore games don't have currentNumber
+        numberGenerated: undefined, // Hardcore games don't have numberGenerated
+        gameData: undefined,
+        hardcoreGameData: gameData,
+        lastUpdated: Date.now(),
+        contractType: 'hardcore'
+      }
+
+      // Cache with appropriate TTL
+      const ttl = gameData.status === HardcoreGameStatus.ACTIVE ? 30000 : 300000 // 30s for active, 5min for others
+      gameCache.set(cacheKey, processedGame, ttl)
+      
+      return processedGame
+
+    } catch (error) {
+      console.error(`❌ [GameContext] Error processing Hardcore game ${gameId}:`, error)
       gameCache.set(cacheKey, null, 10000) // Cache error for 10 seconds
       return null
     }
@@ -364,7 +486,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   // Main fetch function with improved logic
   const fetchMyGames = useCallback(async (forceRefresh = false) => {
-    if (!address || !isConnected || !contractsReady || !providerReady) {
+    if (!address || !isConnected || (!contractsReady && !hardcoreContractsReady) || (!providerReady && !hardcoreProviderReady)) {
       console.log('❌ [GameContext] Prerequisites not met for fetchMyGames')
       setMyGames([])
       return
@@ -376,7 +498,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
 
     const now = Date.now()
-    if (now - lastFetchTime < 10000 && !forceRefresh) {
+    // Increase throttling from 10 seconds to 30 seconds to prevent excessive fetching
+    if (now - lastFetchTime < 30000 && !forceRefresh) {
       console.log('🛑 [GameContext] Throttled: Too soon since last fetch')
       return
     }
@@ -419,17 +542,70 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
       const userGames = await batchProcessGames(gameIdsToCheck, address)
 
+      // Fetch Hardcore Mystery games if contracts are ready
+      let hardcoreGames: MyGame[] = []
+      if (hardcoreContractsReady && hardcoreProviderReady) {
+        try {
+          console.log('🔍 [GameContext] Fetching Hardcore Mystery games...')
+          const hardcoreGameCounter = await getHardcoreGameCounter()
+          console.log('📊 Hardcore Mystery games on contract:', hardcoreGameCounter)
+          
+          if (hardcoreGameCounter > 0) {
+            // Check last 20 Hardcore games for user participation
+            const maxHardcoreGamesToCheck = Math.min(hardcoreGameCounter, 20)
+            const hardcoreGameIdsToCheck: number[] = []
+            
+            for (let i = hardcoreGameCounter; i >= Math.max(1, hardcoreGameCounter - maxHardcoreGamesToCheck + 1); i--) {
+              hardcoreGameIdsToCheck.push(i)
+            }
+            
+            console.log(`🎯 Hardcore game counter: ${hardcoreGameCounter}`)
+            console.log(`🎯 Checking Hardcore games: [${hardcoreGameIdsToCheck.join(', ')}]`)
+            
+            // Process Hardcore games in batches
+            for (let i = 0; i < hardcoreGameIdsToCheck.length; i += 3) {
+              if (!mountedRef.current) break
+              
+              const batch = hardcoreGameIdsToCheck.slice(i, i + 3)
+              const batchResults = await Promise.allSettled(
+                batch.map(async (gameId, index) => {
+                  await new Promise(resolve => setTimeout(resolve, index * 100))
+                  return processHardcoreGameData(gameId, address)
+                })
+              )
+              
+              for (const result of batchResults) {
+                if (result.status === 'fulfilled' && result.value) {
+                  hardcoreGames.push(result.value)
+                }
+              }
+              
+              // Pause between batches
+              if (i + 3 < hardcoreGameIdsToCheck.length && mountedRef.current) {
+                await new Promise(resolve => setTimeout(resolve, 500))
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ [GameContext] Error fetching Hardcore games:', error)
+        }
+      }
+
+      // Combine ZeroSum and Hardcore games
+      const allGames = [...userGames, ...hardcoreGames]
+
       if (!mountedRef.current) return
 
       // Sort by game ID (newest first)
-      userGames.sort((a, b) => b.gameId - a.gameId)
+      allGames.sort((a, b) => b.gameId - a.gameId)
 
       console.log(`\n🎯 === RESULTS ===`)
-      console.log(`✅ User games found: ${userGames.length}`)
-      console.log(`🎮 User games:`, userGames.map(g => `#${g.gameId} (${g.status})`))
+      console.log(`✅ Total user games found: ${allGames.length}`)
+      console.log(`🎮 ZeroSum games:`, userGames.map(g => `#${g.gameId} (${g.status})`))
+      console.log(`🎮 Hardcore games:`, hardcoreGames.map(g => `#${g.gameId} (${g.status})`))
       
-      setMyGames(userGames)
-      setGameStats(calculateStats(userGames))
+      setMyGames(allGames)
+      setGameStats(calculateStats(allGames))
       setLastFetchTime(now)
 
     } catch (error) {
@@ -441,7 +617,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       }
       isFetchingRef.current = false
     }
-  }, [address, isConnected, contractsReady, providerReady, getGameCounter, lastFetchTime])
+  }, [address, isConnected, contractsReady, providerReady, getGameCounter])
 
   // Preload a specific game (useful for navigation)
   const preloadGame = useCallback(async (gameId: number): Promise<MyGame | null> => {
@@ -559,17 +735,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   // Auto-fetch on mount and when prerequisites change
   useEffect(() => {
-    if (isConnected && address && contractsReady && providerReady) {
+    if (isConnected && address && (contractsReady || hardcoreContractsReady) && (providerReady || hardcoreProviderReady)) {
       console.log('🚀 [GameContext] Auto-fetching games on prerequisites ready')
       fetchMyGames()
     } else {
       clearGames()
     }
-  }, [isConnected, address, contractsReady, providerReady, fetchMyGames, clearGames])
+  }, [isConnected, address, contractsReady, hardcoreContractsReady, providerReady, hardcoreProviderReady, fetchMyGames, clearGames])
 
-  // Intelligent polling setup
+  // Intelligent polling setup - reduced frequency and improved logic
   useEffect(() => {
-    if (!isConnected || !address || !contractsReady || !providerReady) return
+    if (!isConnected || !address || (!contractsReady && !hardcoreContractsReady) || (!providerReady && !hardcoreProviderReady)) return
 
     console.log('⏰ [GameContext] Setting up intelligent polling')
     
@@ -577,23 +753,24 @@ export function GameProvider({ children }: { children: ReactNode }) {
       clearInterval(intervalRef.current)
     }
     
+    // Increase polling interval from 30 seconds to 60 seconds
     intervalRef.current = setInterval(() => {
       if (!error && !isFetchingRef.current && mountedRef.current) {
         const hasActiveGames = myGames.some(g => g.status === "active")
         const hasMyTurnGames = myGames.some(g => g.myTurn && g.status === "active")
         
-        // More aggressive polling for urgent games, less for others
+        // Much less aggressive polling to prevent excessive fetching
         let shouldFetch = false
         
         if (hasMyTurnGames) {
-          // Poll every 30 seconds if it's user's turn
-          shouldFetch = Math.random() < 0.7
-        } else if (hasActiveGames) {
-          // Poll every 60 seconds for active games
+          // Poll every 2 minutes if it's user's turn (reduced from 30 seconds)
           shouldFetch = Math.random() < 0.3
-        } else {
-          // Poll every 2 minutes for waiting/completed games
+        } else if (hasActiveGames) {
+          // Poll every 5 minutes for active games (reduced from 60 seconds)
           shouldFetch = Math.random() < 0.1
+        } else {
+          // Poll every 10 minutes for waiting/completed games (reduced from 2 minutes)
+          shouldFetch = Math.random() < 0.05
         }
         
         if (shouldFetch) {
@@ -601,7 +778,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
           fetchMyGames()
         }
       }
-    }, 30000) // Check every 30 seconds
+    }, 60000) // Check every 60 seconds instead of 30
 
     return () => {
       if (intervalRef.current) {
@@ -609,7 +786,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         intervalRef.current = null
       }
     }
-  }, [isConnected, address, contractsReady, providerReady, error, myGames, fetchMyGames])
+      }, [isConnected, address, contractsReady, hardcoreContractsReady, providerReady, hardcoreProviderReady, error, myGames, fetchMyGames])
 
   // Cleanup on unmount
   useEffect(() => {
