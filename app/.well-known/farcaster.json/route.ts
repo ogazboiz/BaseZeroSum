@@ -1,3 +1,5 @@
+import config from '@/config.json';
+
 function withValidProperties(properties: Record<string, undefined | string | string[]>) {
   return Object.fromEntries(
     Object.entries(properties).filter(([_, value]) => (Array.isArray(value) ? value.length > 0 : !!value))
@@ -14,22 +16,22 @@ export async function GET() {
     },
     frame: withValidProperties({
       version: '1',
-      name: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME,
-      subtitle: process.env.NEXT_PUBLIC_APP_SUBTITLE,
-      description: process.env.NEXT_PUBLIC_APP_DESCRIPTION,
+      name: config.app.name,
+      subtitle: config.app.subtitle,
+      description: config.app.description,
       screenshotUrls: [],
-      iconUrl: process.env.NEXT_PUBLIC_APP_ICON,
-      splashImageUrl: process.env.NEXT_PUBLIC_APP_SPLASH_IMAGE,
-      splashBackgroundColor: process.env.NEXT_PUBLIC_SPLASH_BACKGROUND_COLOR,
+      iconUrl: config.app.icon,
+      splashImageUrl: config.app.splashImage,
+      splashBackgroundColor: config.app.splashBackgroundColor,
       homeUrl: URL,
       webhookUrl: `${URL}/api/webhook`,
-      primaryCategory: process.env.NEXT_PUBLIC_APP_PRIMARY_CATEGORY,
+      primaryCategory: config.app.primaryCategory,
       tags: [],
-      heroImageUrl: process.env.NEXT_PUBLIC_APP_HERO_IMAGE,
-      tagline: process.env.NEXT_PUBLIC_APP_TAGLINE,
-      ogTitle: process.env.NEXT_PUBLIC_APP_OG_TITLE,
-      ogDescription: process.env.NEXT_PUBLIC_APP_OG_DESCRIPTION,
-      ogImageUrl: process.env.NEXT_PUBLIC_APP_OG_IMAGE,
+      heroImageUrl: config.app.heroImage,
+      tagline: config.app.tagline,
+      ogTitle: config.app.ogTitle,
+      ogDescription: config.app.ogDescription,
+      ogImageUrl: config.app.ogImage,
       // use only while testing
       noindex: 'true',
     }),
