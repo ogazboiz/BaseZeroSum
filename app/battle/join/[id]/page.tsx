@@ -219,7 +219,7 @@ export default function JoinBattlePage() {
 
       {/* Navigation */}
      <UnifiedGamingNavigation/>
-      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="relative  max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Error Display */}
         {error && (
           <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">

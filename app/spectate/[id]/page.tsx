@@ -167,7 +167,7 @@ export default function SpectateBattlePage() {
         </div>
       </nav>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="relative  max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid lg:grid-cols-4 gap-6">
           {/* Main Battle View */}
           <div className="lg:col-span-3 space-y-6">

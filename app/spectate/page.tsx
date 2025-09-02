@@ -134,7 +134,7 @@ export default function SpectatePage() {
       {/* Gaming Navigation */}
        <UnifiedGamingNavigation />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="relative  max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-violet-500/20 to-purple-500/20 border border-violet-500/30 rounded-full px-6 py-2 mb-6">
@@ -175,7 +175,7 @@ export default function SpectatePage() {
                         ></div>
                       )}
 
-                      <div className="relative z-10">
+                      <div className="relative ">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-center space-x-4">
                             <div

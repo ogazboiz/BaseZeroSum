@@ -743,7 +743,7 @@ export default function HardcoreBattlePage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 text-white">
         <UnifiedGamingNavigation />
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="relative  max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500 mx-auto mb-4"></div>
@@ -760,7 +760,7 @@ export default function HardcoreBattlePage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 text-white">
         <UnifiedGamingNavigation />
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="relative  max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="max-w-2xl mx-auto text-center">
             <div className="w-24 h-24 bg-red-500/20 border-2 border-red-500/30 rounded-full flex items-center justify-center mx-auto mb-6">
               <AlertTriangle className="w-12 h-12 text-red-400" />
@@ -796,7 +796,7 @@ export default function HardcoreBattlePage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 text-white">
       <UnifiedGamingNavigation />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="relative  max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Back Button */}
         <div className="mb-6">
           <Button

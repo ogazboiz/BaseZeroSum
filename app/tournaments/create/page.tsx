@@ -144,7 +144,7 @@ export default function CreateTournamentPage() {
 
       {/* Navigation */}
       <UnifiedGamingNavigation/>
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="relative  max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Back Button */}
         <div className="mb-8">
           <Link href="/tournaments">

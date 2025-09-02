@@ -682,7 +682,7 @@ export default function HomePage() {
                 </div>
               )}
 
-              <CardHeader className={`relative z-10 pb-4 ${game.comingSoon ? 'z-20' : ''}`}>
+              <CardHeader className={`relative  pb-4 ${game.comingSoon ? 'z-20' : ''}`}>
                 <div className="flex items-start justify-between mb-4">
                   <div
                     className={`w-16 h-16 bg-gradient-to-br ${game.gradient} rounded-2xl flex items-center justify-center shadow-lg ${game.comingSoon ? 'opacity-50' : 'group-hover:scale-110'} transition-transform duration-300`}
@@ -702,7 +702,7 @@ export default function HomePage() {
                 </div>
               </CardHeader>
 
-              <CardContent className={`relative z-10 pt-0 ${game.comingSoon ? 'z-20' : ''}`}>
+              <CardContent className={`relative  pt-0 ${game.comingSoon ? 'z-20' : ''}`}>
                 <p className={`font-medium mb-6 text-lg ${game.comingSoon ? 'text-slate-400' : 'text-slate-300'}`}>{game.description}</p>
 
                 <div className="grid grid-cols-2 gap-4 mb-6">
@@ -758,7 +758,7 @@ export default function HomePage() {
       </section>
 
       {/* Gaming Features */}
-      <section className="relative z-10 bg-slate-900/40 backdrop-blur-sm py-20">
+      <section className="relative  bg-slate-900/40 backdrop-blur-sm py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-6">REVOLUTIONARY GAMING</h2>
@@ -813,7 +813,7 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 bg-slate-900/60 backdrop-blur-sm border-t border-slate-700/50 py-12">
+      <footer className="relative  bg-slate-900/60 backdrop-blur-sm border-t border-slate-700/50 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
             <div>

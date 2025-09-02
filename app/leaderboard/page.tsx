@@ -422,7 +422,7 @@ export default function FixedLeaderboardPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 text-white">
       <UnifiedGamingNavigation />
       
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="relative  max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Enhanced Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center space-x-3 bg-gradient-to-r from-yellow-500/20 via-amber-500/20 to-orange-500/20 border border-yellow-500/30 rounded-full px-8 py-3 mb-8 shadow-lg">

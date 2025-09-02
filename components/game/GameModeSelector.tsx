@@ -52,7 +52,7 @@ export default function GameModeSelector({ gameModes, selectedMode, onModeSelect
                 ></div>
               )}
 
-              <div className="relative z-10">
+              <div className="relative ">
                 <div className="flex items-start justify-between mb-4">
                   <div
                     className={`w-14 h-14 bg-gradient-to-br ${mode.gradient} rounded-xl flex items-center justify-center shadow-lg`}

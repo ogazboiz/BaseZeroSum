@@ -90,7 +90,7 @@ export default function BattleCard({
         className={`absolute inset-0 bg-gradient-to-r ${battle.gradient} opacity-0 group-hover:opacity-20 transition-opacity duration-500`}
       ></div>
 
-      <CardHeader className="relative z-10 pb-4">
+      <CardHeader className="relative  pb-4">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center space-x-3">
             <div
@@ -119,7 +119,7 @@ export default function BattleCard({
         </div>
       </CardHeader>
 
-      <CardContent className="relative z-10 space-y-4">
+      <CardContent className="relative  space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-3">
             <p className="text-xs font-bold text-slate-400 mb-1">ENTRY FEE</p>
