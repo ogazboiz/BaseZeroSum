@@ -756,9 +756,9 @@ export default function UpdatedBrowseGamesPage() {
 
       <UnifiedGamingNavigation />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-12">
         {/* Header */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-8 sm:mb-12">
           <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-rose-500/20 to-orange-500/20 border border-rose-500/30 rounded-full px-6 py-2 mb-6">
             <Swords className="w-5 h-5 text-rose-400" />
             <span className="text-rose-400 font-bold">ACTIVE BATTLES</span>
@@ -1009,9 +1009,9 @@ export default function UpdatedBrowseGamesPage() {
               const { canJoin, isCreator } = getGameDynamicProps(game)
               
               return (
-                <Card key={game.gameId} className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 hover:border-slate-600/50 transition-colors">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
+                <Card key={game.gameId} className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 hover:border-slate-600/50 transition-colors overflow-hidden">
+                  <CardHeader className="p-6 pb-4">
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
                       <div className="flex items-center space-x-3">
                         <div className={`w-12 h-12 bg-gradient-to-br ${
                           game.contractType === 'zerosum' && game.mode === GameMode.QUICK_DRAW 
@@ -1031,25 +1031,27 @@ export default function UpdatedBrowseGamesPage() {
                           </p>
                         </div>
                       </div>
-                      <div className="flex flex-col items-end space-y-2">
+                      <div className="flex flex-col md:flex-row items-start md:items-end space-y-1 md:space-y-0 md:space-x-2">
                         <Badge className={getStatusColor(game)}>
                           <StatusIcon className="w-3 h-3 mr-1" />
-                          {game.contractType === 'zerosum' 
-                            ? (game.status === GameStatus.WAITING ? "WAITING" : "ACTIVE")
-                            : "UNAVAILABLE"
-                          }
+                          <span className="text-sm">
+                            {game.contractType === 'zerosum' 
+                              ? (game.status === GameStatus.WAITING ? "WAITING" : "ACTIVE")
+                              : "UNAVAILABLE"
+                            }
+                          </span>
                         </Badge>
                         {game.userHasBet && (
                           <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
                             <Coins className="w-3 h-3 mr-1" />
-                            BET PLACED
+                            <span className="text-sm">BET PLACED</span>
                           </Badge>
                         )}
                       </div>
                     </div>
                   </CardHeader>
                   
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-4 px-6 py-4 pb-6">
                     {/* Game Details */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-slate-700/30 rounded-lg p-3">
@@ -1074,7 +1076,7 @@ export default function UpdatedBrowseGamesPage() {
                     </div>
 
                     {/* Players */}
-                                          <div className="bg-slate-700/20 rounded-lg p-3">
+                    <div className="bg-slate-700/20 rounded-lg p-3">
                         <div className="flex items-center space-x-2 mb-2">
                           <Users className="w-4 h-4 text-violet-400" />
                           <span className="text-sm font-medium text-white">
@@ -1113,66 +1115,79 @@ export default function UpdatedBrowseGamesPage() {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex space-x-2">
-                      {canJoin && !isCreator && (
-                        <Button
-                          onClick={() => handleJoinBattle(game.gameId)}
-                          disabled={!isConnected || joiningBattle === game.gameId || contractLoading}
-                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg"
-                        >
-                          {joiningBattle === game.gameId ? (
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          ) : !isConnected ? (
-                            <Wallet className="w-4 h-4 mr-2" />
-                          ) : (
-                            <Swords className="w-4 h-4 mr-2" />
-                          )}
-                          {joiningBattle === game.gameId ? "Joining..." : 
-                           !isConnected ? "Connect to Join" : "JOIN"}
-                        </Button>
-                      )}
+                    <div className="flex flex-col space-y-3 mt-2">
+                      {/* Primary Action Row */}
+                      <div className="flex space-x-2">
+                        {canJoin && !isCreator && (
+                          <Button
+                            onClick={() => handleJoinBattle(game.gameId)}
+                            disabled={!isConnected || joiningBattle === game.gameId || contractLoading}
+                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg"
+                          >
+                            {joiningBattle === game.gameId ? (
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : !isConnected ? (
+                              <Wallet className="w-4 h-4 mr-2" />
+                            ) : (
+                              <Swords className="w-4 h-4 mr-2" />
+                            )}
+                            <span className="hidden sm:inline">
+                              {joiningBattle === game.gameId ? "Joining..." : 
+                               !isConnected ? "Connect to Join" : "JOIN"}
+                            </span>
+                            <span className="sm:hidden">
+                              {joiningBattle === game.gameId ? "..." : 
+                               !isConnected ? "Connect" : "JOIN"}
+                            </span>
+                          </Button>
+                        )}
+                        
+                        {isCreator && (
+                          <Button
+                            disabled
+                            className="flex-1 bg-blue-600 text-white rounded-lg cursor-not-allowed"
+                          >
+                            <Trophy className="w-4 h-4 mr-2" />
+                            Creator
+                          </Button>
+                        )}
+                        
+                        {game.userHasBet && (
+                          <Button
+                            disabled
+                            className="flex-1 bg-amber-600 text-white rounded-lg cursor-not-allowed"
+                          >
+                            <Coins className="w-4 h-4 mr-2" />
+                            <span className="hidden sm:inline">Already Bet</span>
+                            <span className="sm:hidden">Bet</span>
+                          </Button>
+                        )}
+                      </div>
                       
-                      {isCreator && (
-                        <Button
-                          disabled
-                          className="flex-1 bg-blue-600 text-white rounded-lg cursor-not-allowed"
-                        >
-                          <Trophy className="w-4 h-4 mr-2" />
-                          Creator
-                        </Button>
-                      )}
-                      
-                      {game.userHasBet && (
-                        <Button
-                          disabled
-                          className="flex-1 bg-amber-600 text-white rounded-lg cursor-not-allowed"
-                        >
-                          <Coins className="w-4 h-4 mr-2" />
-                          Already Bet
-                        </Button>
-                      )}
-                      
-                      {game.canWatch && (
-                        <Button
-                          onClick={() => handleWatchBattle(game.gameId)}
-                          variant="outline"
-                          className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700 rounded-lg"
-                        >
-                          <Eye className="w-4 h-4 mr-2" />
-                          Watch
-                        </Button>
-                      )}
-                      
-                      {game.status === GameStatus.WAITING && (
-                        <Button
-                          onClick={() => copyGameLink(game.gameId)}
-                          variant="outline"
-                          size="sm"
-                          className="border-slate-600 text-slate-300 hover:bg-slate-700"
-                        >
-                          <Copy className="w-4 h-4" />
-                        </Button>
-                      )}
+                      {/* Secondary Action Row */}
+                      <div className="flex space-x-2">
+                        {game.canWatch && (
+                          <Button
+                            onClick={() => handleWatchBattle(game.gameId)}
+                            variant="outline"
+                            className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700 rounded-lg"
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            Watch
+                          </Button>
+                        )}
+                        
+                        {game.status === GameStatus.WAITING && (
+                          <Button
+                            onClick={() => copyGameLink(game.gameId)}
+                            variant="outline"
+                            className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700 rounded-lg"
+                          >
+                            <Copy className="w-4 h-4 mr-2" />
+                            Copy
+                          </Button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Additional Info */}
@@ -1319,7 +1334,7 @@ export default function UpdatedBrowseGamesPage() {
         {!isLoading && contractsReady && providerReady && browsableGames.length > 0 && (
           <div className="mt-12 p-6 bg-slate-800/40 border border-slate-700/50 rounded-xl">
             <h3 className="text-lg font-bold text-white mb-4 text-center">Battle Statistics</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 md:gap-6 text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6 text-center">
               <div>
                 <div className="text-2xl font-bold text-cyan-400">{browseStats.totalGames}</div>
                 <div className="text-sm text-slate-400">Total Battles</div>
@@ -1332,10 +1347,6 @@ export default function UpdatedBrowseGamesPage() {
                 <div className="text-2xl font-bold text-blue-400">{browseStats.strategicGames}</div>
                 <div className="text-sm text-slate-400">Strategic</div>
               </div>
-              {/* <div>
-                <div className="text-2xl font-bold text-rose-400">{browseStats.hardcoreMysteryGames}</div>
-                <div className="text-sm text-slate-400">Hardcore Mystery</div>
-              </div> */}
               <div>
                 <div className="text-2xl font-bold text-amber-400">{browseStats.totalPrizePool} MNT</div>
                 <div className="text-sm text-slate-400">Total Prize Pool</div>

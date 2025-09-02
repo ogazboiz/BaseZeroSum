@@ -1002,33 +1002,34 @@ export default function FixedBattlePage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 text-white">
       <UnifiedGamingNavigation />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Back Button */}
-        <div className="mb-6">
+        <div className="mb-4 sm:mb-6">
           <Button
             onClick={() => router.back()}
             variant="outline"
-            className="border-slate-600 text-white hover:bg-slate-800/50"
+            size="sm"
+            className="border-slate-600 text-white hover:bg-slate-800/50 text-sm"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {/* Main Battle Area */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Battle Header */}
             <Card className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 shadow-2xl rounded-2xl">
               <CardHeader>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex items-center space-x-4">
-                    <div className={`w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br ${gameConfig.gradient} rounded-2xl flex items-center justify-center shadow-lg`}>
-                      <gameConfig.icon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+                  <div className="flex items-center space-x-3 sm:space-x-4">
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-gradient-to-br ${gameConfig.gradient} rounded-2xl flex items-center justify-center shadow-lg`}>
+                      <gameConfig.icon className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white" />
                     </div>
                     <div>
-                      <CardTitle className="text-2xl sm:text-3xl font-black text-white">{gameState.mode}</CardTitle>
-                      <p className="text-slate-300 font-medium">Battle #{gameState.gameId}</p>
+                      <CardTitle className="text-xl sm:text-2xl md:text-3xl font-black text-white">{gameState.mode}</CardTitle>
+                      <p className="text-slate-300 font-medium text-sm sm:text-base">Battle #{gameState.gameId}</p>
                     </div>
                   </div>
                   <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
@@ -1060,26 +1061,26 @@ export default function FixedBattlePage() {
 
             {/* Connection Info */}
             <Card className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 shadow-2xl rounded-2xl">
-              <CardContent className="py-4">
-                <div className="flex items-center justify-between">
+              <CardContent className="py-3 sm:py-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
                   <div className="flex items-center space-x-3">
-                    <Wallet className="w-5 h-5 text-cyan-400" />
+                    <Wallet className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
                     <div>
                       <p className="text-xs text-slate-400">CONNECTED WALLET</p>
-                      <p className="text-white font-bold">
-                        {address?.slice(0, 8)}...{address?.slice(-8)}
+                      <p className="text-white font-bold text-sm sm:text-base">
+                        {address?.slice(0, 6)}...{address?.slice(-6)}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-3">
                     <div className="text-right">
                       <p className="text-xs text-slate-400">YOUR ROLE</p>
-                      <p className="text-cyan-400 font-bold">
+                      <p className="text-cyan-400 font-bold text-sm sm:text-base">
                         {!gameState.isUserInGame ? "Spectator" : 
                          gameState.isUserCreator ? "Creator" : "Player"}
                       </p>
                     </div>
-                    <div className="w-3 h-3 bg-emerald-400 rounded-full"></div>
+                    <div className="w-2 h-2 sm:w-3 sm:h-3 bg-emerald-400 rounded-full"></div>
                   </div>
                 </div>
               </CardContent>
@@ -1087,12 +1088,12 @@ export default function FixedBattlePage() {
 
             {/* Refresh Warning */}
             <Card className="bg-amber-900/20 border border-amber-500/30 shadow-2xl rounded-2xl">
-              <CardContent className="py-4">
-                <div className="flex items-center space-x-3">
-                  <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0" />
+              <CardContent className="py-3 sm:py-4">
+                <div className="flex items-start space-x-3">
+                  <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-amber-400 font-bold text-sm">⚠️ IMPORTANT: Refresh to See Opponent Moves</p>
-                    <p className="text-amber-300 text-xs mt-1">
+                    <p className="text-amber-400 font-bold text-xs sm:text-sm">⚠️ IMPORTANT: Refresh to See Opponent Moves</p>
+                    <p className="text-amber-300 text-xs mt-1 leading-relaxed">
                       Always refresh the game to see when your opponent makes a move. This will be fixed with real-time updates in the future.
                     </p>
                   </div>
@@ -1287,8 +1288,8 @@ export default function FixedBattlePage() {
                       {/* Quick Draw Controls */}
                       {gameState.mode === "Quick Draw" && (
                         <div className="text-center">
-                          <div className="mb-2">
-                            <p className="text-slate-300 text-sm">Quick Draw Mode: Subtract exactly 1</p>
+                          <div className="mb-3">
+                            <p className="text-slate-300 text-xs sm:text-sm">Quick Draw Mode: Subtract exactly 1</p>
                           </div>
                           <Button
                             onClick={() => {
@@ -1296,16 +1297,16 @@ export default function FixedBattlePage() {
                               handleMakeMove()
                             }}
                             disabled={!isActionAllowed()}
-                            className={`font-bold px-8 py-4 rounded-xl text-xl w-full ${
+                            className={`font-bold px-4 py-3 sm:px-8 sm:py-4 rounded-xl text-lg sm:text-xl w-full ${
                               isActionAllowed()
                                 ? "bg-emerald-500 hover:bg-emerald-600 text-white"
                                 : "bg-slate-600 text-slate-400 cursor-not-allowed"
                             }`}
                           >
                             {transactionLoading ? (
-                              <Loader2 className="w-6 h-6 mr-3 animate-spin" />
+                              <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3 animate-spin" />
                             ) : (
-                              <Minus className="w-6 h-6 mr-3" />
+                              <Minus className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3" />
                             )}
                             {transactionLoading ? "PROCESSING..." : "SUBTRACT 1"}
                           </Button>
@@ -1998,21 +1999,21 @@ export default function FixedBattlePage() {
           </div>
 
           {/* Sidebar */}
-          <div className="lg:col-span-1 space-y-6">
+          <div className="lg:col-span-1 space-y-4 sm:space-y-6">
             {/* Battle Details */}
             <Card className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 shadow-2xl rounded-2xl">
               <CardHeader>
                 <CardTitle className="text-xl font-black text-white">BATTLE INFO</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-slate-900/40 rounded-lg p-3">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                  <div className="bg-slate-900/40 rounded-lg p-2 sm:p-3">
                     <p className="text-xs font-bold text-slate-400 mb-1">ENTRY FEE</p>
-                    <p className="font-black text-cyan-400">{parseFloat(gameState.entryFee).toFixed(4)} MNT</p>
+                    <p className="font-black text-cyan-400 text-sm sm:text-base">{parseFloat(gameState.entryFee).toFixed(4)} MNT</p>
                   </div>
-                  <div className="bg-slate-900/40 rounded-lg p-3">
+                  <div className="bg-slate-900/40 rounded-lg p-2 sm:p-3">
                     <p className="text-xs font-bold text-slate-400 mb-1">PRIZE POOL</p>
-                    <p className="font-black text-emerald-400">{parseFloat(gameState.prizePool).toFixed(4)} MNT</p>
+                    <p className="font-black text-emerald-400 text-sm sm:text-base">{parseFloat(gameState.prizePool).toFixed(4)} MNT</p>
                   </div>
                 </div>
 

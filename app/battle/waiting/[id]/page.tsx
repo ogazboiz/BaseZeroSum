@@ -416,30 +416,33 @@ export default function UpdatedWaitingRoomPage() {
 
       {/* Navigation */}
       <nav className="relative z-50 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            <Link href="/" className="flex items-center space-x-3">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
+          <div className="flex justify-between items-center h-16 md:h-20">
+            <Link href="/" className="flex items-center space-x-2 md:space-x-3">
+              <div className={`w-8 h-8 md:w-12 md:h-12 rounded-xl flex items-center justify-center shadow-lg ${
                 isHardcoreGame 
                   ? 'bg-gradient-to-br from-rose-400 to-red-600 shadow-rose-500/25' 
                   : 'bg-gradient-to-br from-cyan-400 to-blue-600 shadow-cyan-500/25'
               }`}>
-                <Gamepad2 className="w-7 h-7 text-white" />
+                <Gamepad2 className="w-4 h-4 md:w-7 md:h-7 text-white" />
               </div>
-              <div>
-                <span className="text-3xl font-black bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 bg-clip-text text-transparent">
+              <div className="hidden sm:block">
+                <span className="text-xl md:text-3xl font-black bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 bg-clip-text text-transparent">
                   {isHardcoreGame ? "HARDCORE" : "ZEROSUM"}
                 </span>
                 <div className="text-xs text-slate-400 font-medium">WAITING ROOM</div>
               </div>
             </Link>
 
-            <div className="flex items-center space-x-4">
-              <div className="bg-slate-800/60 backdrop-blur-sm border border-amber-500/30 rounded-xl px-4 py-2">
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
-                  <Clock className="w-4 h-4 text-amber-400" />
-                  <span className="font-bold text-amber-400">WAITING</span>
+            <div className="flex items-center space-x-2 md:space-x-4">
+              <div className="bg-slate-800/60 backdrop-blur-sm border border-amber-500/30 rounded-xl px-2 py-1 md:px-4 md:py-2">
+                <div className="flex items-center space-x-1 md:space-x-2">
+                  <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                  <Clock className="w-3 h-3 md:w-4 md:h-4 text-amber-400" />
+                  <span className="font-bold text-amber-400 text-xs md:text-sm">
+                    <span className="hidden sm:inline">WAITING</span>
+                    <span className="sm:hidden">WAIT</span>
+                  </span>
                 </div>
               </div>
               
@@ -447,55 +450,58 @@ export default function UpdatedWaitingRoomPage() {
                 onClick={fetchGameData}
                 variant="outline"
                 size="sm"
-                className="border-cyan-500 text-cyan-400 hover:bg-cyan-500/10"
+                className="border-cyan-500 text-cyan-400 hover:bg-cyan-500/10 px-2 md:px-3 text-xs md:text-sm"
                 disabled={isPolling}
               >
-                <RefreshCw className={`w-4 h-4 mr-2 ${isPolling ? 'animate-spin' : ''}`} />
-                {isPolling ? "Checking..." : "Refresh"}
+                <RefreshCw className={`w-3 h-3 md:w-4 md:h-4 ${isPolling ? 'animate-spin' : ''} ${isPolling ? 'mr-1' : 'mr-1 md:mr-2'}`} />
+                <span className="hidden sm:inline">{isPolling ? "Checking..." : "Refresh"}</span>
+                <span className="sm:hidden">{isPolling ? "..." : "↻"}</span>
               </Button>
               
               <Button
                 onClick={handleCancelBattle}
                 variant="outline"
-                className="border-rose-600 text-rose-400 hover:bg-rose-600/10 rounded-xl font-bold bg-transparent"
+                className="border-rose-600 text-rose-400 hover:bg-rose-600/10 rounded-xl font-bold bg-transparent px-2 md:px-3 text-xs md:text-sm"
                 disabled={transactionLoading}
               >
                 {transactionLoading ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-3 h-3 md:w-4 md:h-4 animate-spin mr-1 md:mr-2" />
                 ) : (
-                  <X className="w-4 h-4 mr-2" />
+                  <X className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
                 )}
-                {transactionLoading ? "CANCELLING..." : "CANCEL BATTLE"}
+                <span className="hidden sm:inline">{transactionLoading ? "CANCELLING..." : "CANCEL BATTLE"}</span>
+                <span className="sm:hidden">{transactionLoading ? "..." : "CANCEL"}</span>
               </Button>
             </div>
           </div>
         </div>
       </nav>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid lg:grid-cols-3 gap-8">
+      <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-12">
+        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Battle Header */}
             <Card className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 shadow-2xl rounded-2xl">
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center space-x-3 sm:space-x-4">
                     <div
-                      className={`w-20 h-20 bg-gradient-to-br ${config.gradient} rounded-2xl flex items-center justify-center shadow-lg`}
+                      className={`w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-gradient-to-br ${config.gradient} rounded-2xl flex items-center justify-center shadow-lg`}
                     >
-                      <config.icon className="w-10 h-10 text-white" />
+                      <config.icon className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 text-white" />
                     </div>
                     <div>
-                      <CardTitle className="text-4xl font-black text-white">{config.title}</CardTitle>
-                      <p className="text-slate-300 font-medium">Battle #{gameData.gameId}</p>
-                      <p className="text-slate-400 text-sm">
+                      <CardTitle className="text-2xl sm:text-3xl md:text-4xl font-black text-white">{config.title}</CardTitle>
+                      <p className="text-slate-300 font-medium text-sm sm:text-base">Battle #{gameData.gameId}</p>
+                      <p className="text-slate-400 text-xs sm:text-sm">
                         Last checked: {lastCheckTime || "Just now"}
                       </p>
                     </div>
                   </div>
-                  <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 font-bold text-lg px-4 py-2">
-                    WAITING FOR OPPONENT
+                  <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 font-bold text-sm sm:text-lg px-3 py-2 sm:px-4">
+                    <span className="hidden sm:inline">WAITING FOR OPPONENT</span>
+                    <span className="sm:hidden">WAITING</span>
                   </Badge>
                 </div>
               </CardHeader>
@@ -603,27 +609,31 @@ export default function UpdatedWaitingRoomPage() {
                   Share this battle link with friends or post it on social media to find an opponent!
                 </p>
                 
-                <div className="flex space-x-3">
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
                   <Input
                     value={shareUrl}
                     readOnly
-                    className="bg-slate-700/50 border-slate-600 text-white"
+                    className="bg-slate-700/50 border-slate-600 text-white text-xs sm:text-sm"
                   />
-                  <Button
-                    onClick={handleCopyLink}
-                    variant="outline"
-                    className="border-slate-600 text-slate-300 hover:bg-slate-700"
-                  >
-                    <Copy className="w-4 h-4 mr-2" />
-                    Copy
-                  </Button>
-                  <Button
-                    onClick={handleShareBattle}
-                    className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
-                  >
-                    <Share2 className="w-4 h-4 mr-2" />
-                    Share
-                  </Button>
+                  <div className="flex space-x-2 sm:space-x-3">
+                    <Button
+                      onClick={handleCopyLink}
+                      variant="outline"
+                      size="sm"
+                      className="border-slate-600 text-slate-300 hover:bg-slate-700 flex-1 sm:flex-none"
+                    >
+                      <Copy className="w-4 h-4 mr-1 sm:mr-2" />
+                      <span className="text-xs sm:text-sm">Copy</span>
+                    </Button>
+                    <Button
+                      onClick={handleShareBattle}
+                      size="sm"
+                      className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 flex-1 sm:flex-none"
+                    >
+                      <Share2 className="w-4 h-4 mr-1 sm:mr-2" />
+                      <span className="text-xs sm:text-sm">Share</span>
+                    </Button>
+                  </div>
                 </div>
                 
                 {/* Auto-polling status */}
@@ -644,7 +654,7 @@ export default function UpdatedWaitingRoomPage() {
           </div>
 
           {/* Sidebar */}
-          <div className="lg:col-span-1 space-y-6">
+          <div className="lg:col-span-1 space-y-4 sm:space-y-6">
             {/* Status Card */}
             <Card className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 shadow-2xl rounded-2xl">
               <CardHeader>
