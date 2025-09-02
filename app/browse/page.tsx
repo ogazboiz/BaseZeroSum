@@ -1002,7 +1002,7 @@ export default function UpdatedBrowseGamesPage() {
 
         {/* Games Grid */}
         {!isLoading && contractsReady && providerReady && filteredGames.length > 0 && (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
             {filteredGames.map((game) => {
               const ModeIcon = getGameModeIcon(game)
               const StatusIcon = getStatusIcon(game)
@@ -1319,7 +1319,7 @@ export default function UpdatedBrowseGamesPage() {
         {!isLoading && contractsReady && providerReady && browsableGames.length > 0 && (
           <div className="mt-12 p-6 bg-slate-800/40 border border-slate-700/50 rounded-xl">
             <h3 className="text-lg font-bold text-white mb-4 text-center">Battle Statistics</h3>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-6 text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 md:gap-6 text-center">
               <div>
                 <div className="text-2xl font-bold text-cyan-400">{browseStats.totalGames}</div>
                 <div className="text-sm text-slate-400">Total Battles</div>

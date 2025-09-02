@@ -680,7 +680,7 @@ export function useZeroSumData() {
         console.log(`✅ Game #${gameId} is valid, fetching...`)
         const game = await contracts.gameContract.getGame(gameId)
         
-        if (!game || Number(game.gameId) === 0) {
+        if (!game || Number(game.gameId) === 0 || Number(game.gameId) !== gameId) {
           console.error(`❌ Game #${gameId} returned invalid data`)
           throw new Error(`Game #${gameId} not found`)
         }

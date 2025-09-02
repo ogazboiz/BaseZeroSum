@@ -18,6 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: `${config.app.name} - ${config.app.subtitle}`,
     description: config.app.description,
     generator: 'v0.dev',
+    viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
     other: {
       'fc:frame': JSON.stringify({
         version: 'next',

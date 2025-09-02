@@ -210,8 +210,8 @@ export default function CreateGameForm() {
           <span className="text-emerald-400 font-bold">CREATE BATTLE</span>
           <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
         </div>
-        <h1 className="text-5xl font-black text-white mb-4">CREATE YOUR BATTLE</h1>
-        <p className="text-xl text-slate-300 font-medium">Configure your battle and challenge other warriors</p>
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-4">CREATE YOUR BATTLE</h1>
+        <p className="text-lg sm:text-xl text-slate-300 font-medium">Configure your battle and challenge other warriors</p>
         
         {/* Connection Status */}
         {!isConnected && (

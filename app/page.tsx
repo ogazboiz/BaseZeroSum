@@ -231,7 +231,7 @@ export default function HomePage() {
     {
       id: "hardcore-mystery",
       title: "Hardcore Mystery",
-      subtitle: "LIVE NOW",
+      subtitle: "COMING SOON",
       description: "One wrong move = game over! Ultimate challenge.",
       players: "1v1",
       avgDuration: "2-5 min",
@@ -241,13 +241,13 @@ export default function HomePage() {
       bgPattern: "from-rose-50 to-pink-50",
       glowColor: "shadow-rose-500/30",
       prize: "1.0-25 MNT",
-      playersActive: 12,
-      comingSoon: false,
+      playersActive: 0,
+      comingSoon: true,
     },
     {
       id: "last-stand",
       title: "Last Stand",
-      subtitle: "BATTLE ROYALE",
+      subtitle: "COMING SOON",
       description: "8 players enter, 1 survivor emerges! Eliminate opponents with strategic moves.",
       players: "8 Players",
       avgDuration: "10-15 min",
@@ -257,8 +257,8 @@ export default function HomePage() {
       bgPattern: "from-orange-50 to-pink-50",
       glowColor: "shadow-orange-500/30",
       prize: "2.0-50 MNT",
-      playersActive: 28,
-      comingSoon: false,
+      playersActive: 0,
+      comingSoon: true,
     },
   ]
 
@@ -517,7 +517,7 @@ export default function HomePage() {
             <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
           </div>
 
-          <h1 className="text-6xl md:text-8xl font-black mb-8 leading-tight">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-black mb-8 leading-tight">
             <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 bg-clip-text text-transparent">
               MATHEMATICAL
             </span>
@@ -525,7 +525,7 @@ export default function HomePage() {
             <span className="text-white">WARFARE</span>
           </h1>
 
-          <p className="text-xl md:text-2xl text-slate-300 mb-12 max-w-4xl mx-auto font-medium">
+          <p className="text-lg sm:text-xl md:text-2xl text-slate-300 mb-12 max-w-4xl mx-auto font-medium px-4">
             Enter the arena where <span className="text-cyan-400 font-bold">strategy beats luck</span>, numbers stay{" "}
             <span className="text-violet-400 font-bold">completely hidden</span>, and only the smartest survive!
           </p>
@@ -650,18 +650,23 @@ export default function HomePage() {
       {/* Game Modes Arena */}
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-16">
-          <h2 className="text-5xl font-black text-white mb-6">CHOOSE YOUR BATTLEFIELD</h2>
-          <p className="text-xl text-slate-300 font-medium">From lightning-fast duels to mind-bending mysteries</p>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-6">CHOOSE YOUR BATTLEFIELD</h2>
+          <p className="text-lg sm:text-xl text-slate-300 font-medium">From lightning-fast duels to mind-bending mysteries</p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-8">
           {featuredGames.map((game, index) => (
             <Card
               key={index}
-              className={`relative overflow-hidden bg-gradient-to-br ${game.bgPattern} border-0 shadow-2xl transition-all duration-500 group ${game.glowColor} ${game.comingSoon ? 'cursor-not-allowed' : 'hover:shadow-3xl transform hover:scale-105 cursor-pointer'}`}
+              className={`relative overflow-hidden bg-gradient-to-br ${game.bgPattern} border-0 shadow-2xl transition-all duration-500 group ${game.glowColor} ${game.comingSoon ? 'cursor-not-allowed opacity-80' : 'hover:shadow-3xl transform hover:scale-105 cursor-pointer'}`}
             >
               {/* Background Pattern */}
-              <div className="absolute inset-0 bg-slate-900/90"></div>
+              <div className={`absolute inset-0 ${game.comingSoon ? 'bg-slate-900/90' : 'bg-slate-900/90'}`}></div>
+
+              {/* Coming Soon Overlay - More Transparent */}
+              {game.comingSoon && (
+                <div className="absolute inset-0 bg-slate-800/40 z-30"></div>
+              )}
 
               {/* Glow Effect */}
               <div
@@ -677,12 +682,12 @@ export default function HomePage() {
                 </div>
               )}
 
-              <CardHeader className="relative z-10 pb-4">
+              <CardHeader className={`relative z-10 pb-4 ${game.comingSoon ? 'z-40' : ''}`}>
                 <div className="flex items-start justify-between mb-4">
                   <div
-                    className={`w-16 h-16 bg-gradient-to-br ${game.gradient} rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}
+                    className={`w-16 h-16 bg-gradient-to-br ${game.gradient} rounded-2xl flex items-center justify-center shadow-lg ${game.comingSoon ? 'opacity-50' : 'group-hover:scale-110'} transition-transform duration-300`}
                   >
-                    <game.icon className="w-8 h-8 text-white" />
+                    <game.icon className={`w-8 h-8 ${game.comingSoon ? 'text-slate-400' : 'text-white'}`} />
                   </div>
                   <div className="text-right">
                     <Badge className={`${game.comingSoon ? 'bg-slate-700/60 text-slate-300 border-slate-500/30' : 'bg-slate-800/60 text-emerald-400 border-emerald-500/30'} font-bold`}>
@@ -692,30 +697,30 @@ export default function HomePage() {
                 </div>
 
                 <div className="mb-2">
-                  <div className="text-sm font-bold text-slate-400 tracking-wider">{game.subtitle}</div>
-                  <CardTitle className="text-3xl font-black text-white mb-2">{game.title}</CardTitle>
+                  <div className={`text-sm font-bold tracking-wider ${game.comingSoon ? 'text-slate-400' : 'text-slate-400'}`}>{game.subtitle}</div>
+                  <CardTitle className={`text-3xl font-black mb-2 ${game.comingSoon ? 'text-slate-300' : 'text-white'}`}>{game.title}</CardTitle>
                 </div>
               </CardHeader>
 
-              <CardContent className="relative z-10 pt-0">
-                <p className="text-slate-300 font-medium mb-6 text-lg">{game.description}</p>
+              <CardContent className={`relative z-10 pt-0 ${game.comingSoon ? 'z-40' : ''}`}>
+                <p className={`font-medium mb-6 text-lg ${game.comingSoon ? 'text-slate-400' : 'text-slate-300'}`}>{game.description}</p>
 
                 <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-3">
-                    <div className="text-xs font-bold text-slate-400 mb-1">PLAYERS</div>
-                    <div className="font-black text-white">{game.players}</div>
+                  <div className={`backdrop-blur-sm rounded-lg p-3 ${game.comingSoon ? 'bg-slate-800/40' : 'bg-slate-800/50'}`}>
+                    <div className={`text-xs font-bold mb-1 ${game.comingSoon ? 'text-slate-400' : 'text-slate-400'}`}>PLAYERS</div>
+                    <div className={`font-black ${game.comingSoon ? 'text-slate-300' : 'text-white'}`}>{game.players}</div>
                   </div>
-                  <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-3">
-                    <div className="text-xs font-bold text-slate-400 mb-1">DURATION</div>
-                    <div className="font-black text-white">{game.avgDuration}</div>
+                  <div className={`backdrop-blur-sm rounded-lg p-3 ${game.comingSoon ? 'bg-slate-800/40' : 'bg-slate-800/50'}`}>
+                    <div className={`text-xs font-bold mb-1 ${game.comingSoon ? 'text-slate-400' : 'text-slate-400'}`}>DURATION</div>
+                    <div className={`font-black ${game.comingSoon ? 'text-slate-300' : 'text-white'}`}>{game.avgDuration}</div>
                   </div>
-                  <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-3">
-                    <div className="text-xs font-bold text-slate-400 mb-1">DIFFICULTY</div>
-                    <div className="font-black text-amber-400">{game.difficulty}</div>
+                  <div className={`backdrop-blur-sm rounded-lg p-3 ${game.comingSoon ? 'bg-slate-800/40' : 'bg-slate-800/50'}`}>
+                    <div className={`text-xs font-bold mb-1 ${game.comingSoon ? 'text-slate-400' : 'text-slate-400'}`}>DIFFICULTY</div>
+                    <div className={`font-black ${game.comingSoon ? 'text-slate-400' : 'text-amber-400'}`}>{game.difficulty}</div>
                   </div>
-                  <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-3">
-                    <div className="text-xs font-bold text-slate-400 mb-1">PRIZE RANGE</div>
-                    <div className="font-black text-emerald-400">{game.prize}</div>
+                  <div className={`backdrop-blur-sm rounded-lg p-3 ${game.comingSoon ? 'bg-slate-800/40' : 'bg-slate-800/50'}`}>
+                    <div className={`text-xs font-bold mb-1 ${game.comingSoon ? 'text-slate-400' : 'text-slate-400'}`}>PRIZE RANGE</div>
+                    <div className={`font-black ${game.comingSoon ? 'text-slate-400' : 'text-emerald-400'}`}>{game.prize}</div>
                   </div>
                 </div>
 
@@ -756,11 +761,11 @@ export default function HomePage() {
       <section className="relative z-10 bg-slate-900/40 backdrop-blur-sm py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-5xl font-black text-white mb-6">REVOLUTIONARY GAMING</h2>
-            <p className="text-xl text-slate-300 font-medium">Features that change everything</p>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-6">REVOLUTIONARY GAMING</h2>
+            <p className="text-lg sm:text-xl text-slate-300 font-medium">Features that change everything</p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 md:gap-8">
             {[
               {
                 title: "TRUE FAIRNESS",
@@ -810,7 +815,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="relative z-10 bg-slate-900/60 backdrop-blur-sm border-t border-slate-700/50 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
             <div>
               <div className="flex items-center space-x-3 mb-6">
                 <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-xl flex items-center justify-center">

@@ -413,7 +413,18 @@ export default function FixedBattlePage() {
   // Real-time countdown timer
   useEffect(() => {
     if (gameState?.status === "active" && gameState.timeLeft > 0) {
-      setLocalTimeLeft(gameState.timeLeft)
+      // Only set localTimeLeft if it's null (first time) or if the difference is significant
+      setLocalTimeLeft(prev => {
+        if (prev === null) {
+          return gameState.timeLeft
+        }
+        // Only update if there's a significant difference (more than 2 seconds)
+        // This prevents timer resets during normal countdown
+        if (Math.abs(prev - gameState.timeLeft) > 2) {
+          return gameState.timeLeft
+        }
+        return prev
+      })
       
       const interval = setInterval(() => {
         setLocalTimeLeft(prev => {
@@ -795,8 +806,8 @@ export default function FixedBattlePage() {
     }
     
     const move = parseInt(moveAmount)
-    if (!move || move < 1) {
-      toast.error("Please enter a valid move")
+    if (isNaN(move) || move < 1) {
+      toast.error("Please enter a valid move (must be 1 or greater)")
       return
     }
 
@@ -1004,23 +1015,23 @@ export default function FixedBattlePage() {
           </Button>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           {/* Main Battle Area */}
           <div className="lg:col-span-2 space-y-6">
             {/* Battle Header */}
             <Card className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 shadow-2xl rounded-2xl">
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="flex items-center space-x-4">
-                    <div className={`w-16 h-16 bg-gradient-to-br ${gameConfig.gradient} rounded-2xl flex items-center justify-center shadow-lg`}>
-                      <gameConfig.icon className="w-8 h-8 text-white" />
+                    <div className={`w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br ${gameConfig.gradient} rounded-2xl flex items-center justify-center shadow-lg`}>
+                      <gameConfig.icon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                     </div>
                     <div>
-                      <CardTitle className="text-3xl font-black text-white">{gameState.mode}</CardTitle>
+                      <CardTitle className="text-2xl sm:text-3xl font-black text-white">{gameState.mode}</CardTitle>
                       <p className="text-slate-300 font-medium">Battle #{gameState.gameId}</p>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
                     <Button
                       onClick={fetchGameData}
                       variant="outline"
@@ -1069,6 +1080,21 @@ export default function FixedBattlePage() {
                       </p>
                     </div>
                     <div className="w-3 h-3 bg-emerald-400 rounded-full"></div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Refresh Warning */}
+            <Card className="bg-amber-900/20 border border-amber-500/30 shadow-2xl rounded-2xl">
+              <CardContent className="py-4">
+                <div className="flex items-center space-x-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0" />
+                  <div>
+                    <p className="text-amber-400 font-bold text-sm">⚠️ IMPORTANT: Refresh to See Opponent Moves</p>
+                    <p className="text-amber-300 text-xs mt-1">
+                      Always refresh the game to see when your opponent makes a move. This will be fixed with real-time updates in the future.
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -1265,7 +1291,10 @@ export default function FixedBattlePage() {
                             <p className="text-slate-300 text-sm">Quick Draw Mode: Subtract exactly 1</p>
                           </div>
                           <Button
-                            onClick={() => handleMakeMove()}
+                            onClick={() => {
+                              setMoveAmount("1")
+                              handleMakeMove()
+                            }}
                             disabled={!isActionAllowed()}
                             className={`font-bold px-8 py-4 rounded-xl text-xl w-full ${
                               isActionAllowed()

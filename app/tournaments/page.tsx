@@ -340,7 +340,57 @@ export default function TournamentsPage() {
   const totalPlayers = [...activeTournaments, ...upcomingTournaments].reduce((sum, t) => sum + t.currentParticipants, 0)
 
   return (
-    <div className="bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 text-white min-h-screen">
+    <div className="bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 text-white min-h-screen relative">
+      {/* Coming Soon Overlay */}
+      <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div className="text-center max-w-2xl mx-auto px-8">
+          <div className="w-24 h-24 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-cyan-500/25">
+            <Trophy className="w-12 h-12 text-white" />
+          </div>
+          
+          <h1 className="text-6xl font-black text-white mb-6">
+            TOURNAMENTS
+          </h1>
+          
+          <div className="bg-cyan-500/90 backdrop-blur-md rounded-full px-6 py-2 border border-cyan-400/50 inline-block mb-8">
+            <div className="text-lg font-bold text-white">🚧 COMING SOON</div>
+          </div>
+          
+          <p className="text-xl text-slate-300 mb-8 font-medium">
+            Epic bracket-style competitions with massive prize pools are coming soon!
+          </p>
+          
+          <div className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 mb-8">
+            <h3 className="text-lg font-bold text-white mb-4">What to Expect:</h3>
+            <div className="space-y-3 text-slate-300">
+              <div className="flex items-center space-x-3">
+                <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
+                <span>Bracket-style elimination tournaments</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
+                <span>Massive prize pools</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
+                <span>Multiple game modes</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
+                <span>Live tournament brackets</span>
+              </div>
+            </div>
+          </div>
+          
+          <button
+            onClick={() => window.history.back()}
+            className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-black text-lg px-8 py-3 rounded-xl shadow-2xl shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all transform hover:scale-105"
+          >
+            ← Back to Arena
+          </button>
+        </div>
+      </div>
+
       {/* Animated Background */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 rounded-full blur-3xl animate-pulse"></div>

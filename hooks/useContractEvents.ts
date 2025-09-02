@@ -716,7 +716,7 @@ export function useMyGames() {
       console.log(`🎮 MyGames: Fetching for ${address}`)
       
       const gameCounter = await getGameCounter()
-      if (gameCounter === 0) {
+      if (gameCounter <= 1) {
         setMyGames([])
         setIsLoading(false)
         return
@@ -725,7 +725,7 @@ export function useMyGames() {
       const userGames = []
       const promises = []
       
-      for (let i = 0; i < gameCounter; i++) {
+      for (let i = 1; i < gameCounter; i++) {
         promises.push(
           Promise.all([getGame(i), getPlayers(i)])
             .then(([game, players]) => ({ gameId: i, game, players }))

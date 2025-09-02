@@ -308,8 +308,8 @@ export function useMyGames() {
       
       console.log('📊 Total games on contract:', gameCounter)
 
-      if (gameCounter === 0) {
-        console.log('❌ No games found (gameCounter = 0)')
+      if (gameCounter <= 1) {
+        console.log('❌ No games found (gameCounter <= 1)')
         setMyGames([])
         setDebugInfo(debug)
         return
@@ -320,7 +320,7 @@ export function useMyGames() {
       const gameIdsToCheck: number[] = []
       
       // Check recent games first (most likely to be user games)
-      for (let i = gameCounter - 1; i >= Math.max(0, gameCounter - maxGamesToCheck); i--) {
+      for (let i = gameCounter - 1; i >= Math.max(1, gameCounter - maxGamesToCheck); i--) {
         gameIdsToCheck.push(i)
       }
 

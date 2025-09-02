@@ -121,7 +121,7 @@ export function useBrowseGames() {
       const gameCounter = await getGameCounter()
       console.log('📊 Game counter result:', gameCounter)
       
-      if (gameCounter === 0) {
+      if (gameCounter <= 1) {
         console.log('❌ No games found')
         setBattles([])
         setDebugInfo({ gameCounter: 0, message: 'No games created yet' })
@@ -140,7 +140,7 @@ export function useBrowseGames() {
       let quickDrawCount = 0
       let strategicCount = 0
       
-      for (let i = 0; i < gameCounter; i++) {
+      for (let i = 1; i < gameCounter; i++) {
         try {
           console.log(`🔍 Processing game ${i}...`)
           

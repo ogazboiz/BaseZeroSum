@@ -420,7 +420,18 @@ export default function HardcoreBattlePage() {
   useEffect(() => {
     if (gameState?.status === "active" && gameState.timeLeft > 0) {
       console.log('⏰ Starting countdown with time:', gameState.timeLeft)
-      setLocalTimeLeft(gameState.timeLeft)
+      // Only set localTimeLeft if it's null (first time) or if the difference is significant
+      setLocalTimeLeft(prev => {
+        if (prev === null) {
+          return gameState.timeLeft
+        }
+        // Only update if there's a significant difference (more than 2 seconds)
+        // This prevents timer resets during normal countdown
+        if (Math.abs(prev - gameState.timeLeft) > 2) {
+          return gameState.timeLeft
+        }
+        return prev
+      })
       
       const interval = setInterval(() => {
         setLocalTimeLeft(prev => {
@@ -688,8 +699,8 @@ export default function HardcoreBattlePage() {
     }
     
     const move = subtraction ?? parseInt(moveAmount)
-    if (!move || move < 1) {
-      toast.error("Please enter a valid move")
+    if (isNaN(move) || move < 1) {
+      toast.error("Please enter a valid move (must be 1 or greater)")
       return
     }
 
@@ -916,6 +927,21 @@ export default function HardcoreBattlePage() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Refresh Warning */}
+            <Card className="bg-amber-900/20 border border-amber-500/30 shadow-2xl rounded-2xl">
+              <CardContent className="py-4">
+                <div className="flex items-center space-x-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0" />
+                  <div>
+                    <p className="text-amber-400 font-bold text-sm">⚠️ IMPORTANT: Refresh to See Opponent Moves</p>
+                    <p className="text-amber-300 text-xs mt-1">
+                      Always refresh the game to see when your opponent makes a move. This will be fixed with real-time updates in the future.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Game Status Cards */}
             {gameState.status === "waiting" && (
