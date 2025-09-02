@@ -28,6 +28,7 @@ import Link from "next/link"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { toast } from "react-hot-toast"
 import { useAccount } from "wagmi"
+import { useAppKitAccount } from "@reown/appkit/react"
 import { 
   useZeroSumData, 
   useZeroSumContract,
@@ -48,7 +49,13 @@ export default function UpdatedWaitingRoomPage() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { address, isConnected } = useAccount()
+  // Unified wallet connection state (AppKit + Wagmi)
+  const { address: appkitAddress, isConnected: appkitIsConnected } = useAppKitAccount()
+  const { address: wagmiAddress, isConnected: wagmiIsConnected } = useAccount()
+  
+  // Unified state - prioritize AppKit (Farcaster) connection
+  const address = appkitAddress || wagmiAddress
+  const isConnected = appkitIsConnected || wagmiIsConnected
   
   const battleId = params.id as string
   const gameId = battleId ? parseInt(battleId) : null

@@ -28,6 +28,7 @@ import {
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAccount } from "wagmi"
+import { useAppKitAccount } from "@reown/appkit/react"
 import { toast } from "react-hot-toast"
 import {
   useZeroSumData,
@@ -82,7 +83,13 @@ interface BrowseStats {
 
 export default function UpdatedBrowseGamesPage() {
   const router = useRouter()
-  const { address, isConnected } = useAccount()
+  // Unified wallet connection state (AppKit + Wagmi)
+  const { address: appkitAddress, isConnected: appkitIsConnected } = useAppKitAccount()
+  const { address: wagmiAddress, isConnected: wagmiIsConnected } = useAccount()
+  
+  // Unified state - prioritize AppKit (Farcaster) connection
+  const address = appkitAddress || wagmiAddress
+  const isConnected = appkitIsConnected || wagmiIsConnected
   
   // Blockchain hooks
   const {
