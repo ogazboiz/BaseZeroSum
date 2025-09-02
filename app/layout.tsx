@@ -32,6 +32,13 @@ export async function generateMetadata(): Promise<Metadata> {
           },
         },
       }),
+      'fc:miniapp': JSON.stringify({
+        version: '1',
+        name: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || 'ZeroSum Gaming Arena',
+        icon: process.env.NEXT_PUBLIC_APP_ICON || `${URL}/placeholder-logo.png`,
+        url: URL,
+        description: process.env.NEXT_PUBLIC_APP_DESCRIPTION || 'Enter the arena where strategy beats luck. Mathematical warfare with hidden numbers and true fairness.',
+      }),
     },
   };
 }
