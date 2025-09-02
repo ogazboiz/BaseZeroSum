@@ -1,0 +1,117 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#1e293b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#334155;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="titleGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#06b6d4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ef4444;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGradient)"/>
+  
+  <!-- Decorative Elements -->
+  <circle cx="100" cy="100" r="50" fill="#10b981" opacity="0.1"/>
+  <circle cx="1100" cy="530" r="80" fill="#06b6d4" opacity="0.1"/>
+  <circle cx="1050" cy="150" r="30" fill="#3b82f6" opacity="0.2"/>
+  <circle cx="150" cy="500" r="40" fill="#f59e0b" opacity="0.1"/>
+  
+  <!-- Grid Pattern -->
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#374151" stroke-width="0.5" opacity="0.3"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+  
+  <!-- Main Title -->
+  <text x="600" y="200" font-family="Arial, sans-serif" font-size="72" font-weight="900" text-anchor="middle" fill="url(#titleGradient)">
+    ZEROSUM
+  </text>
+  
+  <!-- Subtitle -->
+  <text x="600" y="260" font-family="Arial, sans-serif" font-size="36" font-weight="700" text-anchor="middle" fill="#e2e8f0">
+    GAMING ARENA
+  </text>
+  
+  <!-- Tagline -->
+  <text x="600" y="320" font-family="Arial, sans-serif" font-size="24" font-weight="500" text-anchor="middle" fill="#94a3b8">
+    MATHEMATICAL WARFARE
+  </text>
+  
+  <!-- Description -->
+  <text x="600" y="370" font-family="Arial, sans-serif" font-size="18" font-weight="400" text-anchor="middle" fill="#64748b">
+    Enter the arena where strategy beats luck
+  </text>
+  
+  <!-- Game Mode Icons -->
+  <!-- Quick Draw -->
+  <rect x="200" y="450" width="120" height="80" rx="12" fill="#10b981" opacity="0.2" stroke="#10b981" stroke-width="2"/>
+  <text x="260" y="480" font-family="Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle" fill="#10b981">
+    QUICK DRAW
+  </text>
+  <text x="260" y="500" font-family="Arial, sans-serif" font-size="12" font-weight="400" text-anchor="middle" fill="#6ee7b7">
+    Lightning Fast
+  </text>
+  <text x="260" y="515" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="middle" fill="#a7f3d0">
+    2-4 min
+  </text>
+  
+  <!-- Strategic -->
+  <rect x="400" y="450" width="120" height="80" rx="12" fill="#3b82f6" opacity="0.2" stroke="#3b82f6" stroke-width="2"/>
+  <text x="460" y="480" font-family="Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle" fill="#3b82f6">
+    STRATEGIC
+  </text>
+  <text x="460" y="500" font-family="Arial, sans-serif" font-size="12" font-weight="400" text-anchor="middle" fill="#93c5fd">
+    Mind Games
+  </text>
+  <text x="460" y="515" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="middle" fill="#bfdbfe">
+    5-8 min
+  </text>
+  
+  <!-- Hardcore (Coming Soon) -->
+  <rect x="600" y="450" width="120" height="80" rx="12" fill="#6b7280" opacity="0.2" stroke="#6b7280" stroke-width="2"/>
+  <text x="660" y="480" font-family="Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle" fill="#6b7280">
+    HARDCORE
+  </text>
+  <text x="660" y="500" font-family="Arial, sans-serif" font-size="12" font-weight="400" text-anchor="middle" fill="#9ca3af">
+    Coming Soon
+  </text>
+  <text x="660" y="515" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="middle" fill="#d1d5db">
+    2-5 min
+  </text>
+  
+  <!-- Last Stand (Coming Soon) -->
+  <rect x="800" y="450" width="120" height="80" rx="12" fill="#6b7280" opacity="0.2" stroke="#6b7280" stroke-width="2"/>
+  <text x="860" y="480" font-family="Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle" fill="#6b7280">
+    LAST STAND
+  </text>
+  <text x="860" y="500" font-family="Arial, sans-serif" font-size="12" font-weight="400" text-anchor="middle" fill="#9ca3af">
+    Coming Soon
+  </text>
+  <text x="860" y="515" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="middle" fill="#d1d5db">
+    10-15 min
+  </text>
+  
+  <!-- Launch Button -->
+  <rect x="450" y="550" width="300" height="50" rx="25" fill="url(#accentGradient)"/>
+  <text x="600" y="580" font-family="Arial, sans-serif" font-size="18" font-weight="700" text-anchor="middle" fill="white">
+    LAUNCH ZEROSUM ARENA
+  </text>
+  
+  <!-- Base Network Badge -->
+  <rect x="50" y="50" width="120" height="30" rx="15" fill="#0052ff" opacity="0.9"/>
+  <text x="110" y="70" font-family="Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle" fill="white">
+    BASE SEPOLIA
+  </text>
+</svg>
