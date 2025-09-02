@@ -415,7 +415,7 @@ export default function UpdatedWaitingRoomPage() {
       </div>
 
       {/* Navigation */}
-      <nav className="relative z-50 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50">
+      <nav className="relative z-30 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
           <div className="flex justify-between items-center h-16 md:h-20">
             <Link href="/" className="flex items-center space-x-2 md:space-x-3">

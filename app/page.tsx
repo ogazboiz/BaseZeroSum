@@ -665,7 +665,7 @@ export default function HomePage() {
 
               {/* Coming Soon Overlay - More Transparent */}
               {game.comingSoon && (
-                <div className="absolute inset-0 bg-slate-800/40 z-30"></div>
+                <div className="absolute inset-0 bg-slate-800/40 z-10"></div>
               )}
 
               {/* Glow Effect */}
@@ -682,7 +682,7 @@ export default function HomePage() {
                 </div>
               )}
 
-              <CardHeader className={`relative z-10 pb-4 ${game.comingSoon ? 'z-40' : ''}`}>
+              <CardHeader className={`relative z-10 pb-4 ${game.comingSoon ? 'z-20' : ''}`}>
                 <div className="flex items-start justify-between mb-4">
                   <div
                     className={`w-16 h-16 bg-gradient-to-br ${game.gradient} rounded-2xl flex items-center justify-center shadow-lg ${game.comingSoon ? 'opacity-50' : 'group-hover:scale-110'} transition-transform duration-300`}
@@ -702,7 +702,7 @@ export default function HomePage() {
                 </div>
               </CardHeader>
 
-              <CardContent className={`relative z-10 pt-0 ${game.comingSoon ? 'z-40' : ''}`}>
+              <CardContent className={`relative z-10 pt-0 ${game.comingSoon ? 'z-20' : ''}`}>
                 <p className={`font-medium mb-6 text-lg ${game.comingSoon ? 'text-slate-400' : 'text-slate-300'}`}>{game.description}</p>
 
                 <div className="grid grid-cols-2 gap-4 mb-6">

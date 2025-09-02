@@ -132,7 +132,7 @@ export default function SpectateBattlePage() {
       </div>
 
       {/* Navigation */}
-      <nav className="relative z-50 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50">
+      <nav className="relative z-30 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             <Link href="/" className="flex items-center space-x-3">

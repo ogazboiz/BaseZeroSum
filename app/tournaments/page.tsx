@@ -342,7 +342,7 @@ export default function TournamentsPage() {
   return (
     <div className="bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 text-white min-h-screen relative">
       {/* Coming Soon Overlay */}
-      <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-sm z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-sm z-30 flex items-center justify-center">
         <div className="text-center max-w-2xl mx-auto px-8">
           <div className="w-24 h-24 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-cyan-500/25">
             <Trophy className="w-12 h-12 text-white" />
@@ -1019,7 +1019,7 @@ export default function TournamentsPage() {
 
         {/* Tournament Bracket Modal */}
         {selectedTournament && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-30 flex items-center justify-center p-4">
             <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
               <div className="p-6 border-b border-slate-700">
                 <div className="flex items-center justify-between">
