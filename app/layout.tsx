@@ -8,36 +8,37 @@ import { AppKit } from "@/context/appkit"
 import { Providers } from "@/context/providers"
 import { MiniKitContextProvider } from "@/providers/MiniKitProvider"
 import NetworkStatus from "@/components/shared/NetworkStatus"
+import config from '@/config.json'
 
 const inter = Inter({ subsets: ["latin"] })
 
 export async function generateMetadata(): Promise<Metadata> {
   const URL = process.env.NEXT_PUBLIC_URL as string;
   return {
-    title: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || "ZeroSum Gaming Arena - Mathematical Warfare",
-    description: process.env.NEXT_PUBLIC_APP_DESCRIPTION || "Enter the arena where strategy beats luck. Mathematical warfare with hidden numbers and true fairness.",
+    title: `${config.app.name} - ${config.app.subtitle}`,
+    description: config.app.description,
     generator: 'v0.dev',
     other: {
       'fc:frame': JSON.stringify({
         version: 'next',
-        imageUrl: process.env.NEXT_PUBLIC_APP_HERO_IMAGE,
+        imageUrl: config.app.heroImage,
         button: {
-          title: `Launch ${process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || 'ZeroSum Arena'}`,
+          title: `Launch ${config.app.name}`,
           action: {
             type: 'launch_frame',
-            name: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || 'ZeroSum Arena',
+            name: config.app.name,
             url: URL,
-            splashImageUrl: process.env.NEXT_PUBLIC_APP_SPLASH_IMAGE,
-            splashBackgroundColor: process.env.NEXT_PUBLIC_SPLASH_BACKGROUND_COLOR,
+            splashImageUrl: config.app.splashImage,
+            splashBackgroundColor: config.app.splashBackgroundColor,
           },
         },
       }),
       'fc:miniapp': JSON.stringify({
         version: '1',
-        name: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || 'ZeroSum Gaming Arena',
-        icon: process.env.NEXT_PUBLIC_APP_ICON || `${URL}/placeholder-logo.png`,
+        name: config.app.name,
+        icon: config.app.icon,
         url: URL,
-        description: process.env.NEXT_PUBLIC_APP_DESCRIPTION || 'Enter the arena where strategy beats luck. Mathematical warfare with hidden numbers and true fairness.',
+        description: config.app.description,
       }),
     },
   };

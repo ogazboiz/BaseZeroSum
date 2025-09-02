@@ -7,7 +7,7 @@
     "splashImage": "https://zerosum-arena.vercel.app/placeholder.jpg",
     "splashBackgroundColor": "#0f172a",
     "primaryCategory": "gaming",
-    "heroImage": "https://zerosum-arena.vercel.app/placeholder.jpg",
+    "heroImage": "https://zerosum-arena.vercel.app/hero-image.svg",
     "tagline": "Play instantly",
     "ogTitle": "ZeroSum Gaming Arena",
     "ogDescription": "Mathematical warfare where strategy beats luck",
