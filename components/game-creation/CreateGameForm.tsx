@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAccount } from "wagmi"
+import { useAppKitAccount } from "@reown/appkit/react"
 import { Target, Brain, Eye, Zap, Users } from "lucide-react"
 import GameModeSelector from "./GameModeSelector"
 import GameSettings from "./GameSettings"
@@ -15,7 +16,13 @@ import type { GameMode as GameModeType } from "./GameModeSelector"
 export default function CreateGameForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { address, isConnected } = useAccount()
+  // Unified wallet connection state (AppKit + Wagmi)
+  const { address: appkitAddress, isConnected: appkitIsConnected } = useAppKitAccount()
+  const { address: wagmiAddress, isConnected: wagmiIsConnected } = useAccount()
+  
+  // Unified state - prioritize AppKit (Farcaster) connection
+  const address = appkitAddress || wagmiAddress
+  const isConnected = appkitIsConnected || wagmiIsConnected
   const { createQuickDraw, createStrategic, loading: zeroSumLoading } = useZeroSumContract()
   // const { createHardcoreMysteryGame, createLastStandGame, loading: hardcoreLoading } = useHardcoreMysteryContract()
   

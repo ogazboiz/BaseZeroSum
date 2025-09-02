@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useAccount } from "wagmi"
+import { useAppKitAccount } from "@reown/appkit/react"
 import { useGameContext } from "@/context/GameContext"
 import { toast } from "react-hot-toast"
 
@@ -33,7 +34,13 @@ interface MyGame {
 }
 
 export default function MyGamesDropdown() {
-  const { address, isConnected } = useAccount()
+  // Unified wallet connection state (AppKit + Wagmi)
+  const { address: appkitAddress, isConnected: appkitIsConnected } = useAppKitAccount()
+  const { address: wagmiAddress, isConnected: wagmiIsConnected } = useAccount()
+  
+  // Unified state - prioritize AppKit (Farcaster) connection
+  const address = appkitAddress || wagmiAddress
+  const isConnected = appkitIsConnected || wagmiIsConnected
   const { myGames: contextGames, fetchMyGames: contextFetchMyGames } = useGameContext()
   
   const [isOpen, setIsOpen] = useState(false)
