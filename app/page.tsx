@@ -509,7 +509,7 @@ export default function HomePage() {
 
 
       {/* Hero Section */}
-      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <section className="relative  max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-16">
           <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border border-emerald-500/30 rounded-full px-6 py-2 mb-8">
             <Flame className="w-5 h-5 text-emerald-400" />
@@ -648,7 +648,7 @@ export default function HomePage() {
       </section>
 
       {/* Game Modes Arena */}
-      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <section className="relative  max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-16">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-6">CHOOSE YOUR BATTLEFIELD</h2>
           <p className="text-lg sm:text-xl text-slate-300 font-medium">From lightning-fast duels to mind-bending mysteries</p>
