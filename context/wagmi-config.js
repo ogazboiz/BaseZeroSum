@@ -1,10 +1,10 @@
 import { createConfig, http } from 'wagmi';
-import {  mantleSepoliaTestnet } from 'wagmi/chains';
+import { base, baseSepolia } from 'wagmi/chains';
 
-// ZeroSum Contract Addresses - Updated to match .env file
+// ZeroSum Contract Addresses - Updated to Base Sepolia
 export const ZEROSUM_CONTRACT_ADDRESSES = {
-  ZERO_SUM_SIMPLIFIED: '0xfb40c6BACc74019E01C0dD5b434CE896806D7579',
-  ZERO_SUM_SPECTATOR: '0x151A0A2227B42D299b01a7D5AD3e1A81cB3BE1aE',
+  ZERO_SUM_SIMPLIFIED: '0x11bb298bbde9ffa6747ea104c2c39b3e59a399b4',
+  ZERO_SUM_SPECTATOR: '0x214124ae23b415b3aea3bb9e260a56dc022baf04',
 };
 
 // Environment-based contract selection - Updated to use .env variables
@@ -25,14 +25,21 @@ export const getContractAddresses = () => {
 };
 
 export const WAGMI_CHAINS = {
-  mantleSepoliaTestnet,
+  base,
+  baseSepolia,
 };
 
 // Multiple RPC endpoints for better reliability
-const MANTLE_SEPOLIA_RPCS = [
-  process.env.NEXT_PUBLIC_MANTLE_SEPOLIA_RPC || 'https://rpc.sepolia.mantle.xyz',
-  'https://sepolia.mantle.xyz',
-  'https://mantle-sepolia.dwellir.com',
+const BASE_SEPOLIA_RPCS = [
+  process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC || 'https://sepolia.base.org',
+  'https://base-sepolia.g.alchemy.com/v2/demo',
+  'https://base-sepolia.public.blastapi.io',
+];
+
+const BASE_RPCS = [
+  process.env.NEXT_PUBLIC_BASE_RPC || 'https://mainnet.base.org',
+  'https://base.g.alchemy.com/v2/demo',
+  'https://base.public.blastapi.io',
 ];
 
 // Get timeout and retry settings from environment or use defaults
@@ -41,9 +48,15 @@ const RPC_RETRY_COUNT = parseInt(process.env.NEXT_PUBLIC_RPC_RETRY_COUNT) || 2;
 const RPC_RETRY_DELAY = parseInt(process.env.NEXT_PUBLIC_RPC_RETRY_DELAY) || 1000;
 
 export const wagmiConfig = createConfig({
-  chains: [mantleSepoliaTestnet],
+  chains: [base, baseSepolia],
   transports: {
-    [mantleSepoliaTestnet.id]: http(MANTLE_SEPOLIA_RPCS[0], {
+    [base.id]: http(BASE_RPCS[0], {
+      // Add timeout and retry configuration
+      timeout: RPC_TIMEOUT,
+      retryCount: RPC_RETRY_COUNT,
+      retryDelay: RPC_RETRY_DELAY,
+    }),
+    [baseSepolia.id]: http(BASE_SEPOLIA_RPCS[0], {
       // Add timeout and retry configuration
       timeout: RPC_TIMEOUT,
       retryCount: RPC_RETRY_COUNT,

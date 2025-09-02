@@ -7,9 +7,9 @@ import { toast } from 'react-hot-toast'
 import { ZeroSumSimplifiedABI } from '../config/abis/ZeroSumSimplifiedABI'
 import { ZeroSumSpectatorABI } from '../config/abis/ZeroSumSpectatorABI'
 
-// Contract addresses
-const GAME_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_GAME_CONTRACT_ADDRESS || "0xfb40c6BACc74019E01C0dD5b434CE896806D7579"
-const SPECTATOR_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_SPECTATOR_CONTRACT_ADDRESS || "0x1620024163b8C9CE917b82932093A6De22Ba89d8"
+// Contract addresses - Updated to use correct environment variable names
+const GAME_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_ZEROSUM_SIMPLIFIED_ADDRESS || "0x11bb298bbde9ffa6747ea104c2c39b3e59a399b4"
+const SPECTATOR_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_ZEROSUM_SPECTATOR_ADDRESS || "0x214124ae23b415b3aea3bb9e260a56dc022baf04"
 
 // Types
 export enum GameMode {

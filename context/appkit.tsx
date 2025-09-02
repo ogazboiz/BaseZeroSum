@@ -1,7 +1,7 @@
 "use client";
 import { createAppKit } from "@reown/appkit/react";
 import { EthersAdapter } from "@reown/appkit-adapter-ethers";
-import {  mantleSepoliaTestnet, mantle } from "@reown/appkit/networks";
+import { base, baseSepolia } from "@reown/appkit/networks";
 import type { AppKitNetwork } from "@reown/appkit/networks";
 import { ReactNode } from "react";
 
@@ -10,12 +10,12 @@ const isMainnet = process.env.NEXT_PUBLIC_ENVIRONMENT === 'mainnet';
 
 // Network configurations for ZeroSum
 const mainnetNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [
-  mantle,
+  base,
   // Add other mainnet networks if needed
 ];
 
 const testnetNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [
-  mantleSepoliaTestnet,
+  baseSepolia,
   // sepolia, // Keep Sepolia for testing fallback
 ];
 
@@ -34,9 +34,9 @@ const metadata = {
 };
 
 // Log environment info for debugging
-console.log(`🌍 ZeroSum Environment: ${isMainnet ? 'Mantle Mainnet' : ' Testnet'}`);
+console.log(`🌍 ZeroSum Environment: ${isMainnet ? 'Base Mainnet' : 'Base Sepolia Testnet'}`);
 console.log(`📡 Supported Networks:`, supportedNetworks.map(n => n.name));
-console.log(`⚔️ ZeroSum Arena on Mantle Network ready!`);
+console.log(`⚔️ ZeroSum Arena on Base Network ready!`);
 
 // 3. Create the AppKit instance
 createAppKit({
@@ -47,11 +47,11 @@ createAppKit({
   features: {
     analytics: true,
   },
-  // Mantle-specific configurations
+  // Base-specific configurations
   ...(isMainnet ? {
     // Mainnet specific configurations
     enableExplorer: true,
-    enableOnramp: true, // Enable for real MNT purchases
+    enableOnramp: true, // Enable for real ETH purchases
   } : {
     // Testnet specific configurations  
     enableExplorer: true,

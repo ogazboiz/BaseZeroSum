@@ -1,0 +1,40 @@
+{
+  "app": {
+    "name": "ZeroSum Gaming Arena",
+    "subtitle": "Mathematical Warfare",
+    "description": "Enter the arena where strategy beats luck. Mathematical warfare with hidden numbers and true fairness.",
+    "icon": "https://zerosum-arena.vercel.app/placeholder-logo.png",
+    "splashImage": "https://zerosum-arena.vercel.app/placeholder.jpg",
+    "splashBackgroundColor": "#0f172a",
+    "primaryCategory": "gaming",
+    "heroImage": "https://zerosum-arena.vercel.app/placeholder.jpg",
+    "tagline": "Play instantly",
+    "ogTitle": "ZeroSum Gaming Arena",
+    "ogDescription": "Mathematical warfare where strategy beats luck",
+    "ogImage": "https://zerosum-arena.vercel.app/placeholder.jpg"
+  },
+  "contracts": {
+    "baseSepolia": {
+      "zeroSumSimplified": "0x11bb298bbde9ffa6747ea104c2c39b3e59a399b4",
+      "zeroSumSpectator": "0x214124ae23b415b3aea3bb9e260a56dc022baf04"
+    }
+  },
+  "gameModes": {
+    "simplified": {
+      "enabled": true,
+      "status": "active"
+    },
+    "hardcore": {
+      "enabled": false,
+      "status": "coming_soon"
+    },
+    "tournament": {
+      "enabled": false,
+      "status": "coming_soon"
+    },
+    "lastStand": {
+      "enabled": false,
+      "status": "coming_soon"
+    }
+  }
+}

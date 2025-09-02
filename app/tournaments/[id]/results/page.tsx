@@ -273,7 +273,7 @@ export default function TournamentResultsPage() {
               
               {/* Check Prize Button */}
               <Button 
-                onClick={() => window.open(`https://explorer.mantle.xyz/address/${tournament.winner}`, '_blank')}
+                onClick={() => window.open(`https://basescan.org/address/${tournament.winner}`, '_blank')}
                 className="bg-green-600 hover:bg-green-700 text-white"
               >
                 <DollarSign className="w-4 h-4 mr-2" />

@@ -43,6 +43,7 @@ import { useAppKitAccount, useAppKit } from "@reown/appkit/react"
 import { useDisconnect } from "@reown/appkit/react"
 import { useWalletInfo } from "@reown/appkit/react"
 import { useAccount, useDisconnect as useWagmiDisconnect } from "wagmi"
+import { useMiniKit } from '@coinbase/onchainkit/minikit'
 import { toast } from "react-hot-toast"
 import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
 
@@ -78,6 +79,13 @@ const usePlayerStats = (address: string | undefined) => {
 }
 
 export default function HomePage() {
+  // MiniKit initialization
+  const { setFrameReady, isFrameReady } = useMiniKit();
+
+  useEffect(() => {
+    if (!isFrameReady) setFrameReady();
+  }, [isFrameReady, setFrameReady]);
+
   // Add custom CSS for volume slider
   useEffect(() => {
     const style = document.createElement('style')

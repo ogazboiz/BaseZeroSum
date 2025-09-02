@@ -8,7 +8,7 @@ import GameModeSelector from "./GameModeSelector"
 import GameSettings from "./GameSettings"
 import BattleSummary from "./BattleSummary"
 import { useZeroSumContract, GameMode } from "@/hooks/useZeroSumContract"
-import { useHardcoreMysteryContract, GameMode as HardcoreGameMode } from "@/hooks/useHardcoreMysteryContracts"
+// import { useHardcoreMysteryContract, GameMode as HardcoreGameMode } from "@/hooks/useHardcoreMysteryContracts"
 import { toast } from "react-hot-toast"
 import type { GameMode as GameModeType } from "./GameModeSelector"
 
@@ -17,7 +17,7 @@ export default function CreateGameForm() {
   const searchParams = useSearchParams()
   const { address, isConnected } = useAccount()
   const { createQuickDraw, createStrategic, loading: zeroSumLoading } = useZeroSumContract()
-  const { createHardcoreMysteryGame, createLastStandGame, loading: hardcoreLoading } = useHardcoreMysteryContract()
+  // const { createHardcoreMysteryGame, createLastStandGame, loading: hardcoreLoading } = useHardcoreMysteryContract()
   
   const modeFromUrl = searchParams.get("mode")
 
@@ -63,8 +63,8 @@ export default function CreateGameForm() {
 
   // Update creating state based on contract loading
   useEffect(() => {
-    setIsCreating(zeroSumLoading || hardcoreLoading)
-  }, [zeroSumLoading, hardcoreLoading])
+    setIsCreating(zeroSumLoading)
+  }, [zeroSumLoading])
 
   // Update entry fee when mode changes to ensure it's within valid range
   useEffect(() => {
@@ -124,7 +124,7 @@ export default function CreateGameForm() {
     {
       id: "hardcore-mystery",
       title: "Hardcore Mystery",
-      subtitle: "ULTIMATE CHALLENGE",
+      subtitle: "COMING SOON",
       description: "One wrong move = game over! Ultimate challenge with hidden numbers and instant death.",
       players: "2 Players",
       difficulty: "★★★★★",
@@ -134,11 +134,12 @@ export default function CreateGameForm() {
       range: "0.001 - 25.0 MNT",
       rules: "Hidden numbers - instant death on wrong move!",
       avgDuration: "2-5 min",
+      comingSoon: true,
     },
     {
       id: "last-stand",
       title: "Last Stand",
-      subtitle: "BATTLE ROYALE",
+      subtitle: "COMING SOON",
       description: "8-player survival battle! Last player standing wins. Hidden numbers with instant elimination on wrong moves.",
       players: "8 Players",
       difficulty: "★★★★★",
@@ -148,6 +149,7 @@ export default function CreateGameForm() {
       range: "0.001 - 25.0 MNT",
       rules: "8 players, last survivor wins! Instant death on wrong moves!",
       avgDuration: "10-20 min",
+      comingSoon: true,
     },
   ]
 
@@ -176,10 +178,6 @@ export default function CreateGameForm() {
         result = await createQuickDraw(entryFeeValue)
       } else if (selectedMode === "strategic") {
         result = await createStrategic(entryFeeValue)
-      } else if (selectedMode === "hardcore-mystery") {
-        result = await createHardcoreMysteryGame(entryFeeValue)
-      } else if (selectedMode === "last-stand") {
-        result = await createLastStandGame(entryFeeValue)
       } else {
         toast.error("Selected game mode is not available yet!")
         return
@@ -188,13 +186,8 @@ export default function CreateGameForm() {
       if (result.success) {
         // Redirect to waiting room or browse page with the created game
         if (result.gameId) {
-          // Route to appropriate waiting room based on game mode
-          if (selectedMode === "hardcore-mystery") {
-            router.push(`/battle/hardcore/waiting/${result.gameId}?mode=${selectedMode}&entryFee=${entryFeeValue}`)
-          } else {
-            // Last Stand and other modes go to normal waiting room
-            router.push(`/battle/waiting/${result.gameId}?mode=${selectedMode}&entryFee=${entryFeeValue}`)
-          }
+          // All modes go to normal waiting room (hardcore disabled)
+          router.push(`/battle/waiting/${result.gameId}?mode=${selectedMode}&entryFee=${entryFeeValue}`)
         } else {
           router.push(`/browse?created=true&mode=${selectedMode}`)
         }
@@ -263,8 +256,6 @@ export default function CreateGameForm() {
             isConnected={isConnected}
             contractMode={selectedMode === "quick-draw" ? GameMode.QUICK_DRAW : 
                          selectedMode === "strategic" ? GameMode.STRATEGIC :
-                         selectedMode === "hardcore-mystery" ? HardcoreGameMode.HARDCORE_MYSTERY :
-                         selectedMode === "last-stand" ? HardcoreGameMode.LAST_STAND :
                          GameMode.QUICK_DRAW}
           />
         </div>

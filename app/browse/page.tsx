@@ -37,7 +37,7 @@ import {
   GameMode
 } from "@/hooks/useZeroSumContract"
 import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
-import { useHardcoreMysteryData, useHardcoreMysteryContract, HardcoreMysteryGame, GameMode as HardcoreGameMode, GameStatus as HardcoreGameStatus } from "@/hooks/useHardcoreMysteryContracts"
+// import { useHardcoreMysteryData, useHardcoreMysteryContract, HardcoreMysteryGame, GameMode as HardcoreGameMode, GameStatus as HardcoreGameStatus } from "@/hooks/useHardcoreMysteryContracts"
 import { useSpectatorData } from "@/hooks/useSpectatorContract"
 
 // Enhanced battle data for browse page
@@ -51,17 +51,17 @@ interface BrowsableGame extends GameData {
   userHasBet: boolean
 }
 
-interface HardcoreBrowsableGame extends HardcoreMysteryGame {
-  players: string[]
-  canJoin: boolean
-  canWatch: boolean
-  timeLeft?: number
-  isCreator?: boolean
-  contractType: 'hardcore'
-  userHasBet: boolean
-}
+// interface HardcoreBrowsableGame extends HardcoreMysteryGame {
+//   players: string[]
+//   canJoin: boolean
+//   canWatch: boolean
+//   timeLeft?: number
+//   isCreator?: boolean
+//   contractType: 'hardcore'
+//   userHasBet: boolean
+// }
 
-type CombinedBrowsableGame = BrowsableGame | HardcoreBrowsableGame
+type CombinedBrowsableGame = BrowsableGame
 
 interface BrowseFilters {
   id: string
@@ -74,7 +74,7 @@ interface BrowseStats {
   totalGames: number
   quickDrawGames: number
   strategicGames: number
-  hardcoreMysteryGames: number
+  // hardcoreMysteryGames: number
   totalPrizePool: string
   waitingGames: number
   activeGames: number
@@ -97,15 +97,15 @@ export default function UpdatedBrowseGamesPage() {
   
   const { joinGame, loading: contractLoading } = useZeroSumContract()
 
-  // Hardcore Mystery contract hooks
-  const {
-    getGameCounter: getHardcoreGameCounter,
-    getGame: getHardcoreGame,
-    getPlayers: getHardcorePlayers,
-    isGameBettable: isHardcoreGameBettable
-  } = useHardcoreMysteryData()
+  // Hardcore Mystery contract hooks - DISABLED (contract not deployed)
+  // const {
+  //   getGameCounter: getHardcoreGameCounter,
+  //   getGame: getHardcoreGame,
+  //   getPlayers: getHardcorePlayers,
+  //   isGameBettable: isHardcoreGameBettable
+  // } = useHardcoreMysteryData()
   
-  const { joinGame: joinHardcoreGame, loading: hardcoreContractLoading } = useHardcoreMysteryContract()
+  // const { joinGame: joinHardcoreGame, loading: hardcoreContractLoading } = useHardcoreMysteryContract()
 
   // Spectator contract hooks
   const {
@@ -129,13 +129,13 @@ export default function UpdatedBrowseGamesPage() {
     totalGames: 0,
     quickDrawGames: 0,
     strategicGames: 0,
-    hardcoreMysteryGames: 0,
+    // hardcoreMysteryGames: 0,
     totalPrizePool: "0",
     waitingGames: 0,
     activeGames: 0
   })
-  const [hardcoreContractAvailable, setHardcoreContractAvailable] = useState(true) // Re-enabled - issue was game ID logic
-  const hardcoreContractAvailableRef = useRef(true) // Ref to avoid circular dependencies
+  const [hardcoreContractAvailable, setHardcoreContractAvailable] = useState(false) // DISABLED - contract not deployed
+  const hardcoreContractAvailableRef = useRef(false) // Ref to avoid circular dependencies
   const [zeroSumContractRetries, setZeroSumContractRetries] = useState(0) // Track ZeroSum contract retries
   const [previousAddress, setPreviousAddress] = useState<string | undefined>(undefined) // Track address changes
   const [userBettingAttempts, setUserBettingAttempts] = useState<Set<string>>(new Set()) // Track betting attempts
@@ -249,14 +249,14 @@ export default function UpdatedBrowseGamesPage() {
         userHasBet: boolean
       }> = []
       
-      let hardcoreGames: Array<{
-        game: HardcoreMysteryGame
-        players: string[]
-        bettable: boolean
-        gameId: number
-        contractType: 'hardcore'
-        userHasBet: boolean
-      }> = []
+      // let hardcoreGames: Array<{
+      //   game: HardcoreMysteryGame
+      //   players: string[]
+      //   bettable: boolean
+      //   gameId: number
+      //   contractType: 'hardcore'
+      //   userHasBet: boolean
+      // }> = []
 
       // Fetch ZeroSum games with fallback to individual calls
       try {
@@ -418,63 +418,63 @@ export default function UpdatedBrowseGamesPage() {
         console.warn('ZeroSum contract not available:', error)
       }
 
-      // Fetch Hardcore Mystery games - use ref to avoid circular dependencies
-      if (hardcoreContractAvailableRef.current) {
-        try {
-          const hardcoreGameCounter = await getHardcoreGameCounter()
-          // console.log(`📊 Hardcore Mystery games on contract: ${hardcoreGameCounter}`)
+            // Fetch Hardcore Mystery games - DISABLED (contract not deployed)
+      // if (hardcoreContractAvailableRef.current) {
+      //   try {
+      //     const hardcoreGameCounter = await getHardcoreGameCounter()
+      //     // console.log(`📊 Hardcore Mystery games on contract: ${hardcoreGameCounter}`)
 
-          if (hardcoreGameCounter > 0) {
-            const hardcoreGamePromises = []
-            for (let i = 1; i <= hardcoreGameCounter; i++) {
-              hardcoreGamePromises.push(
-                Promise.all([
-                  getHardcoreGame(i),
-                  getHardcorePlayers(i),
-                  isHardcoreGameBettable(i)
-                ]).then(async ([game, players, bettable]) => {
-                                      if (game && (game.status === HardcoreGameStatus.WAITING || game.status === HardcoreGameStatus.ACTIVE)) {
-                      // Check if current user has already bet on this game
-                      let userHasBet = false
-                      if (isConnected && address) {
-                        try {
-                          // Use the new function to check user bet status
-                          userHasBet = await checkUserBetStatus(game, players, 'hardcore')
-                        } catch (error) {
-                          console.warn(`Could not check user bet status for hardcore game ${i}:`, error)
-                          userHasBet = false
-                        }
-                      }
-                    
-                    return { 
-                      game, 
-                      players, 
-                      bettable, 
-                      gameId: i, 
-                      contractType: 'hardcore' as const,
-                      userHasBet
-                    }
-                  }
-                  return null
-                }).catch(error => {
-                  console.warn(`Failed to fetch Hardcore game ${i}:`, error)
-                  return null
-                })
-              )
-            }
+      //     if (hardcoreGameCounter > 0) {
+      //       const hardcoreGamePromises = []
+      //       for (let i = 1; i <= hardcoreGameCounter; i++) {
+      //         hardcoreGamePromises.push(
+      //           Promise.all([
+      //             getHardcoreGame(i),
+      //             getHardcorePlayers(i),
+      //             isHardcoreGameBettable(i)
+      //           ]).then(async ([game, players, bettable]) => {
+      //                                 if (game && (game.status === HardcoreGameStatus.WAITING || game.status === HardcoreGameStatus.ACTIVE)) {
+      //             // Check if current user has already bet on this game
+      //             let userHasBet = false
+      //             if (isConnected && address) {
+      //               try {
+      //                 // Use the new function to check user bet status
+      //                 userHasBet = await checkUserBetStatus(game, players, 'hardcore')
+      //               } catch (error) {
+      //                 console.warn(`Could not check user bet status for hardcore game ${i}:`, error)
+      //                 userHasBet = false
+      //               }
+      //             }
 
-            const hardcoreResults = await Promise.all(hardcoreGamePromises)
-            hardcoreGames = hardcoreResults.filter(result => result !== null) as typeof hardcoreGames
-            // console.log(`✅ Found ${zeroSumGames.length} Hardcore Mystery games`)
-          }
-        } catch (error) {
-          console.warn('Hardcore Mystery contract not available:', error)
-        }
-      }
+      //             return {
+      //               game, 
+      //               players, 
+      //               bettable, 
+      //               gameId: i, 
+      //               contractType: 'hardcore' as const,
+      //               userHasBet
+      //             }
+      //           }
+      //         return null
+      //       }).catch(error => {
+      //         console.warn(`Failed to fetch Hardcore game ${i}:`, error)
+      //         return null
+      //       })
+      //     )
+      //   }
 
-      // Combine all games
-      const allGames = [...zeroSumGames, ...hardcoreGames]
-      // console.log(`🎯 Total games found: ${allGames.length} (${zeroSumGames.length} ZeroSum + ${hardcoreGames.length} Hardcore)`)
+      //   const hardcoreResults = await Promise.all(hardcoreGamePromises)
+      //   hardcoreGames = hardcoreResults.filter(result => result !== null) as typeof hardcoreGames
+      //   // console.log(`✅ Found ${zeroSumGames.length} Hardcore Mystery games`)
+      // }
+      // } catch (error) {
+      //   console.warn('Hardcore Mystery contract not available:', error)
+      // }
+      // }
+
+      // Combine all games - only ZeroSum games (hardcore disabled)
+      const allGames = [...zeroSumGames]
+      // console.log(`🎯 Total games found: ${allGames.length} (${zeroSumGames.length} ZeroSum)`)
 
       // Transform to browsable format (without creator detection - will be done dynamically)
       const browsable: CombinedBrowsableGame[] = allGames.map(({ game, players, bettable, contractType, userHasBet }) => {
@@ -492,18 +492,8 @@ export default function UpdatedBrowseGamesPage() {
             userHasBet
           }
         } else {
-          const hardcoreGame = game as HardcoreMysteryGame
-          const canWatch = hardcoreGame.status === HardcoreGameStatus.ACTIVE || bettable
-
-          return {
-            ...hardcoreGame,
-            players,
-            canJoin: true, // Will be calculated dynamically
-            canWatch,
-            isCreator: false, // Will be calculated dynamically
-            contractType: 'hardcore',
-            userHasBet
-          }
+          // Hardcore games disabled - this should not happen
+          throw new Error('Hardcore games are disabled')
         }
       })
 
@@ -523,15 +513,13 @@ export default function UpdatedBrowseGamesPage() {
         totalGames: validBrowsable.length,
         quickDrawGames: validBrowsable.filter(g => g.contractType === 'zerosum' && g.mode === GameMode.QUICK_DRAW).length,
         strategicGames: validBrowsable.filter(g => g.contractType === 'zerosum' && g.mode === GameMode.STRATEGIC).length,
-        hardcoreMysteryGames: validBrowsable.filter(g => g.contractType === 'hardcore').length,
-        totalPrizePool: validBrowsable.reduce((sum, g) => sum + (parseFloat(g.entryFee) * (g.contractType === 'hardcore' ? g.maxPlayers : 2)), 0).toFixed(4),
+        // hardcoreMysteryGames: validBrowsable.filter(g => g.contractType === 'hardcore').length,
+        totalPrizePool: validBrowsable.reduce((sum, g) => sum + (parseFloat(g.entryFee) * 2), 0).toFixed(4),
         waitingGames: validBrowsable.filter(g => 
-          (g.contractType === 'zerosum' && g.status === GameStatus.WAITING) ||
-          (g.contractType === 'hardcore' && g.status === HardcoreGameStatus.WAITING)
+          g.contractType === 'zerosum' && g.status === GameStatus.WAITING
         ).length,
         activeGames: validBrowsable.filter(g => 
-          (g.contractType === 'zerosum' && g.status === GameStatus.ACTIVE) ||
-          (g.contractType === 'hardcore' && g.status === HardcoreGameStatus.ACTIVE)
+          g.contractType === 'zerosum' && g.status === GameStatus.ACTIVE
         ).length
       }
 
@@ -546,27 +534,27 @@ export default function UpdatedBrowseGamesPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [getGameCounter, getGame, getPlayers, isGameBettable, getHardcoreGameCounter, getHardcoreGame, getHardcorePlayers, isHardcoreGameBettable, isConnected, address, checkUserBetStatus])
+  }, [getGameCounter, getGame, getPlayers, isGameBettable, isConnected, address, checkUserBetStatus])
 
-  // Check Hardcore Mystery contract availability once on mount
-  useEffect(() => {
-    const checkHardcoreContract = async () => {
-      try {
-        await getHardcoreGameCounter()
-        setHardcoreContractAvailable(true)
-        hardcoreContractAvailableRef.current = true
-        // console.log('✅ Hardcore Mystery contract available')
-      } catch (error) {
-        console.warn('Hardcore Mystery contract not available:', error)
-        setHardcoreContractAvailable(false)
-        hardcoreContractAvailableRef.current = false
-      }
-    }
+  // Check Hardcore Mystery contract availability - DISABLED (contract not deployed)
+  // useEffect(() => {
+  //   const checkHardcoreContract = async () => {
+  //     try {
+  //       await getHardcoreGameCounter()
+  //       setHardcoreContractAvailable(true)
+  //       hardcoreContractAvailableRef.current = true
+  //       // console.log('✅ Hardcore Mystery contract available')
+  //     } catch (error) {
+  //       console.warn('Hardcore Mystery contract not available:', error)
+  //       setHardcoreContractAvailable(false)
+  //       hardcoreContractAvailableRef.current = false
+  //     }
+  //   }
     
-    if (providerReady) {
-      checkHardcoreContract()
-    }
-  }, [providerReady, getHardcoreGameCounter])
+  //   if (providerReady) {
+  //     checkHardcoreContract()
+  //   }
+  // }, [providerReady, getHardcoreGameCounter])
 
   // Initial data fetch - depends on both providerReady and contractsReady
   useEffect(() => {
@@ -605,14 +593,8 @@ export default function UpdatedBrowseGamesPage() {
       
       return { canJoin, isCreator }
     } else {
-      const canJoin = game.status === HardcoreGameStatus.WAITING && 
-                     game.players.length < (game.maxPlayers || 2) && 
-                     (!isConnected || !game.players.some(p => p.toLowerCase() === address?.toLowerCase())) &&
-                     !game.userHasBet // User cannot join if they have already bet
-      const isCreator = isConnected && address && game.players.length > 0 && 
-                       game.players[0].toLowerCase() === address.toLowerCase()
-      
-      return { canJoin, isCreator }
+      // Hardcore games disabled - this should not happen
+      return { canJoin: false, isCreator: false }
     }
   }, [isConnected, address])
 
@@ -623,7 +605,7 @@ export default function UpdatedBrowseGamesPage() {
     { id: "active", name: "Active", count: browseStats.activeGames, icon: Swords },
     { id: "quick-draw", name: "Quick Draw", count: browseStats.quickDrawGames, icon: Target },
     { id: "strategic", name: "Strategic", count: browseStats.strategicGames, icon: Brain },
-    ...(hardcoreContractAvailable ? [{ id: "hardcore", name: "Hardcore Mystery", count: browseStats.hardcoreMysteryGames, icon: Zap }] : []),
+    // ...(hardcoreContractAvailable ? [{ id: "hardcore", name: "Hardcore Mystery", count: browseStats.hardcoreMysteryGames, icon: Zap }] : []), // Disabled
     ...(isConnected ? [{ id: "can-join", name: "Can Join", count: browsableGames.filter(g => getGameDynamicProps(g).canJoin).length, icon: Swords }] : [])
   ]
 
@@ -639,16 +621,14 @@ export default function UpdatedBrowseGamesPage() {
     switch (selectedFilter) {
       case "all": return matchesSearch
       case "waiting": return matchesSearch && (
-        (game.contractType === 'zerosum' && game.status === GameStatus.WAITING) ||
-        (game.contractType === 'hardcore' && game.status === HardcoreGameStatus.WAITING)
+        game.contractType === 'zerosum' && game.status === GameStatus.WAITING
       )
       case "active": return matchesSearch && (
-        (game.contractType === 'zerosum' && game.status === GameStatus.ACTIVE) ||
-        (game.contractType === 'hardcore' && game.status === HardcoreGameStatus.ACTIVE)
+        game.contractType === 'zerosum' && game.status === GameStatus.ACTIVE
       )
       case "quick-draw": return matchesSearch && game.contractType === 'zerosum' && game.mode === GameMode.QUICK_DRAW
       case "strategic": return matchesSearch && game.contractType === 'zerosum' && game.mode === GameMode.STRATEGIC
-      case "hardcore": return matchesSearch && game.contractType === 'hardcore'
+      // case "hardcore": return matchesSearch && game.contractType === 'hardcore' // Disabled
       case "can-join": return matchesSearch && getGameDynamicProps(game).canJoin
       default: return matchesSearch
     }
@@ -684,7 +664,8 @@ export default function UpdatedBrowseGamesPage() {
       if (game.contractType === 'zerosum') {
         result = await joinGame(gameId, game.entryFee)
       } else {
-        result = await joinHardcoreGame(gameId, game.entryFee)
+        // Hardcore games disabled
+        throw new Error('Hardcore games are not available')
       }
       
       if (result.success) {
@@ -708,18 +689,14 @@ export default function UpdatedBrowseGamesPage() {
 
   const handleWatchBattle = (gameId: number) => {
     const game = browsableGames.find(g => g.gameId === gameId)
-    if (game?.contractType === 'hardcore') {
-      router.push(`/battle/hardcore/${gameId}`)
-    } else {
-      router.push(`/battle/${gameId}`)
-    }
+    // All games go to normal battle page (hardcore disabled)
+    router.push(`/battle/${gameId}`)
   }
 
   const copyGameLink = (gameId: number) => {
     const game = browsableGames.find(g => g.gameId === gameId)
-    const url = game?.contractType === 'hardcore'
-      ? `${window.location.origin}/battle/hardcore/${gameId}`
-      : `${window.location.origin}/battle/${gameId}`
+    // All games use normal battle URL (hardcore disabled)
+    const url = `${window.location.origin}/battle/${gameId}`
     navigator.clipboard.writeText(url)
     toast.success("Game link copied!")
   }
@@ -729,7 +706,8 @@ export default function UpdatedBrowseGamesPage() {
     if (game.contractType === 'zerosum') {
       return game.mode === GameMode.QUICK_DRAW ? "Quick Draw" : "Strategic"
     } else {
-      return game.mode === HardcoreGameMode.HARDCORE_MYSTERY ? "Hardcore Mystery" : "Last Stand"
+      // Hardcore games disabled
+      return "Unavailable"
     }
   }
 
@@ -737,7 +715,8 @@ export default function UpdatedBrowseGamesPage() {
     if (game.contractType === 'zerosum') {
       return game.mode === GameMode.QUICK_DRAW ? Target : Brain
     } else {
-      return game.mode === HardcoreGameMode.HARDCORE_MYSTERY ? Zap : Users
+      // Hardcore games disabled
+      return Gamepad2
     }
   }
 
@@ -749,11 +728,8 @@ export default function UpdatedBrowseGamesPage() {
         default: return "bg-slate-500/20 text-slate-400 border-slate-500/30"
       }
     } else {
-      switch (game.status) {
-        case HardcoreGameStatus.WAITING: return "bg-amber-500/20 text-amber-400 border-amber-500/30"
-        case HardcoreGameStatus.ACTIVE: return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-        default: return "bg-slate-500/20 text-slate-400 border-slate-500/30"
-      }
+      // Hardcore games disabled
+      return "bg-slate-500/20 text-slate-400 border-slate-500/30"
     }
   }
 
@@ -765,11 +741,8 @@ export default function UpdatedBrowseGamesPage() {
         default: return Gamepad2
       }
     } else {
-      switch (game.status) {
-        case HardcoreGameStatus.WAITING: return Clock
-        case HardcoreGameStatus.ACTIVE: return Swords
-        default: return Gamepad2
-      }
+      // Hardcore games disabled
+      return Gamepad2
     }
   }
 
@@ -1045,9 +1018,7 @@ export default function UpdatedBrowseGamesPage() {
                             ? "from-emerald-400 to-teal-600" 
                             : game.contractType === 'zerosum' && game.mode === GameMode.STRATEGIC
                             ? "from-blue-400 to-indigo-600"
-                            : game.contractType === 'hardcore' && game.mode === HardcoreGameMode.HARDCORE_MYSTERY
-                            ? "from-rose-400 to-red-600"
-                            : "from-orange-400 to-pink-600"
+                            : "from-slate-400 to-slate-600" // Hardcore disabled
                         } rounded-xl flex items-center justify-center`}>
                           <ModeIcon className="w-6 h-6 text-white" />
                         </div>
@@ -1065,7 +1036,7 @@ export default function UpdatedBrowseGamesPage() {
                           <StatusIcon className="w-3 h-3 mr-1" />
                           {game.contractType === 'zerosum' 
                             ? (game.status === GameStatus.WAITING ? "WAITING" : "ACTIVE")
-                            : (game.status === HardcoreGameStatus.WAITING ? "WAITING" : "ACTIVE")
+                            : "UNAVAILABLE"
                           }
                         </Badge>
                         {game.userHasBet && (
@@ -1097,7 +1068,7 @@ export default function UpdatedBrowseGamesPage() {
                           <span className="text-xs text-slate-400">Prize Pool</span>
                         </div>
                         <div className="font-bold text-cyan-400">
-                          {(parseFloat(game.entryFee) * (game.contractType === 'hardcore' ? game.maxPlayers : 2)).toFixed(4)} MNT
+                          {(parseFloat(game.entryFee) * 2).toFixed(4)} MNT
                         </div>
                       </div>
                     </div>
@@ -1107,7 +1078,7 @@ export default function UpdatedBrowseGamesPage() {
                         <div className="flex items-center space-x-2 mb-2">
                           <Users className="w-4 h-4 text-violet-400" />
                           <span className="text-sm font-medium text-white">
-                            Players ({game.players.length}/{game.contractType === 'zerosum' ? 2 : game.maxPlayers})
+                            Players ({game.players.length}/2)
                           </span>
                         </div>
                         
@@ -1123,9 +1094,9 @@ export default function UpdatedBrowseGamesPage() {
                             </div>
                           ))}
                           
-                          {game.players.length < (game.contractType === 'zerosum' ? 2 : game.maxPlayers) && (
+                          {game.players.length < 2 && (
                             <div className="text-xs text-amber-400 text-center py-1">
-                              Waiting for {game.contractType === 'zerosum' ? 'opponent' : 'players'}...
+                              Waiting for opponent...
                             </div>
                           )}
                         </div>
@@ -1137,9 +1108,7 @@ export default function UpdatedBrowseGamesPage() {
                         ? (game.mode === GameMode.QUICK_DRAW
                             ? "⚡ Subtract exactly 1 each turn - reach 0 to WIN!"
                             : "🧠 Subtract 10-30% each turn - force opponent to hit 0!")
-                        : (game.mode === HardcoreGameMode.HARDCORE_MYSTERY
-                            ? "💀 Hidden numbers - instant death on wrong move!"
-                            : "🔥 8-player battle royale - last survivor wins!")
+                        : "🚧 Game mode not available"
                       }
                     </div>
 
@@ -1363,10 +1332,10 @@ export default function UpdatedBrowseGamesPage() {
                 <div className="text-2xl font-bold text-blue-400">{browseStats.strategicGames}</div>
                 <div className="text-sm text-slate-400">Strategic</div>
               </div>
-              <div>
+              {/* <div>
                 <div className="text-2xl font-bold text-rose-400">{browseStats.hardcoreMysteryGames}</div>
                 <div className="text-sm text-slate-400">Hardcore Mystery</div>
-              </div>
+              </div> */}
               <div>
                 <div className="text-2xl font-bold text-amber-400">{browseStats.totalPrizePool} MNT</div>
                 <div className="text-sm text-slate-400">Total Prize Pool</div>
@@ -1435,7 +1404,7 @@ export default function UpdatedBrowseGamesPage() {
                 <div className="text-xs text-slate-300">
                   {browsableGames.filter(g => !getGameDynamicProps(g).canJoin && !g.userHasBet && !getGameDynamicProps(g).isCreator).map(game => (
                     <div key={game.gameId} className="mb-1">
-                      Game #{game.gameId}: {game.players.length >= (game.contractType === 'zerosum' ? 2 : game.maxPlayers) ? 'Full' : 'Other reason'}
+                      Game #{game.gameId}: {game.players.length >= 2 ? 'Full' : 'Other reason'}
                     </div>
                   ))}
                 </div>
