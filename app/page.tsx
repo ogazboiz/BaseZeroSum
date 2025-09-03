@@ -47,6 +47,7 @@ import { useMiniKit } from '@coinbase/onchainkit/minikit'
 
 import { toast } from "react-hot-toast"
 import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
+import { FarcasterTestPanel } from "@/components/debug/FarcasterTestPanel"
 
 // Mock balance hooks - replace with your actual balance hooks
 const useMNTBalance = (address: string | undefined) => {
@@ -908,6 +909,9 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
+
+      {/* Farcaster Test Panel - Remove this in production */}
+      <FarcasterTestPanel />
     </div>
   )
 }

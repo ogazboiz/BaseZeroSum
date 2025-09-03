@@ -19,7 +19,7 @@ import { useRouter, usePathname } from "next/navigation"
 import { useAppKitAccount, useAppKit } from "@reown/appkit/react"
 import { useDisconnect } from "@reown/appkit/react"
 import { useAccount, useDisconnect as useWagmiDisconnect, useConfig } from "wagmi"
-import { HybridConnectButton } from "@/components/auth/HybridConnectButton"
+import { EnhancedConnectButton } from "@/components/auth/EnhancedConnectButton"
 import { toast } from "react-hot-toast"
 import { ethers } from "ethers"
 import { getEthersProvider } from "@/config/adapter"
@@ -205,7 +205,7 @@ export default function UnifiedGamingNavigation() {
                 <span className="sm:hidden">CONNECT</span>
               </Button>
             ) : (
-              <HybridConnectButton className="flex-shrink-0" />
+              <EnhancedConnectButton className="flex-shrink-0" />
             )}
             
             {isConnected && (

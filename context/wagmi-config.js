@@ -1,6 +1,13 @@
 import { createConfig, http } from 'wagmi';
 import { base, baseSepolia } from 'wagmi/chains';
-
+import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector';
+import {
+  injected,
+  walletConnect,
+  metaMask,
+  coinbaseWallet,
+} from 'wagmi/connectors';
+ 
 // ZeroSum Contract Addresses - Updated to Base Sepolia
 export const ZEROSUM_CONTRACT_ADDRESSES = {
   ZERO_SUM_SIMPLIFIED: '0x11bb298bbde9ffa6747ea104c2c39b3e59a399b4',
@@ -47,6 +54,24 @@ const RPC_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_RPC_TIMEOUT) || 10000;
 const RPC_RETRY_COUNT = parseInt(process.env.NEXT_PUBLIC_RPC_RETRY_COUNT) || 2;
 const RPC_RETRY_DELAY = parseInt(process.env.NEXT_PUBLIC_RPC_RETRY_DELAY) || 1000;
 
+// Create WalletConnect connector only once
+let walletConnectConnector = null;
+
+const getWalletConnectConnector = () => {
+  if (!walletConnectConnector) {
+    walletConnectConnector = walletConnect({
+      projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "",
+      metadata: {
+        name: "ZeroSum Arena",
+        description: "Battle in the ZeroSum Arena on Base",
+        url: "https://zerosum-arena.vercel.app",
+        icons: ["https://zerosum-arena.vercel.app/favicon.ico"],
+      },
+    });
+  }
+  return walletConnectConnector;
+};
+
 export const wagmiConfig = createConfig({
   chains: [base, baseSepolia],
   transports: {
@@ -63,4 +88,18 @@ export const wagmiConfig = createConfig({
       retryDelay: RPC_RETRY_DELAY,
     }),
   },
+  connectors: [
+    // Farcaster Mini App connector as the primary option
+    farcasterMiniApp(),
+    injected({
+      target: "metaMask",
+    }),
+    metaMask(),
+    coinbaseWallet({
+      appName: "ZeroSum Arena",
+    }),
+    getWalletConnectConnector(),
+  ],
+  ssr: false, // Disable SSR to avoid indexedDB issues
+  multiInjectedProviderDiscovery: true,
 });
