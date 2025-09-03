@@ -60,16 +60,26 @@ export function EnhancedConnectButton({ className }: EnhancedConnectButtonProps)
         setIsAutoConnecting(true);
         
         try {
-          // Find Farcaster connector
+          // Find Farcaster connector (matching mintmymood approach)
           const farcasterConnector = connectors.find(
             (connector) => 
               connector.id === "farcaster" || 
               connector.name?.toLowerCase().includes('farcaster') ||
-              connector.name?.toLowerCase().includes('miniapp')
+              connector.name?.toLowerCase().includes('miniapp') ||
+              connector.uid?.includes('farcaster')
           );
           
           if (farcasterConnector) {
+            console.log('🔗 Auto-connecting to Farcaster connector:', {
+              id: farcasterConnector.id,
+              name: farcasterConnector.name,
+              uid: farcasterConnector.uid,
+              ready: farcasterConnector.ready
+            });
             await connect({ connector: farcasterConnector });
+            console.log('✅ Auto-connect completed');
+          } else {
+            console.log('❌ No Farcaster connector found');
           }
         } catch (error) {
           console.error('Auto-connect failed:', error);
@@ -84,24 +94,33 @@ export function EnhancedConnectButton({ className }: EnhancedConnectButtonProps)
 
   const handleConnectWallet = async () => {
     if (frameInfo.isInFrame) {
-      // In Farcaster Frame - use Farcaster connector
+      // In Farcaster Frame - use Farcaster connector (matching mintmymood approach)
       const farcasterConnector = connectors.find(
         (connector) => 
           connector.id === "farcaster" || 
           connector.name?.toLowerCase().includes('farcaster') ||
-          connector.name?.toLowerCase().includes('miniapp')
+          connector.name?.toLowerCase().includes('miniapp') ||
+          connector.uid?.includes('farcaster')
       );
       
       if (farcasterConnector) {
         try {
+          console.log('🔗 Manual connecting to Farcaster connector:', {
+            id: farcasterConnector.id,
+            name: farcasterConnector.name,
+            uid: farcasterConnector.uid,
+            ready: farcasterConnector.ready
+          });
           await connect({ connector: farcasterConnector });
           // Force a small delay to ensure state updates
           setTimeout(() => {
-            console.log('🔗 Connection attempt completed');
+            console.log('🔗 Manual connection attempt completed');
           }, 1000);
         } catch (error) {
           console.error('Connection failed:', error);
         }
+      } else {
+        console.log('❌ No Farcaster connector found for manual connect');
       }
     } else {
       // Outside Farcaster Frame - use AppKit
