@@ -103,15 +103,17 @@ export default function UnifiedGamingNavigation() {
 
   // Debug connection state
   useEffect(() => {
-    console.log('🎮 GamingNavigation - Connection state changed:', {
-      mounted,
-      isConnected,
-      address,
-      appkitAddress,
-      appkitIsConnected,
-      wagmiAddress,
-      wagmiIsConnected
-    });
+    if (mounted) {
+      console.log('🎮 GamingNavigation - Connection state changed:', {
+        mounted,
+        isConnected,
+        address,
+        appkitAddress,
+        appkitIsConnected,
+        wagmiAddress,
+        wagmiIsConnected
+      });
+    }
   }, [mounted, isConnected, address, appkitAddress, appkitIsConnected, wagmiAddress, wagmiIsConnected]);
 
   // Show success toast when wallet connects

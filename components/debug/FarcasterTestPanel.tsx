@@ -5,18 +5,29 @@ import { useConnect, useAccount } from 'wagmi';
 import { detectFarcasterFrame } from '@/utils/farcasterDetection';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useClientOnly } from '@/hooks/useClientOnly';
 
 export function FarcasterTestPanel() {
-  const [frameInfo, setFrameInfo] = useState(detectFarcasterFrame());
+  const isClient = useClientOnly();
+  const [frameInfo, setFrameInfo] = useState({
+    isInFrame: false,
+    frameType: 'unknown' as const,
+    userAgent: '',
+    url: '',
+  });
   const { connect, connectors } = useConnect();
   const { address, isConnected } = useAccount();
 
   useEffect(() => {
+    if (!isClient) return;
+    
+    setFrameInfo(detectFarcasterFrame());
+    
     const interval = setInterval(() => {
       setFrameInfo(detectFarcasterFrame());
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isClient]);
 
   const testFarcasterConnection = () => {
     const farcasterConnector = connectors.find(
@@ -119,7 +130,7 @@ export function FarcasterTestPanel() {
         <div className="p-3 bg-slate-900 rounded-lg">
           <div className="text-sm text-slate-400 mb-2">Debug Info</div>
           <pre className="text-xs text-slate-300 overflow-auto">
-            {JSON.stringify(frameInfo, null, 2)}
+            {isClient ? JSON.stringify(frameInfo, null, 2) : 'Loading...'}
           </pre>
         </div>
       </CardContent>

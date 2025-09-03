@@ -3,12 +3,16 @@
 import { useState, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Wifi, WifiOff, AlertTriangle } from "lucide-react"
+import { useClientOnly } from "@/hooks/useClientOnly"
 
 export default function NetworkStatus() {
+  const isClient = useClientOnly()
   const [isOnline, setIsOnline] = useState(true)
   const [hasNetworkError, setHasNetworkError] = useState(false)
 
   useEffect(() => {
+    if (!isClient) return
+    
     const handleOnline = () => {
       setIsOnline(true)
       setHasNetworkError(false)
@@ -29,7 +33,7 @@ export default function NetworkStatus() {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
     }
-  }, [])
+  }, [isClient])
 
   // Listen for network errors from blockchain calls
   useEffect(() => {
@@ -44,8 +48,8 @@ export default function NetworkStatus() {
     return () => window.removeEventListener('network-error', handleNetworkError)
   }, [])
 
-  if (isOnline && !hasNetworkError) {
-    return null // Don't show anything when everything is working
+  if (!isClient || (isOnline && !hasNetworkError)) {
+    return null // Don't show anything when not client-side or when everything is working
   }
 
   return (

@@ -7,27 +7,19 @@ import { useProfile } from '@farcaster/auth-kit';
 import { Button } from '@/components/ui/button';
 import { Wallet, User, LogOut, ExternalLink, AlertCircle } from 'lucide-react';
 import { detectFarcasterFrame } from '@/utils/farcasterDetection';
+import { useClientOnly } from '@/hooks/useClientOnly';
 
 interface EnhancedConnectButtonProps {
   className?: string;
 }
 
 export function EnhancedConnectButton({ className }: EnhancedConnectButtonProps) {
+  const isClient = useClientOnly();
+  
   // Wagmi hooks for Farcaster Mini App connector
   const { connect, connectors, isPending: isConnecting } = useConnect();
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
-  
-  // Debug connection state
-  useEffect(() => {
-    console.log('🔗 EnhancedConnectButton - Connection state changed:', {
-      address,
-      isConnected,
-      isConnecting,
-      isAutoConnecting,
-      frameInfo: frameInfo.isInFrame
-    });
-  }, [address, isConnected, isConnecting, isAutoConnecting, frameInfo.isInFrame]);
   
   // AppKit for fallback wallets
   const { open: openAppKit } = useAppKit();
@@ -37,10 +29,32 @@ export function EnhancedConnectButton({ className }: EnhancedConnectButtonProps)
   
   // State
   const [isAutoConnecting, setIsAutoConnecting] = useState(false);
-  const [frameInfo, setFrameInfo] = useState(detectFarcasterFrame());
+  const [frameInfo, setFrameInfo] = useState({
+    isInFrame: false,
+    frameType: 'unknown' as const,
+    userAgent: '',
+    url: '',
+  });
+  
+  // Debug connection state
+  useEffect(() => {
+    if (isClient) {
+      console.log('🔗 EnhancedConnectButton - Connection state changed:', {
+        address,
+        isConnected,
+        isConnecting,
+        isAutoConnecting,
+        frameInfo: frameInfo.isInFrame
+      });
+    }
+  }, [address, isConnected, isConnecting, isAutoConnecting, frameInfo.isInFrame, isClient]);
   
   // Auto-connect to Farcaster when in Farcaster Frame
   useEffect(() => {
+    if (!isClient) return;
+    
+    setFrameInfo(detectFarcasterFrame());
+    
     const attemptAutoConnect = async () => {
       if (frameInfo.isInFrame && !isConnected && !isAutoConnecting) {
         setIsAutoConnecting(true);
@@ -66,7 +80,7 @@ export function EnhancedConnectButton({ className }: EnhancedConnectButtonProps)
     };
 
     attemptAutoConnect();
-  }, [frameInfo.isInFrame, isConnected, isAutoConnecting, connect, connectors]);
+  }, [frameInfo.isInFrame, isConnected, isAutoConnecting, connect, connectors, isClient]);
 
   const handleConnectWallet = async () => {
     if (frameInfo.isInFrame) {
@@ -242,34 +256,17 @@ export function EnhancedConnectButton({ className }: EnhancedConnectButtonProps)
       </div>
     );
   } else {
-    // Outside Farcaster Frame - show helpful message and wallet options
-  return (
-      <div className={`flex flex-col items-center space-y-2 ${className}`}>
-        <div className="flex items-center space-x-2 bg-amber-900/20 border border-amber-500/30 rounded-lg px-3 py-2">
-          <AlertCircle className="w-4 h-4 text-amber-400" />
-          <div className="text-sm text-amber-200">
-            For the best experience, open this app in Farcaster
-          </div>
-        </div>
-        <div className="flex items-center space-x-2">
+    // Outside Farcaster Frame - show simple connect button
+    return (
+      <div className={`flex items-center space-x-2 ${className}`}>
         <Button 
-            onClick={handleConnectWallet}
-            className="bg-slate-600 hover:bg-slate-700 text-white"
+          onClick={handleConnectWallet}
+          className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold rounded-xl px-6 py-3"
         >
-          <Wallet className="w-4 h-4 mr-2" />
+          <Wallet className="w-5 h-5 mr-2" />
           Connect Wallet
         </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-amber-500 text-amber-300 hover:bg-amber-900/20"
-            onClick={() => window.open('https://warpcast.com', '_blank')}
-          >
-            <ExternalLink className="w-4 h-4 mr-2" />
-            Open in Farcaster
-          </Button>
       </div>
-    </div>
-  );
-}
+    );
+  }
 }

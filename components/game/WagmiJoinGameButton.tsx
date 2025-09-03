@@ -191,11 +191,11 @@ export function WagmiJoinGameButton({ game, onJoinSuccess }: WagmiJoinGameButton
           </div>
         ) : game.status !== 'Waiting' ? (
           <div className="text-center text-sm text-muted-foreground">
-            Game is not available for joining
+            Game unavailable
           </div>
         ) : (
           <div className="text-center text-sm text-muted-foreground">
-            Cannot join this game
+            Cannot join
           </div>
         )}
       </CardContent>

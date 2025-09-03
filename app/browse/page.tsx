@@ -659,7 +659,7 @@ export default function UpdatedBrowseGamesPage() {
     }
 
     if (!game.canJoin) {
-      toast.error("Cannot join this game!")
+      toast.error("Cannot join game!")
       return
     }
 
@@ -1229,7 +1229,7 @@ export default function UpdatedBrowseGamesPage() {
                     
                     {!canJoin && !isCreator && !game.userHasBet && isConnected && (
                       <div className="text-xs text-center text-slate-400 bg-slate-500/10 rounded p-2">
-                        ❌ Cannot join this game
+                        ❌ Cannot join
                       </div>
                     )}
                     
