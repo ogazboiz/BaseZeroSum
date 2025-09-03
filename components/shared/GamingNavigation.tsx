@@ -72,6 +72,7 @@ export default function UnifiedGamingNavigation() {
   const [mounted, setMounted] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [connectionRefresh, setConnectionRefresh] = useState(0)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
 
@@ -92,6 +93,26 @@ export default function UnifiedGamingNavigation() {
   const mntBalance = useMNTBalance(address)
 
   useEffect(() => setMounted(true), [])
+  
+  // Force refresh connection state when connection changes
+  useEffect(() => {
+    if (mounted) {
+      setConnectionRefresh(prev => prev + 1);
+    }
+  }, [mounted, isConnected, address])
+
+  // Debug connection state
+  useEffect(() => {
+    console.log('🎮 GamingNavigation - Connection state changed:', {
+      mounted,
+      isConnected,
+      address,
+      appkitAddress,
+      appkitIsConnected,
+      wagmiAddress,
+      wagmiIsConnected
+    });
+  }, [mounted, isConnected, address, appkitAddress, appkitIsConnected, wagmiAddress, wagmiIsConnected]);
 
   // Show success toast when wallet connects
   useEffect(() => {

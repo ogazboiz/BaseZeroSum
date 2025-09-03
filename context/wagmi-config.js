@@ -63,7 +63,7 @@ const getWalletConnectConnector = () => {
       projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "",
       metadata: {
         name: "ZeroSum Arena",
-        description: "Battle in the ZeroSum Arena on Base",
+        description: "Battle in the ZeroSum Arena on Base Sepolia",
         url: "https://zerosum-arena.vercel.app",
         icons: ["https://zerosum-arena.vercel.app/favicon.ico"],
       },
@@ -73,7 +73,7 @@ const getWalletConnectConnector = () => {
 };
 
 export const wagmiConfig = createConfig({
-  chains: [base, baseSepolia],
+  chains: [baseSepolia, base],
   transports: {
     [base.id]: http(BASE_RPCS[0], {
       // Add timeout and retry configuration

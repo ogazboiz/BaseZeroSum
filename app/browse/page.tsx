@@ -37,6 +37,7 @@ import {
   GameStatus,
   GameMode
 } from "@/hooks/useZeroSumContract"
+import { useWagmiZeroSumContract } from "@/hooks/useWagmiZeroSumContract"
 import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
 // import { useHardcoreMysteryData, useHardcoreMysteryContract, HardcoreMysteryGame, GameMode as HardcoreGameMode, GameStatus as HardcoreGameStatus } from "@/hooks/useHardcoreMysteryContracts"
 import { useSpectatorData } from "@/hooks/useSpectatorContract"
@@ -105,7 +106,7 @@ export default function UpdatedBrowseGamesPage() {
     providerReady
   } = useZeroSumData()
   
-  const { joinGame, loading: contractLoading } = useZeroSumContract()
+  const { joinGame: wagmiJoinGame, isConnected: wagmiConnected, address: wagmiAddressFromHook } = useWagmiZeroSumContract()
 
   // Hardcore Mystery contract hooks - DISABLED (contract not deployed)
   // const {
@@ -672,7 +673,7 @@ export default function UpdatedBrowseGamesPage() {
       
       let result
       if (game.contractType === 'zerosum') {
-        result = await joinGame(gameId, game.entryFee)
+        result = await wagmiJoinGame(gameId, game.entryFee)
       } else {
         // Hardcore games disabled
         throw new Error('Hardcore games are not available')
@@ -1131,7 +1132,7 @@ export default function UpdatedBrowseGamesPage() {
                         {canJoin && !isCreator && (
                           <Button
                             onClick={() => handleJoinBattle(game.gameId)}
-                            disabled={!isConnected || joiningBattle === game.gameId || contractLoading}
+                            disabled={!isConnected || joiningBattle === game.gameId}
                             className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg"
                           >
                             {joiningBattle === game.gameId ? (

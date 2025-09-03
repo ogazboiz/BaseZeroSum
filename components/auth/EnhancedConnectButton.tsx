@@ -18,6 +18,17 @@ export function EnhancedConnectButton({ className }: EnhancedConnectButtonProps)
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
   
+  // Debug connection state
+  useEffect(() => {
+    console.log('🔗 EnhancedConnectButton - Connection state changed:', {
+      address,
+      isConnected,
+      isConnecting,
+      isAutoConnecting,
+      frameInfo: frameInfo.isInFrame
+    });
+  }, [address, isConnected, isConnecting, isAutoConnecting, frameInfo.isInFrame]);
+  
   // AppKit for fallback wallets
   const { open: openAppKit } = useAppKit();
   
@@ -68,7 +79,15 @@ export function EnhancedConnectButton({ className }: EnhancedConnectButtonProps)
       );
       
       if (farcasterConnector) {
-        connect({ connector: farcasterConnector });
+        try {
+          await connect({ connector: farcasterConnector });
+          // Force a small delay to ensure state updates
+          setTimeout(() => {
+            console.log('🔗 Connection attempt completed');
+          }, 1000);
+        } catch (error) {
+          console.error('Connection failed:', error);
+        }
       }
     } else {
       // Outside Farcaster Frame - use AppKit
