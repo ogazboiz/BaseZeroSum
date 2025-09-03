@@ -2,7 +2,7 @@
 
 import { useWriteContract, useWaitForTransactionReceipt, useAccount } from 'wagmi';
 import { toast } from 'react-hot-toast';
-import { ZeroSumSimplifiedABI } from '@/lib/contracts/ZeroSumSimplifiedABI';
+import { ZeroSumSimplifiedABI } from '@/config/abis/ZeroSumSimplifiedABI';
 import { getContractAddresses } from '@/context/wagmi-config';
 
 // Contract addresses
