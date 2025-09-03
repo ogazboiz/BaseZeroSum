@@ -19,6 +19,7 @@ import { useRouter, usePathname } from "next/navigation"
 import { useAppKitAccount, useAppKit } from "@reown/appkit/react"
 import { useDisconnect } from "@reown/appkit/react"
 import { useAccount, useDisconnect as useWagmiDisconnect, useConfig } from "wagmi"
+import { HybridConnectButton } from "@/components/auth/HybridConnectButton"
 import { toast } from "react-hot-toast"
 import { ethers } from "ethers"
 import { getEthersProvider } from "@/config/adapter"
@@ -203,7 +204,11 @@ export default function UnifiedGamingNavigation() {
                 <span className="hidden sm:inline">CONNECT</span>
                 <span className="sm:hidden">CONNECT</span>
               </Button>
-            ) : isConnected ? (
+            ) : (
+              <HybridConnectButton className="flex-shrink-0" />
+            )}
+            
+            {isConnected && (
               <>
                 {/* MNT Balance - Desktop */}
                 <div className="hidden md:flex">
@@ -290,15 +295,6 @@ export default function UnifiedGamingNavigation() {
                   )}
                 </div>
               </>
-            ) : (
-              <Button
-                onClick={handleConnect}
-                className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold rounded-xl px-3 py-2 h-9 text-sm md:px-6 md:py-3 md:h-12 md:text-base"
-              >
-                <Wallet className="w-4 h-4 mr-1 md:w-5 md:h-5 md:mr-2" />
-                <span className="hidden sm:inline">CONNECT</span>
-                <span className="sm:hidden">CONNECT</span>
-              </Button>
             )}
 
             {/* Mobile menu button */}

@@ -44,6 +44,7 @@ import { useDisconnect } from "@reown/appkit/react"
 import { useWalletInfo } from "@reown/appkit/react"
 import { useAccount, useDisconnect as useWagmiDisconnect } from "wagmi"
 import { useMiniKit } from '@coinbase/onchainkit/minikit'
+
 import { toast } from "react-hot-toast"
 import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
 
@@ -505,6 +506,8 @@ export default function HomePage() {
         preload="metadata"
         crossOrigin="anonymous"
       />
+
+
 
 
 

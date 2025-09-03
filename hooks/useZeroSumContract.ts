@@ -1,6 +1,7 @@
 // hooks/useZeroSumContracts.ts - COMPLETE VERSION
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useConfig, useAccount } from 'wagmi'
+import { useAppKitAccount } from '@reown/appkit/react'
 import { ethers } from 'ethers'
 import { getEthersProvider, getEthersSigner } from '@/config/adapter'
 import { toast } from 'react-hot-toast'
@@ -98,7 +99,15 @@ export interface BettingOdds {
 // Provider hook with connection state management
 export function useContractProvider() {
   const config = useConfig()
-  const { isConnected, address } = useAccount()
+  
+  // Unified wallet connection state (AppKit + Wagmi)
+  const { address: appkitAddress, isConnected: appkitIsConnected } = useAppKitAccount()
+  const { address: wagmiAddress, isConnected: wagmiIsConnected } = useAccount()
+  
+  // Unified state - prioritize AppKit (Farcaster) connection
+  const address = appkitAddress || wagmiAddress
+  const isConnected = appkitIsConnected || wagmiIsConnected
+  
   const [providerReady, setProviderReady] = useState(false)
   const providerRef = useRef<any>(null)
   
@@ -136,8 +145,20 @@ export function useContractProvider() {
     if (!isConnected || !address) {
       throw new Error('Wallet not connected')
     }
-    return await getEthersSigner(config)
-  }, [config, isConnected, address])
+    
+    try {
+      console.log('🔐 Getting signer for address:', address)
+      console.log('🔐 AppKit connected:', appkitIsConnected)
+      console.log('🔐 Wagmi connected:', wagmiIsConnected)
+      
+      const signer = await getEthersSigner(config)
+      console.log('✅ Signer obtained successfully:', signer)
+      return signer
+    } catch (error) {
+      console.error('❌ Failed to get signer:', error)
+      throw error
+    }
+  }, [config, isConnected, address, appkitIsConnected, wagmiIsConnected])
   
   return {
     providerReady,
@@ -168,10 +189,11 @@ export function useZeroSumContract() {
         throw new Error('Please connect your wallet')
       }
 
+      console.log('🚀 Starting transaction with signer:', signer)
       toast.success(loadingMessage)
-      const tx = await contractCall()
       
-      console.log(`Transaction sent: ${tx.hash}`)
+      const tx = await contractCall()
+      console.log(`📤 Transaction sent: ${tx.hash}`)
       
       const receipt = await tx.wait()
       console.log(`Transaction confirmed: ${receipt.transactionHash}`)
@@ -194,14 +216,20 @@ export function useZeroSumContract() {
       toast.success(successMessage)
       return { success: true, txHash: tx.hash, receipt, gameId }
     } catch (error: any) {
-      console.error('Transaction failed:', error)
+      console.error('❌ Transaction error:', error)
+      console.error('❌ Error details:', {
+        message: error.message,
+        reason: error.reason,
+        code: error.code,
+        stack: error.stack
+      })
       
       let errorMsg = errorMessage
       
       if (error.reason) {
         errorMsg = error.reason
       } else if (error.message) {
-        if (error.message.includes('user rejected')) {
+        if (error.message.includes('user rejected') || error.message.includes('User denied')) {
           errorMsg = 'Transaction cancelled by user'
         } else if (error.message.includes('insufficient funds')) {
           errorMsg = 'Insufficient funds for transaction'
@@ -210,6 +238,14 @@ export function useZeroSumContract() {
           if (match) {
             errorMsg = match[1]
           }
+        } else if (error.message.includes('network')) {
+          errorMsg = 'Network error - please check your connection'
+        } else if (error.message.includes('timeout')) {
+          errorMsg = 'Transaction timeout - please try again'
+        } else if (error.message.includes('nonce')) {
+          errorMsg = 'Transaction nonce error - please try again'
+        } else if (error.message.includes('gas')) {
+          errorMsg = 'Gas estimation failed - please try again'
         }
       }
       

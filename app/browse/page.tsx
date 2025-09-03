@@ -91,6 +91,9 @@ export default function UpdatedBrowseGamesPage() {
   const address = appkitAddress || wagmiAddress
   const isConnected = appkitIsConnected || wagmiIsConnected
   
+  // For game interactions, we need a wallet address for transactions
+  const canJoinGames = isConnected && address
+  
   // Blockchain hooks
   const {
     getGameCounter,
@@ -593,9 +596,9 @@ export default function UpdatedBrowseGamesPage() {
     if (game.contractType === 'zerosum') {
       const canJoin = game.status === GameStatus.WAITING && 
                      game.players.length < 2 && 
-                     (!isConnected || !game.players.some(p => p.toLowerCase() === address?.toLowerCase())) &&
+                     (!canJoinGames || !game.players.some(p => p.toLowerCase() === address?.toLowerCase())) &&
                      !game.userHasBet // User cannot join if they have already bet
-      const isCreator = isConnected && address && game.players.length > 0 && 
+      const isCreator = canJoinGames && address && game.players.length > 0 && 
                        game.players[0].toLowerCase() === address.toLowerCase()
       
       return { canJoin, isCreator }
@@ -603,7 +606,7 @@ export default function UpdatedBrowseGamesPage() {
       // Hardcore games disabled - this should not happen
       return { canJoin: false, isCreator: false }
     }
-  }, [isConnected, address])
+  }, [canJoinGames, address])
 
   // Create filter options
   const filters: BrowseFilters[] = [

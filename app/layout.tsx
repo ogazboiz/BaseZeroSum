@@ -7,6 +7,7 @@ import { headers } from 'next/headers'
 import { AppKit } from "@/context/appkit"
 import { Providers } from "@/context/providers"
 import { MiniKitContextProvider } from "@/providers/MiniKitProvider"
+import { FarcasterAuthProvider } from "@/providers/FarcasterAuthProvider"
 import NetworkStatus from "@/components/shared/NetworkStatus"
 import config from '@/config.json'
 
@@ -56,14 +57,16 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <MiniKitContextProvider>
-          <AppKit>
-            <Providers>
-              {children}
-              <NetworkStatus />
-            </Providers>
-          </AppKit>
-        </MiniKitContextProvider>
+        <FarcasterAuthProvider>
+          <MiniKitContextProvider>
+            <AppKit>
+              <Providers>
+                {children}
+                <NetworkStatus />
+              </Providers>
+            </AppKit>
+          </MiniKitContextProvider>
+        </FarcasterAuthProvider>
       </body>
     </html>
   )
