@@ -1,7 +1,7 @@
 "use client"
 
 import { GamingNavigation } from "@/components/shared"
-import { CreateGameForm } from "@/components/game-creation"
+import WagmiCreateGameForm from "@/components/game-creation/WagmiCreateGameForm"
 import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
 
 
@@ -19,7 +19,9 @@ export default function CreateGamePage() {
          <UnifiedGamingNavigation />
 
         {/* Create Game Form */}
-        <CreateGameForm />
+        <div className="container mx-auto px-4 py-8">
+          <WagmiCreateGameForm />
+        </div>
       </div>
 
   )

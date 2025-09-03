@@ -101,7 +101,8 @@ export function EnhancedConnectButton({ className }: EnhancedConnectButtonProps)
   if (isConnected && address) {
     return (
       <div className={`flex items-center space-x-2 ${className}`}>
-        <div className="flex items-center space-x-2 bg-slate-800 rounded-lg px-3 py-2">
+        {/* Mobile: Compact button, Desktop: Full info */}
+        <div className="hidden sm:flex items-center space-x-2 bg-slate-800 rounded-lg px-3 py-2">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center">
             {farcasterProfile?.pfpUrl ? (
               <img 
@@ -122,14 +123,31 @@ export function EnhancedConnectButton({ className }: EnhancedConnectButtonProps)
             </div>
           </div>
         </div>
+        
+        {/* Mobile: Just a compact connected indicator */}
+        <div className="sm:hidden flex items-center space-x-1 bg-slate-800 rounded-lg px-2 py-1.5">
+          <div className="w-5 h-5 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center">
+            {farcasterProfile?.pfpUrl ? (
+              <img 
+                src={farcasterProfile.pfpUrl} 
+                alt={farcasterProfile.username || 'Profile'} 
+                className="w-5 h-5 rounded-full"
+              />
+            ) : (
+              <User className="w-3 h-3 text-white" />
+            )}
+          </div>
+          <span className="text-xs text-slate-300">Connected</span>
+        </div>
+        
         <Button
           variant="outline"
           size="sm"
           onClick={handleDisconnect}
-          className="border-slate-600 text-slate-300 hover:bg-slate-700"
+          className="border-slate-600 text-slate-300 hover:bg-slate-700 text-xs sm:text-sm"
         >
-          <LogOut className="w-4 h-4 mr-2" />
-          Disconnect
+          <LogOut className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+          <span className="hidden sm:inline">Disconnect</span>
         </Button>
       </div>
     );
@@ -139,7 +157,8 @@ export function EnhancedConnectButton({ className }: EnhancedConnectButtonProps)
   if (isFarcasterAuthenticated && !isConnected) {
     return (
       <div className={`flex items-center space-x-2 ${className}`}>
-        <div className="flex items-center space-x-2 bg-slate-800 rounded-lg px-3 py-2">
+        {/* Mobile: Compact indicator, Desktop: Full info */}
+        <div className="hidden sm:flex items-center space-x-2 bg-slate-800 rounded-lg px-3 py-2">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center">
             {farcasterProfile?.pfpUrl ? (
               <img 
@@ -160,12 +179,30 @@ export function EnhancedConnectButton({ className }: EnhancedConnectButtonProps)
             </div>
           </div>
         </div>
+        
+        {/* Mobile: Just a compact indicator */}
+        <div className="sm:hidden flex items-center space-x-1 bg-slate-800 rounded-lg px-2 py-1.5">
+          <div className="w-5 h-5 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center">
+            {farcasterProfile?.pfpUrl ? (
+              <img 
+                src={farcasterProfile.pfpUrl} 
+                alt={farcasterProfile.username || 'Profile'} 
+                className="w-5 h-5 rounded-full"
+              />
+            ) : (
+              <User className="w-3 h-3 text-white" />
+            )}
+          </div>
+          <span className="text-xs text-cyan-300">Ready</span>
+        </div>
+        
         <Button
           onClick={handleConnectWallet}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm"
         >
-          <Wallet className="w-4 h-4 mr-2" />
-          Connect Wallet
+          <Wallet className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+          <span className="hidden sm:inline">Connect Wallet</span>
+          <span className="sm:hidden">Connect</span>
         </Button>
       </div>
     );
@@ -182,12 +219,12 @@ export function EnhancedConnectButton({ className }: EnhancedConnectButtonProps)
         >
           <Wallet className="w-4 h-4 mr-2" />
           Connect Farcaster Wallet
-        </Button>
+          </Button>
       </div>
     );
   } else {
     // Outside Farcaster Frame - show helpful message and wallet options
-    return (
+  return (
       <div className={`flex flex-col items-center space-y-2 ${className}`}>
         <div className="flex items-center space-x-2 bg-amber-900/20 border border-amber-500/30 rounded-lg px-3 py-2">
           <AlertCircle className="w-4 h-4 text-amber-400" />
@@ -196,13 +233,13 @@ export function EnhancedConnectButton({ className }: EnhancedConnectButtonProps)
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          <Button
+        <Button 
             onClick={handleConnectWallet}
             className="bg-slate-600 hover:bg-slate-700 text-white"
-          >
-            <Wallet className="w-4 h-4 mr-2" />
-            Connect Wallet
-          </Button>
+        >
+          <Wallet className="w-4 h-4 mr-2" />
+          Connect Wallet
+        </Button>
           <Button
             variant="outline"
             size="sm"
@@ -212,8 +249,8 @@ export function EnhancedConnectButton({ className }: EnhancedConnectButtonProps)
             <ExternalLink className="w-4 h-4 mr-2" />
             Open in Farcaster
           </Button>
-        </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 }
