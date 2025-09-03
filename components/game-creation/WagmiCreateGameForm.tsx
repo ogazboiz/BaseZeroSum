@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useWagmiZeroSumContract } from '@/hooks/useWagmiZeroSumContract';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +11,7 @@ import { Zap, Brain, Coins, AlertCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 export default function WagmiCreateGameForm() {
+  const router = useRouter();
   const [entryFee, setEntryFee] = useState('0.01');
   const [isCreating, setIsCreating] = useState(false);
   const { 
@@ -34,8 +36,11 @@ export default function WagmiCreateGameForm() {
     try {
       const result = await createQuickDraw(entryFee);
       if (result.success) {
-        toast.success('Quick Draw game created successfully!');
-        // Optionally redirect or refresh game list
+        toast.success('Quick Draw game created successfully! Redirecting...');
+        // Redirect to browse page to see the created game
+        setTimeout(() => {
+          router.push('/browse?created=true&mode=quickdraw');
+        }, 1500);
       }
     } catch (error) {
       console.error('Error creating Quick Draw game:', error);
@@ -59,8 +64,11 @@ export default function WagmiCreateGameForm() {
     try {
       const result = await createStrategic(entryFee);
       if (result.success) {
-        toast.success('Strategic game created successfully!');
-        // Optionally redirect or refresh game list
+        toast.success('Strategic game created successfully! Redirecting...');
+        // Redirect to browse page to see the created game
+        setTimeout(() => {
+          router.push('/browse?created=true&mode=strategic');
+        }, 1500);
       }
     } catch (error) {
       console.error('Error creating Strategic game:', error);

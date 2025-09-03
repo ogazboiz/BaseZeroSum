@@ -1,6 +1,7 @@
 'use client';
 
 import { useWriteContract, useWaitForTransactionReceipt, useAccount } from 'wagmi';
+import { useAppKitAccount } from '@reown/appkit/react';
 import { toast } from 'react-hot-toast';
 import { ZeroSumSimplifiedABI } from '@/config/abis/ZeroSumSimplifiedABI';
 import { getContractAddresses } from '@/context/wagmi-config';
@@ -9,7 +10,24 @@ import { getContractAddresses } from '@/context/wagmi-config';
 const { ZERO_SUM_SIMPLIFIED } = getContractAddresses();
 
 export function useWagmiZeroSumContract() {
-  const { address, isConnected } = useAccount();
+  // Unified wallet connection state (AppKit + Wagmi)
+  const { address: appkitAddress, isConnected: appkitIsConnected } = useAppKitAccount();
+  const { address: wagmiAddress, isConnected: wagmiIsConnected } = useAccount();
+  
+  // Unified state - prioritize AppKit (Farcaster) connection
+  const address = appkitAddress || wagmiAddress;
+  const isConnected = appkitIsConnected || wagmiIsConnected;
+  
+  // Debug connection state
+  console.log('🔗 useWagmiZeroSumContract - Connection state:', {
+    appkitAddress,
+    appkitIsConnected,
+    wagmiAddress,
+    wagmiIsConnected,
+    unifiedAddress: address,
+    unifiedIsConnected: isConnected
+  });
+  
   const { writeContractAsync } = useWriteContract();
 
   // Generic transaction handler with better error handling (mintmymood approach)
