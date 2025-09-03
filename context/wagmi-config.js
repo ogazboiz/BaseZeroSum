@@ -73,14 +73,8 @@ const getWalletConnectConnector = () => {
 };
 
 export const wagmiConfig = createConfig({
-  chains: [baseSepolia, base],
+  chains: [baseSepolia], // Only Base Sepolia for testing
   transports: {
-    [base.id]: http(BASE_RPCS[0], {
-      // Add timeout and retry configuration
-      timeout: RPC_TIMEOUT,
-      retryCount: RPC_RETRY_COUNT,
-      retryDelay: RPC_RETRY_DELAY,
-    }),
     [baseSepolia.id]: http(BASE_SEPOLIA_RPCS[0], {
       // Add timeout and retry configuration
       timeout: RPC_TIMEOUT,

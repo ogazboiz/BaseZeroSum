@@ -1,6 +1,6 @@
 'use client';
 
-import { useWriteContract, useWaitForTransactionReceipt, useAccount } from 'wagmi';
+import { useWriteContract, useWaitForTransactionReceipt, useAccount, useChainId } from 'wagmi';
 import { toast } from 'react-hot-toast';
 import { ZeroSumSimplifiedABI } from '@/config/abis/ZeroSumSimplifiedABI';
 import { getContractAddresses } from '@/context/wagmi-config';
@@ -11,12 +11,14 @@ const { ZERO_SUM_SIMPLIFIED } = getContractAddresses();
 export function useWagmiZeroSumContract() {
   // Use wagmi's connection state directly (like mintmymood does)
   const { address, isConnected, connector } = useAccount();
+  const chainId = useChainId();
   const { writeContractAsync } = useWriteContract();
   
   // Debug connection state
   console.log('🔗 useWagmiZeroSumContract - Connection state:', {
     address,
     isConnected,
+    chainId,
     connectorId: connector?.id,
     connectorName: connector?.name,
     connectorReady: connector?.ready
@@ -38,6 +40,12 @@ export function useWagmiZeroSumContract() {
     if (connector && connector.ready === false) {
       toast.error('Wallet connector is not ready. Please try again.');
       return { success: false, error: 'Connector not ready' };
+    }
+
+    // Check if we're on the correct chain (Base Sepolia = 84532)
+    if (chainId !== 84532) {
+      toast.error(`Please switch to Base Sepolia network. Current chain: ${chainId}`);
+      return { success: false, error: `Wrong chain: ${chainId}` };
     }
 
     try {
