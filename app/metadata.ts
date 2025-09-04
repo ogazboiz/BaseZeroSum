@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   other: {
     'fc:frame': JSON.stringify({
       version: 'next',
-      imageUrl: `${APP_CONFIG.url}${APP_CONFIG.ogImage}`,
+      imageUrl: `${APP_CONFIG.url}${APP_CONFIG.icon}`,
       button: {
         title: APP_CONFIG.farcaster.frameTitle,
         action: {
