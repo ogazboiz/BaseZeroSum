@@ -35,6 +35,7 @@ import {
   GameMode
 } from "@/hooks/useZeroSumContract"
 import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
+import { getWaitingRoomUrl } from "@/utils/farcaster"
 
 export default function UpdatedWaitingRoomPage() {
   const params = useParams()
@@ -103,15 +104,31 @@ export default function UpdatedWaitingRoomPage() {
     setError(null)
 
     try {
-      // Parallel fetch for better performance
-      const [game, gamePlayers, balance] = await Promise.all([
-        getGame(gameId),
-        getPlayers(gameId),
-        getPlayerBalance(address)
-      ])
-
+      // Fetch game data first
+      const game = await getGame(gameId)
+      
       if (!game) {
         throw new Error(`Game #${gameId} not found`)
+      }
+
+      // Then fetch players and balance with error handling
+      let gamePlayers: string[] = []
+      let balance = "0"
+      
+      try {
+        gamePlayers = await getPlayers(gameId)
+        console.log('👥 Players fetched:', gamePlayers)
+      } catch (playerError) {
+        console.warn('⚠️ Failed to fetch players, continuing with empty array:', playerError)
+        gamePlayers = []
+      }
+      
+      try {
+        balance = await getPlayerBalance(address)
+        console.log('💰 Balance fetched:', balance)
+      } catch (balanceError) {
+        console.warn('⚠️ Failed to fetch balance, using default:', balanceError)
+        balance = "0"
       }
 
       console.log('📊 Game data:', game)
@@ -128,11 +145,24 @@ export default function UpdatedWaitingRoomPage() {
       
       console.log('✅ Is user creator?', isUserCreator)
 
-      if (!isUserCreator) {
-        // User is not the creator, redirect to battle page
-        console.log('⚠️ User is not the creator, redirecting to battle page')
-        router.push(`/battle/${gameId}`)
-        return
+      // If we can't determine the creator (players array is empty), 
+      // but the game exists and is in WAITING status, show the waiting room anyway
+      if (!isUserCreator && gamePlayers.length === 0) {
+        console.log('⚠️ Cannot determine creator (no players data), but game exists - showing waiting room')
+        // Don't redirect, continue to show waiting room
+      } else if (!isUserCreator && gamePlayers.length > 0) {
+        // User is definitely not the creator, but check if game has started
+        if (game.status === GameStatus.WAITING) {
+          // Game is still waiting, user can join as opponent
+          console.log('🎮 Game is waiting, user can join as opponent - redirecting to battle page')
+          router.push(`/battle/${gameId}`)
+          return
+        } else {
+          // Game has started, user can spectate
+          console.log('🎮 Game has started, user can spectate - redirecting to battle page')
+          router.push(`/battle/${gameId}`)
+          return
+        }
       }
 
       // Check if game has started (opponent joined)
@@ -181,7 +211,7 @@ export default function UpdatedWaitingRoomPage() {
   // Set share URL - redirect to browse page with highlighting
   useEffect(() => {
     if (typeof window !== 'undefined' && gameId) {
-      const url = `${window.location.origin}/browse?highlight=${gameId}`
+      const url = `${getWaitingRoomUrl(gameId)}`
       setShareUrl(url)
     }
   }, [gameId])
@@ -502,7 +532,7 @@ export default function UpdatedWaitingRoomPage() {
                 <div className="bg-gradient-to-r from-emerald-900/20 to-cyan-900/20 border border-emerald-500/30 rounded-xl p-6">
                   <h4 className="text-lg font-bold text-white mb-3 flex items-center">
                     <Users className="w-5 h-5 mr-2 text-emerald-400" />
-                    Players ({players.length}/2)
+                    Players ({players.length > 0 ? players.length : 1}/2)
                   </h4>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between p-3 bg-slate-800/40 rounded-lg">
@@ -522,6 +552,14 @@ export default function UpdatedWaitingRoomPage() {
                       </div>
                       <span className="text-slate-400 text-sm">Share link to invite</span>
                     </div>
+                  </div>
+                  
+                  {/* Info about spectating */}
+                  <div className="mt-4 bg-blue-900/20 border border-blue-500/30 rounded-lg p-3">
+                    <p className="text-blue-300 text-sm">
+                      <strong>💡 Note:</strong> Once an opponent joins, you'll be redirected to the battle page. 
+                      Spectators can watch after both players have joined.
+                    </p>
                   </div>
                 </div>
               </CardContent>

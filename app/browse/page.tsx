@@ -37,6 +37,7 @@ import {
   GameMode
 } from "@/hooks/useZeroSumContract"
 import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
+import { getGameUrl } from "@/utils/farcaster"
 
 // Enhanced battle data for browse page
 interface BrowsableGame extends GameData {
@@ -362,7 +363,7 @@ export default function UpdatedBrowseGamesPage() {
   }
 
   const copyGameLink = (gameId: number) => {
-    const url = `${window.location.origin}/battle/${gameId}`
+    const url = getGameUrl(gameId)
     navigator.clipboard.writeText(url)
     toast.success("Game link copied!")
   }
@@ -415,18 +416,6 @@ export default function UpdatedBrowseGamesPage() {
           <p className="text-sm text-slate-400 mt-2">
             Last updated: {lastFetchTime || "Never"}
           </p>
-          
-          {/* Connection Status - Only show when trying to join */}
-          {!isConnected && (
-            <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg max-w-md mx-auto">
-              <div className="flex items-center space-x-2">
-                <Wallet className="w-5 h-5 text-blue-400" />
-                <p className="text-blue-400 font-medium">
-                  Connect wallet to join battles • Browsing enabled without wallet
-                </p>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Search and Filters */}

@@ -8,7 +8,7 @@ export function getProvider({ chainId } = {}) {
     const targetChainId = chainId || 84532; // Default to Base Sepolia
     const rpcUrl = targetChainId === 8453 
         ? "https://mainnet.base.org" 
-        : "https://base-sepolia.drpc.org";
+        : "https://sepolia.base.org";
     
     console.log(`🔗 Creating ethers provider for chain ${targetChainId}`);
     console.log(`🔗 RPC URL: ${rpcUrl}`);
@@ -51,7 +51,7 @@ export function getViemClient(wagmiConfig = null, { chainId } = {}) {
     const chain = targetChainId === 8453 ? base : baseSepolia;
     const rpcUrl = targetChainId === 8453 
         ? "https://mainnet.base.org" 
-        : "https://base-sepolia.drpc.org";
+        : "https://sepolia.base.org";
     
     console.log(`🔗 Creating viem client for chain ${targetChainId} (${chain.name})`);
     console.log(`🔗 RPC URL: ${rpcUrl}`);

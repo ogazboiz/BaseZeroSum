@@ -16,7 +16,8 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { useAccount, useDisconnect, useConfig, usePublicClient, useConnect } from "wagmi"
+import { useAccount, useDisconnect, useConfig, usePublicClient } from "wagmi"
+import AppKitConnectButton from "./AppKitConnectButton"
 import { toast } from "react-hot-toast"
 import { getViemClient } from "@/config/adapter"
 import { formatEther } from "viem"
@@ -31,7 +32,7 @@ const useETHBalance = (address: string | undefined) => {
 
   const fetchBalance = async () => {
     if (!address || !config) {
-      console.log("❌ Balance fetch skipped - missing address or config:", { address: !!address, config: !!config })
+      // Don't log when not connected - this is expected behavior
       return
     }
 
@@ -58,9 +59,12 @@ const useETHBalance = (address: string | undefined) => {
   }
 
   useEffect(() => {
-    fetchBalance()
-    const interval = setInterval(fetchBalance, 30000)
-    return () => clearInterval(interval)
+    // Only fetch balance if wallet is connected
+    if (address && config && publicClient) {
+      fetchBalance()
+      const interval = setInterval(fetchBalance, 30000)
+      return () => clearInterval(interval)
+    }
   }, [address, config, publicClient])
 
   return { balance, isLoading, refetch: fetchBalance }
@@ -78,51 +82,16 @@ export default function UnifiedGamingNavigation() {
   // Wagmi hooks
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
-  const { connect, connectors, isPending } = useConnect()
   
   // Debug wallet connection
-  console.log("🔗 Wallet connection state:", {
-    address,
-    isConnected,
-    connectors: connectors.map(c => ({ name: c.name, ready: c.ready })),
-    isPending
-  })
+  console.log("🔗 Wallet connection state:", { address, isConnected })
   
   // Simple balance hook
   const mntBalance = useETHBalance(address)
 
   useEffect(() => setMounted(true), [])
 
-  // Auto-connect to Farcaster if in Farcaster Frame (like mintmymood)
-  useEffect(() => {
-    if (typeof window !== 'undefined' && !isConnected) {
-      const isInFarcasterFrame = window.location.href.includes('farcaster') || 
-                               navigator.userAgent.includes('Farcaster') ||
-                               window.location.href.includes('warpcast') ||
-                               navigator.userAgent.includes('Warpcast') ||
-                               window.location.href.includes('miniapps') ||
-                               window.location.href.includes('zerosum') ||
-                               window.location.search.includes('farcaster') ||
-                               (window as any).farcaster ||
-                               (window as any).warpcast ||
-                               (window as any).miniapp ||
-                               window.location.href.includes('farcaster.xyz/miniapps');
-      
-      if (isInFarcasterFrame) {
-        const farcasterConnector = connectors.find(c => 
-          c.id === "farcaster" || 
-          c.name?.toLowerCase().includes('farcaster') ||
-          c.name?.toLowerCase().includes('miniapp') ||
-          c.uid?.includes('farcaster')
-        );
-        
-        if (farcasterConnector) {
-          console.log('Auto-connecting to Farcaster...');
-          connect({ connector: farcasterConnector });
-        }
-      }
-    }
-  }, [connectors, connect, isConnected]);
+  // AppKit handles auto-connection automatically
 
   // Show success toast when wallet connects
   useEffect(() => {
@@ -142,71 +111,7 @@ export default function UnifiedGamingNavigation() {
   const truncateAddress = (addr: string | undefined) =>
     addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : ""
 
-  const handleConnect = async () => {
-    try {
-      console.log("🔗 Connect button clicked!")
-      console.log("🔗 Available connectors:", connectors.map(c => ({ name: c.name, ready: c.ready })))
-      
-      // Check if we're in a Farcaster Frame context (like mintmymood)
-      const isInFarcasterFrame = typeof window !== 'undefined' && (
-        window.location.href.includes('farcaster') || 
-        navigator.userAgent.includes('Farcaster') ||
-        window.location.href.includes('warpcast') ||
-        navigator.userAgent.includes('Warpcast') ||
-        window.location.href.includes('miniapps') ||
-        window.location.href.includes('zerosum') ||
-        window.location.search.includes('farcaster') ||
-        (window as any).farcaster ||
-        (window as any).warpcast ||
-        (window as any).miniapp ||
-        window.location.href.includes('farcaster.xyz/miniapps')
-      )
-      
-      console.log("🔗 In Farcaster Frame:", isInFarcasterFrame)
-      
-      // Show available wallets to user
-      const availableWallets = connectors.filter(c => c.ready).map(c => c.name)
-      console.log("🔗 Ready wallets:", availableWallets)
-      
-      if (availableWallets.length === 0) {
-        toast.error("No wallet extensions detected. Please install MetaMask or Coinbase Wallet.")
-        return
-      }
-      
-      // Try to find Farcaster connector first (like mintmymood)
-      let connector = connectors.find(c => 
-        c.id === "farcaster" || 
-        c.name?.toLowerCase().includes('farcaster') ||
-        c.name?.toLowerCase().includes('miniapp') ||
-        c.uid?.includes('farcaster')
-      )
-      
-      // If not in Farcaster frame, try other connectors
-      if (!connector || !isInFarcasterFrame) {
-        connector = connectors.find(c => c.name === 'MetaMask' && c.ready) || 
-                   connectors.find(c => c.name === 'Coinbase Wallet' && c.ready) ||
-                   connectors.find(c => c.name === 'Injected' && c.ready) ||
-                   connectors.find(c => c.ready) ||
-                   connectors[0]
-      }
-      
-      if (!connector) {
-        console.error("❌ No connectors available")
-        toast.error("No wallet connectors available")
-        return
-      }
-      
-      console.log("🔗 Selected connector:", connector.name, "Ready:", connector.ready)
-      toast.info(`Connecting to ${connector.name}...`)
-      
-      console.log("🔗 Attempting to connect with:", connector.name)
-      await connect({ connector })
-      console.log("✅ Connection attempt completed")
-    } catch (error: unknown) {
-      console.error("❌ Connection error:", error instanceof Error ? error.message : String(error))
-      toast.error("Failed to connect wallet. Please try again.")
-    }
-  }
+  // AppKit handles connection automatically
 
   const handleDisconnect = () => {
     setIsDropdownOpen(false)
@@ -367,16 +272,9 @@ export default function UnifiedGamingNavigation() {
               </>
             ) : (
               <div className="flex flex-col items-center gap-2">
-                <Button
-                  onClick={handleConnect}
-                  disabled={isPending}
-                  className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold rounded-xl px-6 py-3 h-12 disabled:opacity-50"
-                >
-                  <Wallet className="w-5 h-5 mr-2" />
-                  {isPending ? "CONNECTING..." : "CONNECT"}
-                </Button>
+                <AppKitConnectButton />
                 <p className="text-xs text-slate-400 text-center">
-                  Requires MetaMask or Coinbase Wallet
+                  Connect with any supported wallet
                 </p>
               </div>
             )}
@@ -416,14 +314,9 @@ export default function UnifiedGamingNavigation() {
               
               {/* Mobile Connect Button */}
               {!isConnected && (
-                <Button
-                  onClick={handleConnect}
-                  disabled={isPending}
-                  className="mx-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold rounded-xl py-3 disabled:opacity-50"
-                >
-                  <Wallet className="w-4 h-4 mr-2" />
-                  {isPending ? "CONNECTING..." : "CONNECT WALLET"}
-                </Button>
+                <div className="mx-4">
+                  <AppKitConnectButton />
+                </div>
               )}
               
               {/* Mobile Balance Display */}
