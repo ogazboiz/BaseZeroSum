@@ -7,9 +7,9 @@ export const APP_CONFIG = {
   
   // URLs and assets
   url: process.env.NEXT_PUBLIC_URL || "https://zerosum-arena.vercel.app",
-  icon: "/logo.jpg",
-  ogImage: "/og.jpg",
-  splashImage: "/splash.jpg",
+  icon: "/logo.png",
+  ogImage: "/og.png",
+  splashImage: "/splash.png",
   
   // Theme
   themeColor: "#06b6d4",
