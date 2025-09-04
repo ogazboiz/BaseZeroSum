@@ -93,6 +93,37 @@ export default function UnifiedGamingNavigation() {
 
   useEffect(() => setMounted(true), [])
 
+  // Auto-connect to Farcaster if in Farcaster Frame (like mintmymood)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !isConnected) {
+      const isInFarcasterFrame = window.location.href.includes('farcaster') || 
+                               navigator.userAgent.includes('Farcaster') ||
+                               window.location.href.includes('warpcast') ||
+                               navigator.userAgent.includes('Warpcast') ||
+                               window.location.href.includes('miniapps') ||
+                               window.location.href.includes('zerosum') ||
+                               window.location.search.includes('farcaster') ||
+                               (window as any).farcaster ||
+                               (window as any).warpcast ||
+                               (window as any).miniapp ||
+                               window.location.href.includes('farcaster.xyz/miniapps');
+      
+      if (isInFarcasterFrame) {
+        const farcasterConnector = connectors.find(c => 
+          c.id === "farcaster" || 
+          c.name?.toLowerCase().includes('farcaster') ||
+          c.name?.toLowerCase().includes('miniapp') ||
+          c.uid?.includes('farcaster')
+        );
+        
+        if (farcasterConnector) {
+          console.log('Auto-connecting to Farcaster...');
+          connect({ connector: farcasterConnector });
+        }
+      }
+    }
+  }, [connectors, connect, isConnected]);
+
   // Show success toast when wallet connects
   useEffect(() => {
     if (mounted && isConnected) {
@@ -116,6 +147,23 @@ export default function UnifiedGamingNavigation() {
       console.log("🔗 Connect button clicked!")
       console.log("🔗 Available connectors:", connectors.map(c => ({ name: c.name, ready: c.ready })))
       
+      // Check if we're in a Farcaster Frame context (like mintmymood)
+      const isInFarcasterFrame = typeof window !== 'undefined' && (
+        window.location.href.includes('farcaster') || 
+        navigator.userAgent.includes('Farcaster') ||
+        window.location.href.includes('warpcast') ||
+        navigator.userAgent.includes('Warpcast') ||
+        window.location.href.includes('miniapps') ||
+        window.location.href.includes('zerosum') ||
+        window.location.search.includes('farcaster') ||
+        (window as any).farcaster ||
+        (window as any).warpcast ||
+        (window as any).miniapp ||
+        window.location.href.includes('farcaster.xyz/miniapps')
+      )
+      
+      console.log("🔗 In Farcaster Frame:", isInFarcasterFrame)
+      
       // Show available wallets to user
       const availableWallets = connectors.filter(c => c.ready).map(c => c.name)
       console.log("🔗 Ready wallets:", availableWallets)
@@ -125,12 +173,22 @@ export default function UnifiedGamingNavigation() {
         return
       }
       
-      // Try to find a suitable connector
-      let connector = connectors.find(c => c.name === 'MetaMask' && c.ready) || 
-                     connectors.find(c => c.name === 'Coinbase Wallet' && c.ready) ||
-                     connectors.find(c => c.name === 'Injected' && c.ready) ||
-                     connectors.find(c => c.ready) ||
-                     connectors[0]
+      // Try to find Farcaster connector first (like mintmymood)
+      let connector = connectors.find(c => 
+        c.id === "farcaster" || 
+        c.name?.toLowerCase().includes('farcaster') ||
+        c.name?.toLowerCase().includes('miniapp') ||
+        c.uid?.includes('farcaster')
+      )
+      
+      // If not in Farcaster frame, try other connectors
+      if (!connector || !isInFarcasterFrame) {
+        connector = connectors.find(c => c.name === 'MetaMask' && c.ready) || 
+                   connectors.find(c => c.name === 'Coinbase Wallet' && c.ready) ||
+                   connectors.find(c => c.name === 'Injected' && c.ready) ||
+                   connectors.find(c => c.ready) ||
+                   connectors[0]
+      }
       
       if (!connector) {
         console.error("❌ No connectors available")

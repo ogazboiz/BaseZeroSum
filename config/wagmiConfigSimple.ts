@@ -31,10 +31,9 @@ const getWalletConnectConnector = () => {
 };
 
 export const wagmiConfig = createConfig({
-  chains: [base, baseSepolia],
+  chains: [baseSepolia], // Only use Base Sepolia like mintmymood
   transports: {
-    [base.id]: http(),
-    [baseSepolia.id]: http('https://base-sepolia.drpc.org'),
+    [baseSepolia.id]: http('https://sepolia.base.org'), // Use official Base Sepolia RPC
   },
   connectors: [
     // Farcaster Mini App connector as the primary option (like mintmymood)
