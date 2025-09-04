@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -36,19 +36,13 @@ const useETHBalance = (address: string | undefined) => {
       return
     }
 
-    console.log("🔄 Fetching Base Sepolia balance for address:", address)
     setIsLoading(true)
     try {
       // Use publicClient directly since it's already on the correct chain
       if (!publicClient) throw new Error("Public client not available")
 
-      console.log("💰 Getting Base Sepolia balance...")
-      console.log("🌐 Public client chain:", publicClient.chain)
       const rawBalance = await publicClient.getBalance({ address: address as `0x${string}` })
-      console.log("💰 Raw balance:", rawBalance.toString())
-      
       const formatted = parseFloat(formatEther(rawBalance)).toFixed(4)
-      console.log("💰 Formatted balance:", formatted)
       setBalance(formatted)
     } catch (err) {
       console.error("❌ Error fetching ETH balance:", err)
@@ -83,9 +77,6 @@ export default function UnifiedGamingNavigation() {
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
   
-  // Debug wallet connection
-  console.log("🔗 Wallet connection state:", { address, isConnected })
-  
   // Simple balance hook
   const mntBalance = useETHBalance(address)
 
@@ -100,13 +91,13 @@ export default function UnifiedGamingNavigation() {
     }
   }, [mounted, isConnected])
 
-  // Essential navigation - only the core items
-  const navigation = [
+  // Essential navigation - only the core items (memoized to prevent re-creation)
+  const navigation = useMemo(() => [
     { name: "HOME", href: "/", icon: Gamepad2 },
     { name: "BROWSE", href: "/browse", icon: Eye },
     { name: "CREATE", href: "/create", icon: Plus },
     { name: "TOURNAMENTS", href: "/tournaments", icon: Trophy },
-  ]
+  ], [])
 
   const truncateAddress = (addr: string | undefined) =>
     addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : ""

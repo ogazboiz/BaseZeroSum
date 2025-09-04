@@ -5,7 +5,6 @@ import "./globals.css"
 import { headers } from 'next/headers'
 import { Providers } from "@/context/providers"
 import NetworkStatus from "@/components/shared/NetworkStatus"
-import FarcasterSDKProvider from "@/components/FarcasterSDKProvider"
 import { metadata } from "./metadata"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -36,10 +35,8 @@ export default async function RootLayout({
       </head>
       <body className={inter.className}>
         <Providers>
-          <FarcasterSDKProvider>
-            {children}
-            <NetworkStatus />
-          </FarcasterSDKProvider>
+          {children}
+          <NetworkStatus />
         </Providers>
       </body>
     </html>

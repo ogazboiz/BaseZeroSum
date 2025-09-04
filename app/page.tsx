@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { useMiniKit } from '@coinbase/onchainkit/minikit'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -29,13 +28,6 @@ import {
   Menu,
   X,
   Trophy,
-  Volume2,
-  VolumeX,
-  Music,
-  SkipBack,
-  SkipForward,
-  Mic,
-  Radio,
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
@@ -43,6 +35,7 @@ import Image from "next/image"
 import { useAccount, useDisconnect } from "wagmi"
 import { toast } from "react-hot-toast"
 import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
+import { useMiniKit } from '@coinbase/onchainkit/minikit'
 
 // Mock balance hooks - replace with your actual balance hooks
 const useMNTBalance = (address: string | undefined) => {
@@ -76,49 +69,12 @@ const usePlayerStats = (address: string | undefined) => {
 }
 
 export default function HomePage() {
-  // AppKit handles Farcaster integration automatically
-
-  // Add custom CSS for volume slider
-  useEffect(() => {
-    const style = document.createElement('style')
-    style.textContent = `
-      .slider::-webkit-slider-thumb {
-        appearance: none;
-        height: 16px;
-        width: 16px;
-        border-radius: 50%;
-        background: #06b6d4;
-        cursor: pointer;
-        box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
-      }
-      
-      .slider::-moz-range-thumb {
-        height: 16px;
-        width: 16px;
-        border-radius: 50%;
-        background: #06b6d4;
-        cursor: pointer;
-        border: none;
-        box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
-      }
-    `
-    document.head.appendChild(style)
-    
-    return () => {
-      document.head.removeChild(style)
-    }
-  }, [])
+  const { setFrameReady, isFrameReady } = useMiniKit();
   const router = useRouter()
   const pathname = usePathname()
   const [activeGame, setActiveGame] = useState(0)
   const [pulseEffect, setPulseEffect] = useState(false)
   
-  // Soundtrack state
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [isMuted, setIsMuted] = useState(false)
-  const [currentTrack, setCurrentTrack] = useState(0)
-  const [volume, setVolume] = useState(0.7)
-  const audioRef = useRef<HTMLAudioElement>(null)
   
   // Wallet state
   const [mounted, setMounted] = useState(false)
@@ -136,15 +92,6 @@ export default function HomePage() {
     { name: "TOURNAMENTS", href: "/tournaments" },
   ]
 
-  // Single track for infinite loop
-  const soundtrack = [
-    {
-      title: "Epic Battle Theme",
-      artist: "ZeroSum Gaming",
-      url: "/audio/epic-battle.mp3",
-      duration: "3:45"
-    }
-  ]
 
   // Wagmi hooks
   const { address, isConnected, connector } = useAccount()
@@ -156,6 +103,11 @@ export default function HomePage() {
   const playerStats = usePlayerStats(address)
 
   useEffect(() => setMounted(true), [])
+
+  // Call setFrameReady for Farcaster Mini App
+  useEffect(() => {
+    if (!isFrameReady) setFrameReady();
+  }, [isFrameReady, setFrameReady]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -297,7 +249,7 @@ export default function HomePage() {
   const handleConnect = async () => {
     try {
       // For now, show a message to connect via wallet extension
-      toast.info("Please connect your wallet using the browser extension")
+      toast("Please connect your wallet using the browser extension", { icon: "ℹ️" })
     } catch (error: unknown) {
       console.error("Connection error:", error instanceof Error ? error.message : String(error))
       toast.error("Failed to connect wallet. Please try again.")
@@ -357,78 +309,6 @@ export default function HomePage() {
     router.push(`/create?mode=${gameMode}`)
   }
 
-  // Soundtrack control functions
-  const togglePlay = async () => {
-    if (audioRef.current) {
-      try {
-        if (isPlaying) {
-          audioRef.current.pause()
-          setIsPlaying(false)
-        } else {
-          // Set volume before playing
-          audioRef.current.volume = volume
-          await audioRef.current.play()
-          setIsPlaying(true)
-        }
-      } catch (error) {
-        console.error("Audio play error:", error)
-        toast.error("Audio playback failed. Check browser settings.")
-      }
-    }
-  }
-
-  const toggleMute = () => {
-    if (audioRef.current) {
-      audioRef.current.muted = !isMuted
-      setIsMuted(!isMuted)
-    }
-  }
-
-
-
-  const handleVolumeChange = (newVolume: number) => {
-    setVolume(newVolume)
-    if (audioRef.current) {
-      audioRef.current.volume = newVolume
-    }
-  }
-
-  // Test audio file existence
-  const testAudioFiles = async () => {
-    console.log("Testing audio files...")
-    for (const track of soundtrack) {
-      try {
-        const response = await fetch(track.url, { method: 'HEAD' })
-        if (response.ok) {
-          console.log(`✅ ${track.title}: Found`)
-        } else {
-          console.log(`❌ ${track.title}: Not found (${response.status})`)
-        }
-      } catch (error) {
-        console.log(`❌ ${track.title}: Error - ${error}`)
-      }
-    }
-  }
-
-  // Test audio files on mount
-  useEffect(() => {
-    testAudioFiles()
-  }, [])
-
-  // Auto-play first track on page load
-  useEffect(() => {
-    const startPlayback = () => {
-      if (audioRef.current && !isPlaying) {
-        // Small delay to ensure audio is loaded
-        setTimeout(() => {
-          togglePlay()
-        }, 2000)
-      }
-    }
-
-    // Start playing after a short delay
-    startPlayback()
-  }, [])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 text-white overflow-hidden">
@@ -443,20 +323,6 @@ export default function HomePage() {
       <UnifiedGamingNavigation />
 
 
-      {/* Hidden Audio Element - Infinite Loop */}
-      <audio
-        ref={audioRef}
-        src={soundtrack[currentTrack].url}
-        loop
-        onError={(e) => {
-          console.error("Audio error:", e)
-          toast.error(`Failed to load: ${soundtrack[currentTrack].title}`)
-        }}
-        onLoadStart={() => console.log("Loading audio:", soundtrack[currentTrack].title)}
-        onCanPlay={() => console.log("Audio ready:", soundtrack[currentTrack].title)}
-        preload="metadata"
-        crossOrigin="anonymous"
-      />
 
 
 
@@ -503,46 +369,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Minimal Invisible Soundtrack Control with Volume */}
-        <div className="flex justify-center mb-8">
-          <div className="bg-slate-900/20 backdrop-blur-sm border border-slate-500/20 rounded-full p-2 shadow-lg hover:bg-slate-900/30 transition-all duration-300 group">
-            <div className="flex items-center space-x-2">
-              <Button
-                onClick={togglePlay}
-                variant="ghost"
-                size="sm"
-                className="w-10 h-10 p-0 text-cyan-400 hover:text-cyan-300 rounded-full"
-              >
-                {isPlaying ? (
-                  <div className="flex items-center space-x-0.5">
-                    <div className="w-0.5 h-2 bg-current rounded-full animate-pulse"></div>
-                    <div className="w-0.5 h-3 bg-current rounded-full animate-pulse" style={{animationDelay: '0.1s'}}></div>
-                    <div className="w-0.5 h-1 bg-current rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
-                    <div className="w-0.5 h-4 bg-current rounded-full animate-pulse" style={{animationDelay: '0.3s'}}></div>
-                  </div>
-                ) : (
-                  <Play className="w-4 h-4 ml-0.5" />
-                )}
-              </Button>
-              
-              {/* Volume Control - Hidden by default, shows on hover */}
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 w-16">
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={volume}
-                  onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                  className="w-full h-1.5 bg-slate-600/50 rounded-lg appearance-none cursor-pointer slider"
-                  style={{
-                    background: `linear-gradient(to right, #06b6d4 0%, #06b6d4 ${volume * 100}%, rgba(71, 85, 105, 0.5) ${volume * 100}%, rgba(71, 85, 105, 0.5) 100%)`
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Live Stats Bar - Completely Transparent Background */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16">
