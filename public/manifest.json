@@ -1,9 +1,9 @@
 {
   "name": "ZeroSum Gaming Arena",
   "description": "Mathematical warfare where strategy beats luck. Privacy-fixed games with hidden numbers and true fairness.",
-  "icon": "/logo.svg",
+  "icon": "/logo.jpg",
   "splash": {
-    "image": "/splash.svg",
+    "image": "/splash.jpg",
     "backgroundColor": "#0f172a"
   },
   "screenshots": [
