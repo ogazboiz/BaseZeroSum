@@ -31,7 +31,7 @@ export async function GET() {
       iconUrl: `${URL}/logo.jpg`,
       imageUrl: `${URL}/og.jpg`,
       buttonTitle: 'Launch ZeroSum Arena',
-      splashImageUrl: `${URL}/splash.png`,
+      splashImageUrl: `${URL}/splash.jpg`,
       splashBackgroundColor: '#0f172a',
       homeUrl: URL,
       webhookUrl: `${URL}/api/webhook`,
