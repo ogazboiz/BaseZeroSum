@@ -1,3 +1,4 @@
+
 # 🚀 ZeroSum Farcaster Mini App
 
 A mathematical warfare game deployed as a Farcaster Mini App, following the official Coinbase OnchainKit documentation.

@@ -14,11 +14,11 @@ console.log('📝 This will create account association credentials for your Farc
 console.log('');
 
 try {
-  // Run the create-onchain CLI command
-  console.log('Running: npx create-onchain --manifest');
+  // Run the create-onchain CLI command with Base Sepolia
+  console.log('Running: npx create-onchain --manifest --chain base-sepolia');
   console.log('');
   
-  execSync('npx create-onchain --manifest', { 
+  execSync('npx create-onchain --manifest --chain base-sepolia', { 
     stdio: 'inherit',
     cwd: process.cwd()
   });
