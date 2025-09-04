@@ -283,20 +283,13 @@ function BattlePage() {
     }
   }, [gameState?.status, gameState?.timeLeft])
 
-  // Auto-reload timer (90 seconds)
+  // Auto-reload timer - removed to prevent excessive reloading
+  // The polling mechanisms in GameContext and useGameState will handle updates
   useEffect(() => {
+    // Reset countdown when game becomes active
     if (gameState?.status === "active") {
-      const interval = setInterval(() => {
-        setAutoReloadCountdown((prev) => {
-          if (prev <= 1) {
-            window.location.reload()
-            return 90
-          }
-          return prev - 1
-        })
-      }, 1000)
-
-      return () => clearInterval(interval)
+      // Contract uses 90 seconds timeout
+      setAutoReloadCountdown(90)
     } else {
       setAutoReloadCountdown(90)
     }
@@ -665,21 +658,14 @@ function BattlePage() {
                   <RefreshCw className="w-5 h-5 text-amber-400 animate-pulse" />
                   <div className="flex-1">
                     <p className="text-amber-400 font-semibold text-sm">
-                      ⚠️ 90s Timer + Auto-Reload Needed
+                      ⚠️ 90s Timer + Manual Refresh Needed
                     </p>
                     <p className="text-amber-300/80 text-xs mt-1">
                       Each player has 90 seconds. You won't see opponent moves until refresh. 
-                      Page auto-reloads after each move! (Real-time updates coming in next version)
+                      Please refresh manually to see updates! (Real-time updates coming in next version)
                     </p>
                   </div>
-                  <Button
-                    onClick={() => window.location.reload()}
-                    size="sm"
-                    className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border-amber-500/50"
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Reload Now
-                  </Button>
+          
                 </div>
               </CardContent>
             </Card>
@@ -784,7 +770,7 @@ function BattlePage() {
                     </div>
                     
                     <p className="text-slate-400 text-sm">
-                      Entry Fee: {parseFloat(gameState.entryFee).toFixed(4)} MNT • Prize Pool: {parseFloat(gameState.prizePool).toFixed(4)} MNT
+                      Entry Fee: {parseFloat(gameState.entryFee).toFixed(4)} ETH • Prize Pool: {parseFloat(gameState.prizePool).toFixed(4)} ETH
                     </p>
                     
                     {gameState.canJoin && (
@@ -799,7 +785,7 @@ function BattlePage() {
                           ) : (
                             <Swords className="w-5 h-5 mr-2" />
                           )}
-                          {transactionLoading ? "JOINING..." : `JOIN BATTLE (${parseFloat(gameState.entryFee).toFixed(4)} MNT)`}
+                          {transactionLoading ? "JOINING..." : `JOIN BATTLE (${parseFloat(gameState.entryFee).toFixed(4)} ETH)`}
                         </Button>
                       </div>
                     )}
@@ -810,11 +796,11 @@ function BattlePage() {
                           {gameState.players.length >= 2 ? (
                             <span>This game is full and cannot be joined.</span>
                           ) : (
-                            <span>You cannot join this game. Make sure you have enough MNT for the entry fee.</span>
+                            <span>You cannot join this game. Make sure you have enough ETH for the entry fee.</span>
                           )}
                         </div>
                         <div className="text-slate-400 text-xs mt-2">
-                          Required: {parseFloat(gameState.entryFee).toFixed(4)} MNT
+                          Required: {parseFloat(gameState.entryFee).toFixed(4)} ETH
                         </div>
                       </div>
                     )}
@@ -1134,7 +1120,7 @@ function BattlePage() {
                                `${gameState.players[1]?.slice(0, 8)}... (Opponent)`}
                     </p>
                     <p className="text-slate-400 text-sm">
-                      Final number: {gameState.currentNumber} • Prize Pool: {parseFloat(gameState.prizePool).toFixed(4)} MNT
+                      Final number: {gameState.currentNumber} • Prize Pool: {parseFloat(gameState.prizePool).toFixed(4)} ETH
                     </p>
                   </div>
                   
@@ -1171,11 +1157,11 @@ function BattlePage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-900/40 rounded-lg p-3">
                     <p className="text-xs font-bold text-slate-400 mb-1">ENTRY FEE</p>
-                    <p className="font-black text-cyan-400">{parseFloat(gameState.entryFee).toFixed(4)} MNT</p>
+                    <p className="font-black text-cyan-400">{parseFloat(gameState.entryFee).toFixed(4)} ETH</p>
                   </div>
                   <div className="bg-slate-900/40 rounded-lg p-3">
                     <p className="text-xs font-bold text-slate-400 mb-1">PRIZE POOL</p>
-                    <p className="font-black text-emerald-400">{parseFloat(gameState.prizePool).toFixed(4)} MNT</p>
+                    <p className="font-black text-emerald-400">{parseFloat(gameState.prizePool).toFixed(4)} ETH</p>
                   </div>
                 </div>
 
@@ -1284,13 +1270,13 @@ function BattlePage() {
                 
                 <div className="bg-slate-900/40 rounded-lg p-3">
                   <p className="text-xs font-bold text-slate-400 mb-1">GAME BALANCE</p>
-                  <p className="font-black text-emerald-400">{parseFloat(userBalance).toFixed(4)} MNT</p>
+                  <p className="font-black text-emerald-400">{parseFloat(userBalance).toFixed(4)} ETH</p>
                 </div>
 
                 {parseFloat(userBalance) > 0 && (
                   <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
                     <p className="text-xs font-bold text-emerald-400 mb-1">AVAILABLE TO WITHDRAW</p>
-                        <p className="font-black text-emerald-400">{parseFloat(userBalance).toFixed(4)} MNT</p>
+                        <p className="font-black text-emerald-400">{parseFloat(userBalance).toFixed(4)} ETH</p>
                     <Button
                       onClick={handleWithdraw}
                       disabled={transactionLoading}

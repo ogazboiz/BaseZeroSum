@@ -1,14 +1,14 @@
 import { ethers } from "ethers";
 import { getClient, getConnectorClient } from "@wagmi/core";
 import { createPublicClient, http } from "viem";
-import { mantle, mantleSepoliaTestnet } from "wagmi/chains";
+import { base, baseSepolia } from "wagmi/chains";
 
 /** Get ethers.js provider for contract interactions - Your Original Simple Pattern! */
 export function getProvider({ chainId } = {}) {
-    const targetChainId = chainId || 5003; // Default to Mantle Sepolia
-    const rpcUrl = targetChainId === 5000 
-        ? "https://rpc.mantle.xyz" 
-        : "https://rpc.sepolia.mantle.xyz";
+    const targetChainId = chainId || 84532; // Default to Base Sepolia
+    const rpcUrl = targetChainId === 8453 
+        ? "https://mainnet.base.org" 
+        : "https://base-sepolia.drpc.org";
     
     console.log(`🔗 Creating ethers provider for chain ${targetChainId}`);
     console.log(`🔗 RPC URL: ${rpcUrl}`);
@@ -47,11 +47,11 @@ export function getContract(address, abi, { chainId } = {}) {
 export function getViemClient(wagmiConfig = null, { chainId } = {}) {
     console.log("🔧 getViemClient called with:", { chainId, hasConfig: !!wagmiConfig });
     
-    const targetChainId = chainId || 5003; // Default to Mantle Sepolia
-    const chain = targetChainId === 5000 ? mantle : mantleSepoliaTestnet;
-    const rpcUrl = targetChainId === 5000 
-        ? "https://rpc.mantle.xyz" 
-        : "https://rpc.sepolia.mantle.xyz";
+    const targetChainId = chainId || 84532; // Default to Base Sepolia
+    const chain = targetChainId === 8453 ? base : baseSepolia;
+    const rpcUrl = targetChainId === 8453 
+        ? "https://mainnet.base.org" 
+        : "https://base-sepolia.drpc.org";
     
     console.log(`🔗 Creating viem client for chain ${targetChainId} (${chain.name})`);
     console.log(`🔗 RPC URL: ${rpcUrl}`);

@@ -1,0 +1,10 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#0f172a"/>
+  <rect x="100" y="100" width="1000" height="430" rx="50" fill="#06b6d4" fill-opacity="0.1"/>
+  <circle cx="600" cy="315" r="150" fill="#06b6d4" fill-opacity="0.2"/>
+  <text x="600" y="350" text-anchor="middle" fill="#06b6d4" font-family="Arial, sans-serif" font-size="120" font-weight="bold">0</text>
+  <text x="600" y="250" text-anchor="middle" fill="#06b6d4" font-family="Arial, sans-serif" font-size="80" font-weight="bold">ZERO</text>
+  <text x="600" y="400" text-anchor="middle" fill="#06b6d4" font-family="Arial, sans-serif" font-size="80" font-weight="bold">SUM</text>
+  <text x="600" y="480" text-anchor="middle" fill="#94a3b8" font-family="Arial, sans-serif" font-size="40" font-weight="normal">Mathematical Warfare Arena</text>
+  <text x="600" y="520" text-anchor="middle" fill="#64748b" font-family="Arial, sans-serif" font-size="24" font-weight="normal">Strategy beats luck • Play on Farcaster</text>
+</svg>

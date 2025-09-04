@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useMiniKit } from '@coinbase/onchainkit/minikit'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -42,10 +43,6 @@ import Image from "next/image"
 import { useAccount, useDisconnect } from "wagmi"
 import { toast } from "react-hot-toast"
 import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
-import BalanceTest from "@/components/debug/BalanceTest"
-import ContractDebug from "@/components/debug/ContractDebug"
-import AdapterTest from "@/components/debug/AdapterTest"
-import ProviderTest from "@/components/debug/ProviderTest"
 
 // Mock balance hooks - replace with your actual balance hooks
 const useMNTBalance = (address: string | undefined) => {
@@ -79,6 +76,13 @@ const usePlayerStats = (address: string | undefined) => {
 }
 
 export default function HomePage() {
+  // Initialize MiniKit for Farcaster
+  const { setFrameReady, isFrameReady } = useMiniKit();
+
+  useEffect(() => {
+    if (!isFrameReady) setFrameReady();
+  }, [isFrameReady, setFrameReady]);
+
   // Add custom CSS for volume slider
   useEffect(() => {
     const style = document.createElement('style')
@@ -443,13 +447,6 @@ export default function HomePage() {
       {/* Unified Gaming Navigation */}
       <UnifiedGamingNavigation />
 
-      {/* Debug Components */}
-      <div className="fixed top-20 right-4 z-50 space-y-4">
-        <BalanceTest />
-        <ContractDebug />
-        <AdapterTest />
-        <ProviderTest />
-      </div>
 
       {/* Hidden Audio Element - Infinite Loop */}
       <audio

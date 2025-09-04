@@ -387,19 +387,19 @@ export function useMyGames() {
 
     console.log('⏰ Setting up polling for my games')
     
-    // Poll every 30 seconds for active games, less frequent for others
+    // Poll every 60 seconds for active games, less frequent for others
     intervalRef.current = setInterval(() => {
       if (!error && !isFetchingRef.current && mountedRef.current) {
         // More frequent updates if user has active games
         const hasActiveGames = myGames.some(g => g.status === "active")
-        const shouldFetch = hasActiveGames || Math.random() < 0.3 // 30% chance for non-active
+        const shouldFetch = hasActiveGames || Math.random() < 0.2 // 20% chance for non-active (reduced from 30%)
         
         if (shouldFetch) {
           console.log('⏰ Polling update triggered')
           fetchMyGames()
         }
       }
-    }, 30000)
+    }, 60000) // Increased from 30s to 60s
 
     return () => {
       if (intervalRef.current) {

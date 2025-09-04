@@ -228,10 +228,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
     try {
       console.log(`🔍 [GameContext] Processing game ${gameId}`)
       
-      const [gameData, players] = await Promise.all([
-        getGame(gameId),
-        getPlayers(gameId)
-      ])
+      // Get game data and players sequentially to avoid RPC rate limits
+      const gameData = await getGame(gameId)
+      
+      // Add small delay to respect RPC rate limits
+      await new Promise(resolve => setTimeout(resolve, 200))
+      
+      const players = await getPlayers(gameId)
 
       if (!mountedRef.current) return null
 
@@ -586,14 +589,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
         let shouldFetch = false
         
         if (hasMyTurnGames) {
-          // Poll every 30 seconds if it's user's turn
-          shouldFetch = Math.random() < 0.7
+          // Poll every 60 seconds if it's user's turn (reduced from 30s)
+          shouldFetch = Math.random() < 0.5
         } else if (hasActiveGames) {
-          // Poll every 60 seconds for active games
-          shouldFetch = Math.random() < 0.3
+          // Poll every 2 minutes for active games (reduced from 60s)
+          shouldFetch = Math.random() < 0.2
         } else {
-          // Poll every 2 minutes for waiting/completed games
-          shouldFetch = Math.random() < 0.1
+          // Poll every 5 minutes for waiting/completed games (reduced from 2min)
+          shouldFetch = Math.random() < 0.05
         }
         
         if (shouldFetch) {
@@ -601,7 +604,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
           fetchMyGames()
         }
       }
-    }, 30000) // Check every 30 seconds
+    }, 60000) // Check every 60 seconds (reduced from 30s)
 
     return () => {
       if (intervalRef.current) {

@@ -386,7 +386,7 @@ export function useGameState(gameId: string | number) {
             fetchGameState()
           }
         }
-      }, 45000) // Poll every 45 seconds for active games only
+      }, 90000) // Poll every 90 seconds for active games only (reduced from 45s)
     }
 
     return () => {
@@ -481,7 +481,7 @@ export function useGameState(gameId: string | number) {
           ...prev,
           currentNumber: newNumber,
           isMyTurn: false,
-          timeLeft: 300 // Reset timer for opponent
+          timeLeft: 90 // Reset timer for opponent (contract uses 90 seconds)
         } : null)
         
         // Check for game end

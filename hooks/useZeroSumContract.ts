@@ -16,9 +16,9 @@ import { toast } from 'react-hot-toast'
 import { ZeroSumSimplifiedABI } from '../config/abis/ZeroSumSimplifiedABI'
 import { ZeroSumSpectatorABI } from '../config/abis/ZeroSumSpectatorABI'
 
-// Contract addresses
-const GAME_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_GAME_CONTRACT_ADDRESS || "0xfb40c6BACc74019E01C0dD5b434CE896806D7579"
-const SPECTATOR_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_SPECTATOR_CONTRACT_ADDRESS || "0x151A0A2227B42D299b01a7D5AD3e1A81cB3BE1aE"
+// Contract addresses - Base Sepolia
+const GAME_CONTRACT_ADDRESS =  "0x11bb298BBde9fFa6747ea104C2c39b3E59a399B4"
+const SPECTATOR_CONTRACT_ADDRESS =  "0x214124ae23b415b3AEA3bb9e260A56dc022bAf04"
 
 // Safe formatEther function to handle potential errors
 const safeFormatEther = (value: any): string => {
@@ -567,7 +567,7 @@ export function useZeroSumData() {
     return contractsRef.current
   }, [contractsReady])
 
-  // Enhanced error handling for read functions
+  // Enhanced error handling for read functions with RPC rate limiting
   const safeContractCall = async <T>(
     contractCall: () => Promise<T>,
     defaultValue: T,
@@ -590,6 +590,22 @@ export function useZeroSumData() {
       return result
     } catch (error) {
       console.error(`❌ ${errorContext}:`, error)
+      
+      // Check if it's an RPC rate limit error
+      if (error instanceof Error && error.message.includes('Batch of more than 3 requests are not allowed')) {
+        console.warn(`⚠️ RPC rate limit hit for ${errorContext}, will retry with delay`)
+        // Add a delay before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        try {
+          const retryResult = await contractCall()
+          console.log(`✅ ${errorContext} retry successful:`, retryResult)
+          return retryResult
+        } catch (retryError) {
+          console.error(`❌ ${errorContext} retry failed:`, retryError)
+          return defaultValue
+        }
+      }
+      
       return defaultValue
     }
   }
@@ -829,28 +845,32 @@ export function useZeroSumData() {
       return []
     }
 
-    return safeContractCall(
-      async () => {
-        const contracts = getContracts()
-        if (!contracts) throw new Error('Contracts not ready')
+    console.log(`🔍 Fetching players for game ${gameId}...`)
+    
+    try {
+      const contracts = getContracts()
+      if (!contracts) {
+        console.error('❌ Contracts not ready for getPlayers')
+        return []
+      }
 
-        let players
-        try {
-          players = await contracts.gameContract.getPlayers(gameId)
-        } catch (error) {
-          if (error instanceof Error && error.message.includes('out of result range')) {
-            console.warn(`⚠️ RangeError when fetching players for game #${gameId} - user may not be authorized to view this game`)
-            throw new Error('out of result range')
-          }
-          throw error
-        }
-        
-        console.log(`👥 Players for game ${gameId}:`, players)
-        return players || []
-      },
-      [],
-      `getPlayers(${gameId})`
-    )
+      console.log(`📞 Calling getPlayers(${gameId}) on contract...`)
+      const players = await contracts.gameContract.getPlayers(gameId)
+      console.log(`👥 Raw players data for game ${gameId}:`, players)
+      
+      // Ensure we return an array
+      const playerArray = Array.isArray(players) ? players : []
+      console.log(`👥 Processed players array for game ${gameId}:`, playerArray)
+      
+      return playerArray
+    } catch (error) {
+      console.error(`❌ Error fetching players for game ${gameId}:`, error)
+      if (error instanceof Error && error.message.includes('out of result range')) {
+        console.warn(`⚠️ RangeError when fetching players for game #${gameId} - user may not be authorized to view this game`)
+        return []
+      }
+      return []
+    }
   }, [getContracts, contractsReady])
 
   // Enhanced Player View with new fields

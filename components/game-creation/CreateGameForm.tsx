@@ -24,7 +24,7 @@ export default function CreateGameForm() {
   const [gameSettings, setGameSettings] = useState({
     isPrivate: false,
     allowSpectators: true,
-    timeout: 90, // Fixed at 5 minutes (300 seconds) to match contract
+    timeout: 90, // Contract uses 90 seconds timeout
   })
   const [isCreating, setIsCreating] = useState(false)
 
@@ -44,7 +44,7 @@ export default function CreateGameForm() {
       icon: Target,
       gradient: "from-emerald-400 via-teal-500 to-cyan-600",
       bgGradient: "from-emerald-900/20 to-teal-900/20",
-      range: "0.0001 - 1.0 MNT",
+      range: "0.0001 - 1.0 ETH",
       rules: "Subtract 1 each turn - reach 0 to WIN!",
       avgDuration: "2-5 min",
     },
@@ -58,7 +58,7 @@ export default function CreateGameForm() {
       icon: Brain,
       gradient: "from-blue-400 via-indigo-500 to-purple-600",
       bgGradient: "from-blue-900/20 to-indigo-900/20",
-      range: "0.01 - 2.0 MNT",
+      range: "0.01 - 2.0 ETH",
       rules: "DON'T reach 0 - force opponent to hit 0!",
       avgDuration: "5-15 min",
     },
@@ -72,7 +72,7 @@ export default function CreateGameForm() {
       icon: Eye,
       gradient: "from-violet-400 via-purple-500 to-fuchsia-600",
       bgGradient: "from-violet-900/20 to-purple-900/20",
-      range: "0.5 - 10 MNT",
+      range: "0.5 - 10 ETH",
       rules: "Hidden numbers - pure strategy!",
       avgDuration: "3-6 min",
       comingSoon: true,
@@ -87,7 +87,7 @@ export default function CreateGameForm() {
       icon: Zap,
       gradient: "from-rose-400 via-pink-500 to-red-600",
       bgGradient: "from-rose-900/20 to-rose-900/20",
-      range: "1.0 - 25 MNT",
+      range: "1.0 - 25 ETH",
       rules: "Instant death on wrong move!",
       avgDuration: "2-5 min",
       comingSoon: true,
@@ -255,7 +255,7 @@ export default function CreateGameForm() {
               <li>• Starting number: 15-50 (randomly generated)</li>
               <li>• Each turn: subtract exactly 1</li>
               <li>• Goal: be the first to reach 0</li>
-              <li>• Turn timeout: 5 minutes</li>
+              <li>• Turn timeout: 90 seconds</li>
               <li>• 2 timeouts = you lose</li>
             </ul>
           </div>
@@ -265,7 +265,7 @@ export default function CreateGameForm() {
               <li>• Starting number: 80-200 (randomly generated)</li>
               <li>• Each turn: subtract 10-30% of current number</li>
               <li>• Goal: force opponent to reach 0</li>
-              <li>• Turn timeout: 5 minutes</li>
+              <li>• Turn timeout: 90 seconds</li>
               <li>• 2 timeouts = you lose</li>
             </ul>
           </div>

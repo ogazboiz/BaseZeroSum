@@ -16,14 +16,14 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { useAccount, useDisconnect, useConfig, usePublicClient } from "wagmi"
+import { useAccount, useDisconnect, useConfig, usePublicClient, useConnect } from "wagmi"
 import { toast } from "react-hot-toast"
 import { getViemClient } from "@/config/adapter"
 import { formatEther } from "viem"
 import MyGamesDropdown from "./MyGamesDropdown"
 
-// Simple MNT Balance Hook
-const useMNTBalance = (address: string | undefined) => {
+// Simple ETH Balance Hook
+const useETHBalance = (address: string | undefined) => {
   const config = useConfig()
   const publicClient = usePublicClient()
   const [balance, setBalance] = useState<string>("0.0000")
@@ -35,13 +35,13 @@ const useMNTBalance = (address: string | undefined) => {
       return
     }
 
-    console.log("🔄 Fetching balance for address:", address)
+    console.log("🔄 Fetching Base Sepolia balance for address:", address)
     setIsLoading(true)
     try {
       // Use publicClient directly since it's already on the correct chain
       if (!publicClient) throw new Error("Public client not available")
 
-      console.log("💰 Getting balance...")
+      console.log("💰 Getting Base Sepolia balance...")
       console.log("🌐 Public client chain:", publicClient.chain)
       const rawBalance = await publicClient.getBalance({ address: address as `0x${string}` })
       console.log("💰 Raw balance:", rawBalance.toString())
@@ -50,7 +50,7 @@ const useMNTBalance = (address: string | undefined) => {
       console.log("💰 Formatted balance:", formatted)
       setBalance(formatted)
     } catch (err) {
-      console.error("❌ Error fetching MNT balance:", err)
+      console.error("❌ Error fetching ETH balance:", err)
       setBalance("0.0000")
     } finally {
       setIsLoading(false)
@@ -78,15 +78,18 @@ export default function UnifiedGamingNavigation() {
   // Wagmi hooks
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
+  const { connect, connectors, isPending } = useConnect()
   
   // Debug wallet connection
   console.log("🔗 Wallet connection state:", {
     address,
-    isConnected
+    isConnected,
+    connectors: connectors.map(c => ({ name: c.name, ready: c.ready })),
+    isPending
   })
   
   // Simple balance hook
-  const mntBalance = useMNTBalance(address)
+  const mntBalance = useETHBalance(address)
 
   useEffect(() => setMounted(true), [])
 
@@ -110,10 +113,39 @@ export default function UnifiedGamingNavigation() {
 
   const handleConnect = async () => {
     try {
-      // For now, we'll show a message to connect via wallet extension
-      toast.info("Please connect your wallet using the browser extension")
+      console.log("🔗 Connect button clicked!")
+      console.log("🔗 Available connectors:", connectors.map(c => ({ name: c.name, ready: c.ready })))
+      
+      // Show available wallets to user
+      const availableWallets = connectors.filter(c => c.ready).map(c => c.name)
+      console.log("🔗 Ready wallets:", availableWallets)
+      
+      if (availableWallets.length === 0) {
+        toast.error("No wallet extensions detected. Please install MetaMask or Coinbase Wallet.")
+        return
+      }
+      
+      // Try to find a suitable connector
+      let connector = connectors.find(c => c.name === 'MetaMask' && c.ready) || 
+                     connectors.find(c => c.name === 'Coinbase Wallet' && c.ready) ||
+                     connectors.find(c => c.name === 'Injected' && c.ready) ||
+                     connectors.find(c => c.ready) ||
+                     connectors[0]
+      
+      if (!connector) {
+        console.error("❌ No connectors available")
+        toast.error("No wallet connectors available")
+        return
+      }
+      
+      console.log("🔗 Selected connector:", connector.name, "Ready:", connector.ready)
+      toast.info(`Connecting to ${connector.name}...`)
+      
+      console.log("🔗 Attempting to connect with:", connector.name)
+      await connect({ connector })
+      console.log("✅ Connection attempt completed")
     } catch (error: unknown) {
-      console.error("Connection error:", error instanceof Error ? error.message : String(error))
+      console.error("❌ Connection error:", error instanceof Error ? error.message : String(error))
       toast.error("Failed to connect wallet. Please try again.")
     }
   }
@@ -198,13 +230,13 @@ export default function UnifiedGamingNavigation() {
               </Button>
             ) : isConnected ? (
               <>
-                {/* MNT Balance - Desktop */}
+                {/* ETH Balance - Desktop */}
                 <div className="hidden md:flex">
                   <Badge className="bg-slate-800/60 border border-emerald-500/30 rounded-lg px-3 py-1">
                     <div className="flex items-center space-x-2">
                       <Coins className="w-4 h-4 text-emerald-400" />
                       <span className="text-sm font-medium text-emerald-400">
-                        {mntBalance.isLoading ? "..." : `${mntBalance.balance} MNT`}
+                        {mntBalance.isLoading ? "..." : `${mntBalance.balance} ETH`}
                       </span>
                     </div>
                   </Badge>
@@ -276,13 +308,19 @@ export default function UnifiedGamingNavigation() {
                 </div>
               </>
             ) : (
-              <Button
-                onClick={handleConnect}
-                className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold rounded-xl px-6 py-3 h-12"
-              >
-                <Wallet className="w-5 h-5 mr-2" />
-                CONNECT
-              </Button>
+              <div className="flex flex-col items-center gap-2">
+                <Button
+                  onClick={handleConnect}
+                  disabled={isPending}
+                  className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold rounded-xl px-6 py-3 h-12 disabled:opacity-50"
+                >
+                  <Wallet className="w-5 h-5 mr-2" />
+                  {isPending ? "CONNECTING..." : "CONNECT"}
+                </Button>
+                <p className="text-xs text-slate-400 text-center">
+                  Requires MetaMask or Coinbase Wallet
+                </p>
+              </div>
             )}
 
             {/* Mobile menu button */}
@@ -318,6 +356,18 @@ export default function UnifiedGamingNavigation() {
                 </Link>
               ))}
               
+              {/* Mobile Connect Button */}
+              {!isConnected && (
+                <Button
+                  onClick={handleConnect}
+                  disabled={isPending}
+                  className="mx-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold rounded-xl py-3 disabled:opacity-50"
+                >
+                  <Wallet className="w-4 h-4 mr-2" />
+                  {isPending ? "CONNECTING..." : "CONNECT WALLET"}
+                </Button>
+              )}
+              
               {/* Mobile Balance Display */}
               {isConnected && (
                 <div className="pt-4 mt-4 border-t border-slate-700/50">
@@ -325,10 +375,10 @@ export default function UnifiedGamingNavigation() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Coins className="w-4 h-4 text-emerald-400" />
-                        <span className="text-sm font-medium text-emerald-300">MNT Balance</span>
+                        <span className="text-sm font-medium text-emerald-300">ETH Balance</span>
                       </div>
                       <span className="text-sm font-bold text-emerald-400">
-                        {mntBalance.isLoading ? "..." : `${mntBalance.balance} MNT`}
+                        {mntBalance.isLoading ? "..." : `${mntBalance.balance} ETH`}
                       </span>
                     </div>
                   </div>

@@ -113,10 +113,10 @@ export default function BalanceTest() {
           <p><strong>Connected:</strong> {isConnected ? "✅ Yes" : "❌ No"}</p>
           <p><strong>Address:</strong> {address || "None"}</p>
           <p><strong>Chain ID:</strong> {currentChainId || "Unknown"}</p>
-          <p><strong>Network:</strong> {currentChainId === 5000 ? "Mantle Mainnet" : currentChainId === 5003 ? "Mantle Sepolia Testnet" : "Unknown"}</p>
+          <p><strong>Network:</strong> {currentChainId === 8453 ? "Base Mainnet" : currentChainId === 84532 ? "Base Sepolia Testnet" : "Unknown"}</p>
           <p><strong>Public Client:</strong> {publicClient ? "✅ Available" : "❌ Not available"}</p>
           <p><strong>Config:</strong> {config ? "✅ Available" : "❌ Not available"}</p>
-          <p><strong>Current Balance:</strong> {balance} MNT</p>
+          <p><strong>Current Balance:</strong> {balance} ETH</p>
         </div>
 
         <Button onClick={testBalance} disabled={loading || !address}>

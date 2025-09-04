@@ -1,13 +1,12 @@
-// config/wagmiConfig.ts - Farcaster-compatible wagmi configuration
+// config/wagmiConfigSimple.ts - Simplified wagmi configuration without Farcaster connector
 import { createConfig, http } from "wagmi";
-import { mantle, mantleSepoliaTestnet } from "wagmi/chains";
+import { base, baseSepolia } from "wagmi/chains";
 import {
   injected,
   walletConnect,
   metaMask,
   coinbaseWallet,
 } from "wagmi/connectors";
-import { farcasterMiniApp } from "@farcaster/miniapp-wagmi-connector";
 
 // Get projectId from environment variable
 const projectId = process.env.NEXT_PUBLIC_PROJECT_ID || '1922d8f34388fb1c3b3553c342d31094';
@@ -31,14 +30,12 @@ const getWalletConnectConnector = () => {
 };
 
 export const wagmiConfig = createConfig({
-  chains: [mantle, mantleSepoliaTestnet],
+  chains: [base, baseSepolia],
   transports: {
-    [mantle.id]: http(),
-    [mantleSepoliaTestnet.id]: http('https://rpc.sepolia.mantle.xyz'),
+    [base.id]: http(),
+    [baseSepolia.id]: http('https://base-sepolia.drpc.org'),
   },
   connectors: [
-    // Farcaster Mini App connector as the primary option
-    farcasterMiniApp(),
     injected({
       target: "metaMask",
     }),

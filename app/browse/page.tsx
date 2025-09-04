@@ -145,30 +145,41 @@ export default function UpdatedBrowseGamesPage() {
         const games = await getGamesBatch(gameIds)
         console.log(`✅ Batch fetch successful: ${games.length} games`)
         
-        // Filter games that can be browsed and get additional data
-        const browsableGamePromises = games
-          .filter(game => 
-            game && (
-              game.status === GameStatus.WAITING || 
-              game.status === GameStatus.ACTIVE
-            )
+        // Filter games that can be browsed and get additional data sequentially to avoid RPC rate limits
+        const browsableGames = games.filter(game => 
+          game && (
+            game.status === GameStatus.WAITING || 
+            game.status === GameStatus.ACTIVE
           )
-          .map(async (game) => {
-            try {
-              // Get additional data needed for browsing
-              const [players, bettable] = await Promise.all([
-                getPlayers(game.gameId),
-                isGameBettable(game.gameId)
-              ])
-              
-              return { game, players, bettable, gameId: game.gameId }
-            } catch (error) {
-              console.warn(`Failed to get additional data for game ${game.gameId}:`, error)
-              return null
-            }
-          })
-
-        const gameResults = await Promise.all(browsableGamePromises)
+        )
+        
+        console.log(`🎮 Processing ${browsableGames.length} browsable games sequentially...`)
+        
+        const gameResults = []
+        for (const game of browsableGames) {
+          try {
+            // Get additional data needed for browsing sequentially
+            console.log(`🔍 Processing game ${game.gameId}...`)
+            const players = await getPlayers(game.gameId)
+            console.log(`🎮 Game ${game.gameId} players:`, players)
+            
+            // Add small delay to respect RPC rate limits
+            await new Promise(resolve => setTimeout(resolve, 200))
+            
+            const bettable = await isGameBettable(game.gameId)
+            
+            gameResults.push({ game, players, bettable, gameId: game.gameId })
+          } catch (error) {
+            console.warn(`Failed to get additional data for game ${game.gameId}:`, error)
+            // Still add the game with empty data so it shows up
+            gameResults.push({ 
+              game, 
+              players: [], 
+              bettable: false, 
+              gameId: game.gameId 
+            })
+          }
+        }
         validGames = gameResults.filter(result => result !== null) as Array<{
           game: GameData
           players: string[]
@@ -190,6 +201,7 @@ export default function UpdatedBrowseGamesPage() {
               getPlayers(i),
               isGameBettable(i)
             ]).then(([game, players, bettable]) => {
+              console.log(`🎮 Batch fetch - Game ${i} players:`, players)
               if (game && (game.status === GameStatus.WAITING || game.status === GameStatus.ACTIVE || bettable)) {
                 return { game, players, bettable, gameId: i }
               }
@@ -213,6 +225,12 @@ export default function UpdatedBrowseGamesPage() {
       }
       // Transform to browsable format
       const browsable: BrowsableGame[] = validGames.map(({ game, players, bettable }) => {
+        console.log(`🎮 Final browsable game ${game.gameId}:`, { 
+          status: game.status, 
+          players: players, 
+          playersLength: players.length 
+        })
+        
         const canJoin = game.status === GameStatus.WAITING && 
                        players.length < 2 && 
                        (!isConnected || !players.some(p => p.toLowerCase() === address?.toLowerCase()))
@@ -321,7 +339,7 @@ export default function UpdatedBrowseGamesPage() {
     setJoiningBattle(gameId)
     
     try {
-      console.log(`🎮 Joining game ${gameId} with entry fee ${game.entryFee} MNT`)
+      console.log(`🎮 Joining game ${gameId} with entry fee ${game.entryFee} ETH`)
       const result = await joinGame(gameId, game.entryFee)
       
       if (result.success) {
@@ -542,7 +560,7 @@ export default function UpdatedBrowseGamesPage() {
                           <span className="text-xs text-slate-400">Entry Fee</span>
                         </div>
                         <div className="font-bold text-emerald-400">
-                          {parseFloat(game.entryFee).toFixed(4)} MNT
+                          {parseFloat(game.entryFee).toFixed(4)} ETH
                         </div>
                       </div>
                       
@@ -552,7 +570,7 @@ export default function UpdatedBrowseGamesPage() {
                           <span className="text-xs text-slate-400">Prize Pool</span>
                         </div>
                         <div className="font-bold text-cyan-400">
-                          {parseFloat(game.prizePool).toFixed(4)} MNT
+                          {parseFloat(game.prizePool).toFixed(4)} ETH
                         </div>
                       </div>
                     </div>
@@ -723,7 +741,7 @@ export default function UpdatedBrowseGamesPage() {
                 <div className="text-sm text-slate-400">Strategic</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-amber-400">{browseStats.totalPrizePool} MNT</div>
+                <div className="text-2xl font-bold text-amber-400">{browseStats.totalPrizePool} ETH</div>
                 <div className="text-sm text-slate-400">Total Prize Pool</div>
               </div>
             </div>

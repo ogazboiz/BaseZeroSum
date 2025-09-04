@@ -1,0 +1,9 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="720" fill="#0f172a"/>
+  <rect x="320" y="160" width="640" height="400" rx="80" fill="#06b6d4" fill-opacity="0.1"/>
+  <circle cx="640" cy="360" r="200" fill="#06b6d4" fill-opacity="0.2"/>
+  <text x="640" y="400" text-anchor="middle" fill="#06b6d4" font-family="Arial, sans-serif" font-size="200" font-weight="bold">0</text>
+  <text x="640" y="280" text-anchor="middle" fill="#06b6d4" font-family="Arial, sans-serif" font-size="100" font-weight="bold">ZERO</text>
+  <text x="640" y="520" text-anchor="middle" fill="#06b6d4" font-family="Arial, sans-serif" font-size="100" font-weight="bold">SUM</text>
+  <text x="640" y="600" text-anchor="middle" fill="#94a3b8" font-family="Arial, sans-serif" font-size="32" font-weight="normal">Mathematical Warfare</text>
+</svg>

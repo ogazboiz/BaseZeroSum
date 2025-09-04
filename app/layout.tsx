@@ -1,19 +1,15 @@
 import type React from "react"
-import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 
 import { headers } from 'next/headers'
 import { Providers } from "@/context/providers"
 import NetworkStatus from "@/components/shared/NetworkStatus"
+import { metadata } from "./metadata"
 
 const inter = Inter({ subsets: ["latin"] })
 
-export const metadata: Metadata = {
-  title: "ZeroSum Gaming Arena - Mathematical Warfare",
-  description: "Enter the arena where strategy beats luck. Mathematical warfare with hidden numbers and true fairness.",
-    generator: 'v0.dev'
-}
+export { metadata }
 
 export default async function RootLayout({
   children,
@@ -25,6 +21,18 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
+      <head>
+        <meta name="farcaster:app" content="true" />
+        <meta name="farcaster:app:name" content="ZeroSum Gaming Arena" />
+        <meta name="farcaster:app:description" content="Mathematical warfare where strategy beats luck" />
+        <meta name="farcaster:app:icon" content="/logo.png" />
+        <meta name="farcaster:app:url" content="https://zerosum.arena" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#06b6d4" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="ZeroSum Gaming Arena" />
+      </head>
       <body className={inter.className}>
         <Providers>
           {children}
