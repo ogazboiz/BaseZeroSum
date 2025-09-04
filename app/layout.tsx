@@ -25,7 +25,7 @@ export default async function RootLayout({
         <meta name="farcaster:app" content="true" />
         <meta name="farcaster:app:name" content="ZeroSum Gaming Arena" />
         <meta name="farcaster:app:description" content="Mathematical warfare where strategy beats luck" />
-        <meta name="farcaster:app:icon" content="/logo.png" />
+        <meta name="farcaster:app:icon" content="https://zerosum-arena.vercel.app/logo.png" />
         <meta name="farcaster:app:url" content="https://zerosum.arena" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#06b6d4" />
