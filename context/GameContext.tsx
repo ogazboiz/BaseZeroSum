@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react'
 import { useAccount } from 'wagmi'
 import { useZeroSumData, GameMode, GameStatus } from '@/hooks/useZeroSumContract'
-import { ethers } from 'ethers'
+
 
 // Interfaces remain the same but with better TypeScript
 export interface GameData {
@@ -277,11 +277,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
         prizePool: gameData.prizePool,
         isCreator,
         isPlayer,
-        currentPlayer: gameData.currentPlayer || ethers.ZeroAddress,
+        currentPlayer: gameData.currentPlayer || '0x0000000000000000000000000000000000000000',
         myTurn,
         timeLeft,
         players,
-        winner: gameData.winner && gameData.winner !== ethers.ZeroAddress ? gameData.winner : undefined,
+        winner: gameData.winner && gameData.winner !== '0x0000000000000000000000000000000000000000' ? gameData.winner : undefined,
         currentNumber: gameData.numberGenerated ? Number(gameData.currentNumber) : undefined,
         numberGenerated: gameData.numberGenerated,
         gameData,

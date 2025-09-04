@@ -1,8 +1,17 @@
-// hooks/useZeroSumContracts.ts - COMPLETE VERSION
+// hooks/useZeroSumContracts.ts - Your Original Ethers.js Pattern!
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useConfig, useAccount } from 'wagmi'
 import { ethers } from 'ethers'
-import { getEthersProvider, getEthersSigner } from '@/config/adapter'
+import { getProvider, getContract, getViemWalletClient, getViemClient } from '@/config/adapter'
+import { 
+  parseEther, 
+  formatEther, 
+  getContract as viemGetContract, 
+  type Address,
+  type Hash,
+  type PublicClient,
+  type WalletClient
+} from 'viem'
 import { toast } from 'react-hot-toast'
 import { ZeroSumSimplifiedABI } from '../config/abis/ZeroSumSimplifiedABI'
 import { ZeroSumSpectatorABI } from '../config/abis/ZeroSumSpectatorABI'
@@ -10,6 +19,32 @@ import { ZeroSumSpectatorABI } from '../config/abis/ZeroSumSpectatorABI'
 // Contract addresses
 const GAME_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_GAME_CONTRACT_ADDRESS || "0xfb40c6BACc74019E01C0dD5b434CE896806D7579"
 const SPECTATOR_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_SPECTATOR_CONTRACT_ADDRESS || "0x151A0A2227B42D299b01a7D5AD3e1A81cB3BE1aE"
+
+// Safe formatEther function to handle potential errors
+const safeFormatEther = (value: any): string => {
+  try {
+    if (!value || value === 0 || value === '0') return "0"
+    
+    // Handle RangeError specifically
+    if (value && typeof value === 'object' && value.constructor && value.constructor.name === 'BigNumber') {
+      // Convert BigNumber to string first
+      const stringValue = value.toString()
+      return ethers.formatEther(stringValue)
+    }
+    
+    return ethers.formatEther(value)
+  } catch (error) {
+    console.error('Error formatting ether value:', error, 'Value:', value, 'Type:', typeof value)
+    
+    // If it's a RangeError, return "0" and log it specifically
+    if (error instanceof Error && error.message.includes('out of result range')) {
+      console.warn('RangeError in safeFormatEther - user may not be in game')
+      return "0"
+    }
+    
+    return "0"
+  }
+}
 
 // Types
 export enum GameMode {
@@ -95,7 +130,7 @@ export interface BettingOdds {
   oddPercentages: number[]
 }
 
-// Provider hook with connection state management
+// Provider hook with connection state management - Your Original Pattern!
 export function useContractProvider() {
   const config = useConfig()
   const { isConnected, address } = useAccount()
@@ -103,15 +138,16 @@ export function useContractProvider() {
   const providerRef = useRef<any>(null)
   
   useEffect(() => {
-    console.log('🔗 Provider connection check:', { isConnected, address })
+    console.log('🔗 Initializing ethers provider...')
     
     const initProvider = async () => {
       try {
-        const provider = getEthersProvider(config)
+        // Use your original simple pattern
+        const provider = getProvider()
         if (provider) {
           providerRef.current = provider
           setProviderReady(true)
-          console.log('✅ Provider ready')
+          console.log('✅ Ethers provider ready')
         } else {
           setProviderReady(false)
           console.log('❌ Provider not available')
@@ -123,85 +159,123 @@ export function useContractProvider() {
     }
     
     initProvider()
-    
-    const timeout = setTimeout(initProvider, 1000)
-    return () => clearTimeout(timeout)
-  }, [config, isConnected])
+  }, [])
   
-  const getProvider = useCallback(() => {
+  const getProviderInstance = useCallback(() => {
     return providerRef.current
   }, [])
   
-  const getSigner = useCallback(async () => {
+  const getWalletClient = useCallback(async () => {
     if (!isConnected || !address) {
       throw new Error('Wallet not connected')
     }
-    return await getEthersSigner(config)
-  }, [config, isConnected, address])
+    
+    try {
+      // Use viem wallet client for write operations
+      const walletClient = await getViemWalletClient(config)
+      console.log('✅ Viem wallet client obtained for write operations')
+      return walletClient
+    } catch (error) {
+      console.error('❌ Failed to get wallet client:', error)
+      throw error
+    }
+  }, [isConnected, address, config])
   
   return {
     providerReady,
     isConnected,
     address,
-    getProvider,
-    getSigner
+    getProvider: getProviderInstance,
+    getWalletClient
   }
 }
 
 // Main hook for contract interactions (write functions)
 export function useZeroSumContract() {
-  const { getSigner } = useContractProvider()
+  const { getWalletClient } = useContractProvider()
+  const { getContracts } = useZeroSumData()
+  const config = useConfig()
   const [loading, setLoading] = useState(false)
 
   // Generic transaction handler with better error handling
   const executeTransaction = async (
-    contractCall: () => Promise<any>,
+    contractCall: () => Promise<Hash>,
     loadingMessage: string,
     successMessage: string,
     errorMessage: string
   ) => {
     setLoading(true)
     try {
-      const signer = await getSigner()
+      const walletClient = await getWalletClient()
       
-      if (!signer) {
+      if (!walletClient) {
         throw new Error('Please connect your wallet')
       }
 
       toast.success(loadingMessage)
-      const tx = await contractCall()
+      const hash = await contractCall()
       
-      console.log(`Transaction sent: ${tx.hash}`)
+      console.log(`Transaction sent: ${hash}`)
       
-      const receipt = await tx.wait()
+      // Wait for transaction receipt using public client
+      const publicClient = getViemClient(config)
+      const receipt = await publicClient.waitForTransactionReceipt({ hash })
       console.log(`Transaction confirmed: ${receipt.transactionHash}`)
       
       // Extract relevant event data if needed
       let gameId = null
+      console.log('🔍 Parsing transaction logs for GameCreated event...')
+      console.log('📋 Receipt logs:', receipt.logs)
+      
       for (const log of receipt.logs) {
         try {
-          const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
-          const parsed = contract.interface.parseLog(log)
-          if (parsed?.name === 'GameCreated') {
-            gameId = parsed.args[0].toString()
-            break
+          if (log.address.toLowerCase() === GAME_CONTRACT_ADDRESS.toLowerCase()) {
+            console.log('🎯 Found log from game contract:', log)
+            console.log('📋 Log topics:', log.topics)
+            
+            // GameCreated event signature: GameCreated(uint256 indexed gameId, uint8 mode, address creator, uint256 entryFee)
+            // The gameId is in the first topic (indexed parameter)
+            if (log.topics && log.topics.length > 1) {
+              // First topic is the event signature, second topic is the indexed gameId
+              const gameIdHex = log.topics[1]
+              if (gameIdHex) {
+                gameId = parseInt(gameIdHex, 16)
+                console.log('✅ Extracted gameId from indexed topic:', gameId)
+                break
+              }
+            }
           }
         } catch (e) {
-          // Skip logs that don't match our interface
+          console.log('⚠️ Error parsing log:', e)
+        }
+      }
+      
+      // If we couldn't extract gameId from logs, try to get it from the latest game counter
+      if (!gameId) {
+        try {
+          console.log('🔍 Could not extract gameId from logs, trying to get latest game counter...')
+          const contracts = getContracts()
+          if (contracts) {
+            const counter = await contracts.gameContract.gameCounter()
+            gameId = Number(counter) - 1 // The game we just created should be the previous one
+            console.log('✅ Got gameId from game counter:', gameId)
+          }
+        } catch (e) {
+          console.log('⚠️ Could not get game counter:', e)
         }
       }
       
       toast.success(successMessage)
-      return { success: true, txHash: tx.hash, receipt, gameId }
+      return { success: true, txHash: hash, receipt, gameId }
     } catch (error: any) {
       console.error('Transaction failed:', error)
       
       let errorMsg = errorMessage
       
-      if (error.reason) {
-        errorMsg = error.reason
+      if (error.shortMessage) {
+        errorMsg = error.shortMessage
       } else if (error.message) {
-        if (error.message.includes('user rejected')) {
+        if (error.message.includes('User rejected')) {
           errorMsg = 'Transaction cancelled by user'
         } else if (error.message.includes('insufficient funds')) {
           errorMsg = 'Insufficient funds for transaction'
@@ -223,11 +297,16 @@ export function useZeroSumContract() {
   const createQuickDraw = async (entryFee: string) => {
     return executeTransaction(
       async () => {
-        const signer = await getSigner()
-        const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+        const walletClient = await getWalletClient()
+        const contract = viemGetContract({
+          address: GAME_CONTRACT_ADDRESS as Address,
+          abi: ZeroSumSimplifiedABI,
+          client: walletClient
+        })
         
-        return await contract.createQuickDraw({
-          value: ethers.parseEther(entryFee)
+        return await contract.write.createQuickDraw({
+          value: parseEther(entryFee),
+          account: walletClient.account
         })
       },
       'Creating Quick Draw game...',
@@ -239,11 +318,16 @@ export function useZeroSumContract() {
   const createStrategic = async (entryFee: string) => {
     return executeTransaction(
       async () => {
-        const signer = await getSigner()
-        const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+        const walletClient = await getWalletClient()
+        const contract = viemGetContract({
+          address: GAME_CONTRACT_ADDRESS as Address,
+          abi: ZeroSumSimplifiedABI,
+          client: walletClient
+        })
         
-        return await contract.createStrategic({
-          value: ethers.parseEther(entryFee)
+        return await contract.write.createStrategic({
+          value: parseEther(entryFee),
+          account: walletClient.account
         })
       },
       'Creating Strategic game...',
@@ -255,11 +339,16 @@ export function useZeroSumContract() {
   const joinGame = async (gameId: number, entryFee: string) => {
     return executeTransaction(
       async () => {
-        const signer = await getSigner()
-        const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+        const walletClient = await getWalletClient()
+        const contract = viemGetContract({
+          address: GAME_CONTRACT_ADDRESS as Address,
+          abi: ZeroSumSimplifiedABI,
+          client: walletClient
+        })
         
-        return await contract.joinGame(gameId, {
-          value: ethers.parseEther(entryFee)
+        return await contract.write.joinGame([BigInt(gameId)], {
+          value: parseEther(entryFee),
+          account: walletClient.account
         })
       },
       'Joining game...',
@@ -271,11 +360,17 @@ export function useZeroSumContract() {
   const makeMove = async (gameId: number, subtraction: number) => {
     return executeTransaction(
       async () => {
-        const signer = await getSigner()
-        const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+        const walletClient = await getWalletClient()
+        const contract = viemGetContract({
+          address: GAME_CONTRACT_ADDRESS as Address,
+          abi: ZeroSumSimplifiedABI,
+          client: walletClient
+        })
         
         console.log(`Making move: gameId=${gameId}, subtraction=${subtraction}`)
-        return await contract.makeMove(gameId, subtraction)
+        return await contract.write.makeMove([BigInt(gameId), BigInt(subtraction)], {
+          account: walletClient.account
+        })
       },
       'Submitting move...',
       'Move submitted successfully!',
@@ -286,10 +381,14 @@ export function useZeroSumContract() {
   const handleTimeout = async (gameId: number) => {
     return executeTransaction(
       async () => {
-        const signer = await getSigner()
-        const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+        const walletClient = await getWalletClient()
+        const contract = viemGetContract({
+          address: GAME_CONTRACT_ADDRESS as `0x${string}`,
+          abi: ZeroSumSimplifiedABI,
+          client: walletClient
+        })
         
-        return await contract.handleTimeout(gameId)
+        return await contract.write.handleTimeout([gameId])
       },
       'Processing timeout...',
       'Timeout handled successfully!',
@@ -300,10 +399,14 @@ export function useZeroSumContract() {
   const cancelWaitingGame = async (gameId: number) => {
     return executeTransaction(
       async () => {
-        const signer = await getSigner()
-        const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+        const walletClient = await getWalletClient()
+        const contract = viemGetContract({
+          address: GAME_CONTRACT_ADDRESS as `0x${string}`,
+          abi: ZeroSumSimplifiedABI,
+          client: walletClient
+        })
         
-        return await contract.cancelWaitingGame(gameId)
+        return await contract.write.cancelWaitingGame([gameId])
       },
       'Cancelling game...',
       'Game cancelled successfully!',
@@ -314,10 +417,14 @@ export function useZeroSumContract() {
   const forceFinishInactiveGame = async (gameId: number) => {
     return executeTransaction(
       async () => {
-        const signer = await getSigner()
-        const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+        const walletClient = await getWalletClient()
+        const contract = viemGetContract({
+          address: GAME_CONTRACT_ADDRESS as `0x${string}`,
+          abi: ZeroSumSimplifiedABI,
+          client: walletClient
+        })
         
-        return await contract.forceFinishInactiveGame(gameId)
+        return await contract.write.forceFinishInactiveGame([gameId])
       },
       'Force finishing stuck game...',
       'Game finished successfully!',
@@ -328,10 +435,14 @@ export function useZeroSumContract() {
   const withdraw = async () => {
     return executeTransaction(
       async () => {
-        const signer = await getSigner()
-        const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+        const walletClient = await getWalletClient()
+        const contract = viemGetContract({
+          address: GAME_CONTRACT_ADDRESS as `0x${string}`,
+          abi: ZeroSumSimplifiedABI,
+          client: walletClient
+        })
         
-        return await contract.withdraw()
+        return await contract.write.withdraw()
       },
       'Withdrawing balance...',
       'Balance withdrawn successfully!',
@@ -342,11 +453,15 @@ export function useZeroSumContract() {
   const stake = async (amount: string) => {
     return executeTransaction(
       async () => {
-        const signer = await getSigner()
-        const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+        const walletClient = await getWalletClient()
+        const contract = viemGetContract({
+          address: GAME_CONTRACT_ADDRESS as `0x${string}`,
+          abi: ZeroSumSimplifiedABI,
+          client: walletClient
+        })
         
-        return await contract.stake({
-          value: ethers.parseEther(amount)
+        return await contract.write.stake({
+          value: parseEther(amount)
         })
       },
       'Staking ETH...',
@@ -358,10 +473,14 @@ export function useZeroSumContract() {
   const unstake = async (amount: string) => {
     return executeTransaction(
       async () => {
-        const signer = await getSigner()
-        const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+        const walletClient = await getWalletClient()
+        const contract = viemGetContract({
+          address: GAME_CONTRACT_ADDRESS as `0x${string}`,
+          abi: ZeroSumSimplifiedABI,
+          client: walletClient
+        })
         
-        return await contract.unstake(ethers.parseEther(amount))
+        return await contract.write.unstake([parseEther(amount)])
       },
       'Unstaking ETH...',
       'ETH unstaked successfully!',
@@ -372,10 +491,14 @@ export function useZeroSumContract() {
   const claimRewards = async () => {
     return executeTransaction(
       async () => {
-        const signer = await getSigner()
-        const contract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, signer)
+        const walletClient = await getWalletClient()
+        const contract = viemGetContract({
+          address: GAME_CONTRACT_ADDRESS as `0x${string}`,
+          abi: ZeroSumSimplifiedABI,
+          client: walletClient
+        })
         
-        return await contract.claimRewards()
+        return await contract.write.claimRewards()
       },
       'Claiming rewards...',
       'Rewards claimed successfully!',
@@ -417,8 +540,9 @@ export function useZeroSumData() {
         try {
           console.log('🏗️ Contract addresses:', { GAME_CONTRACT_ADDRESS, SPECTATOR_CONTRACT_ADDRESS })
           
-          const gameContract = new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, provider)
-          const spectatorContract = new ethers.Contract(SPECTATOR_CONTRACT_ADDRESS, ZeroSumSpectatorABI, provider)
+          // Use your original simple pattern
+          const gameContract = getContract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI)
+          const spectatorContract = getContract(SPECTATOR_CONTRACT_ADDRESS, ZeroSumSpectatorABI)
           
           contractsRef.current = { gameContract, spectatorContract }
           setContractsReady(true)
@@ -514,8 +638,8 @@ export function useZeroSumData() {
               currentNumber: Number(game.currentNumber),
               currentPlayer: game.currentPlayer,
               status: Number(game.status) as GameStatus,
-              entryFee: ethers.formatEther(game.entryFee || 0),
-              prizePool: ethers.formatEther(game.prizePool || 0),
+              entryFee: safeFormatEther(game.entryFee),
+              prizePool: safeFormatEther(game.prizePool),
               winner: game.winner || '0x0000000000000000000000000000000000000000',
               numberGenerated: Boolean(game.numberGenerated)
             }
@@ -579,8 +703,8 @@ export function useZeroSumData() {
               currentNumber: Number(gameData.currentNumber),
               currentPlayer: gameData.currentPlayer,
               status: Number(gameData.status) as GameStatus,
-              entryFee: ethers.formatEther(gameData.entryFee || 0),
-              prizePool: ethers.formatEther(gameData.prizePool || 0),
+              entryFee: safeFormatEther(gameData.entryFee),
+              prizePool: safeFormatEther(gameData.prizePool),
               winner: gameData.winner || '0x0000000000000000000000000000000000000000',
               numberGenerated: Boolean(gameData.numberGenerated)
             }
@@ -662,7 +786,17 @@ export function useZeroSumData() {
         }
         
         console.log(`✅ Game #${gameId} is valid, fetching...`)
-        const game = await contracts.gameContract.getGame(gameId)
+        
+        let game
+        try {
+          game = await contracts.gameContract.getGame(gameId)
+        } catch (error) {
+          if (error instanceof Error && error.message.includes('out of result range')) {
+            console.warn(`⚠️ RangeError when fetching game #${gameId} - user may not be authorized to view this game`)
+            throw new Error('out of result range')
+          }
+          throw error
+        }
         
         if (!game || Number(game.gameId) === 0) {
           console.error(`❌ Game #${gameId} returned invalid data`)
@@ -675,8 +809,8 @@ export function useZeroSumData() {
           currentNumber: Number(game.currentNumber),
           currentPlayer: game.currentPlayer,
           status: Number(game.status) as GameStatus,
-          entryFee: ethers.formatEther(game.entryFee),
-          prizePool: ethers.formatEther(game.prizePool),
+          entryFee: safeFormatEther(game.entryFee),
+          prizePool: safeFormatEther(game.prizePool),
           winner: game.winner,
           numberGenerated: game.numberGenerated
         }
@@ -700,7 +834,17 @@ export function useZeroSumData() {
         const contracts = getContracts()
         if (!contracts) throw new Error('Contracts not ready')
 
-        const players = await contracts.gameContract.getPlayers(gameId)
+        let players
+        try {
+          players = await contracts.gameContract.getPlayers(gameId)
+        } catch (error) {
+          if (error instanceof Error && error.message.includes('out of result range')) {
+            console.warn(`⚠️ RangeError when fetching players for game #${gameId} - user may not be authorized to view this game`)
+            throw new Error('out of result range')
+          }
+          throw error
+        }
+        
         console.log(`👥 Players for game ${gameId}:`, players)
         return players || []
       },
@@ -763,8 +907,8 @@ export function useZeroSumData() {
           currentNumber: Number(summary.currentNumber),
           currentPlayer: summary.currentPlayer,
           winner: summary.winner,
-          entryFee: ethers.formatEther(summary.entryFee),
-          prizePool: ethers.formatEther(summary.prizePool),
+          entryFee: safeFormatEther(summary.entryFee),
+          prizePool: safeFormatEther(summary.prizePool),
           players: summary.players,
           numberGenerated: summary.numberGenerated,
           timeLeft: Number(summary.timeLeft),
@@ -793,8 +937,8 @@ export function useZeroSumData() {
           currentNumber: Number(game.currentNumber),
           currentPlayer: game.currentPlayer,
           status: Number(game.status) as GameStatus,
-          entryFee: ethers.formatEther(game.entryFee),
-          prizePool: ethers.formatEther(game.prizePool),
+          entryFee: safeFormatEther(game.entryFee),
+          prizePool: safeFormatEther(game.prizePool),
           winner: game.winner,
           numberGenerated: game.numberGenerated
         }))
@@ -815,11 +959,11 @@ export function useZeroSumData() {
         const stats = await contracts.gameContract.getStats(playerAddress)
         
         return {
-          balance: ethers.formatEther(stats[0]),
+          balance: safeFormatEther(stats[0]),
           wins: Number(stats[1]),
           played: Number(stats[2]),
           winRate: Number(stats[3]),
-          stakedAmount: ethers.formatEther(stats[4])
+          stakedAmount: safeFormatEther(stats[4])
         }
       },
       null,
@@ -836,7 +980,7 @@ export function useZeroSumData() {
         if (!contracts) throw new Error('Contracts not ready')
 
         const balance = await contracts.gameContract.balances(playerAddress)
-        return ethers.formatEther(balance)
+        return safeFormatEther(balance)
       },
       "0",
       `getPlayerBalance(${playerAddress})`
@@ -854,9 +998,9 @@ export function useZeroSumData() {
         const info = await contracts.gameContract.staking(playerAddress)
         
         return {
-          amount: ethers.formatEther(info.amount),
+          amount: safeFormatEther(info.amount),
           lastReward: Number(info.lastReward),
-          rewards: ethers.formatEther(info.rewards)
+          rewards: safeFormatEther(info.rewards)
         }
       },
       null,
@@ -933,7 +1077,7 @@ export function useZeroSumData() {
         return {
           gameCounter: Number(gameCounter),
           platformFee: Number(platformFee),
-          totalStaked: ethers.formatEther(totalStaked),
+          totalStaked: safeFormatEther(totalStaked),
           timeLimit: Number(timeLimit),
           stakingAPY: Number(stakingAPY)
         }
@@ -997,8 +1141,8 @@ export function useZeroSumData() {
               isInPlayers: players.some((p: string) => p.toLowerCase() === userAddress.toLowerCase()),
               gameStatus: Number(gameData.status),
               gameMode: Number(gameData.mode),
-              entryFee: ethers.formatEther(gameData.entryFee),
-              prizePool: ethers.formatEther(gameData.prizePool)
+              entryFee: safeFormatEther(gameData.entryFee),
+              prizePool: safeFormatEther(gameData.prizePool)
             }
             
             manualResults.push(result)
@@ -1068,7 +1212,7 @@ export function useZeroSumData() {
 
 // Hook for spectator/betting functionality
 export function useSpectatorContract() {
-  const { getSigner } = useContractProvider()
+  const { getWalletClient } = useContractProvider()
   const [loading, setLoading] = useState(false)
 
   const executeSpectatorTransaction = async (
@@ -1079,9 +1223,9 @@ export function useSpectatorContract() {
   ) => {
     setLoading(true)
     try {
-      const signer = await getSigner()
+      const walletClient = await getWalletClient()
       
-      if (!signer) {
+      if (!walletClient) {
         throw new Error('Please connect your wallet')
       }
 
@@ -1111,11 +1255,15 @@ export function useSpectatorContract() {
   const placeBet = async (gameId: number, predictedWinner: string, amount: string) => {
     return executeSpectatorTransaction(
       async () => {
-        const signer = await getSigner()
-        const contract = new ethers.Contract(SPECTATOR_CONTRACT_ADDRESS, ZeroSumSpectatorABI, signer)
+        const walletClient = await getWalletClient()
+        const contract = viemGetContract({
+          address: SPECTATOR_CONTRACT_ADDRESS as `0x${string}`,
+          abi: ZeroSumSpectatorABI,
+          client: walletClient
+        })
         
-        return await contract.placeBet(GAME_CONTRACT_ADDRESS, gameId, predictedWinner, {
-          value: ethers.parseEther(amount)
+        return await contract.write.placeBet([GAME_CONTRACT_ADDRESS as `0x${string}`, gameId, predictedWinner as `0x${string}`], {
+          value: parseEther(amount)
         })
       },
       'Placing bet...',
@@ -1127,10 +1275,14 @@ export function useSpectatorContract() {
   const claimBettingWinnings = async (gameId: number) => {
     return executeSpectatorTransaction(
       async () => {
-        const signer = await getSigner()
-        const contract = new ethers.Contract(SPECTATOR_CONTRACT_ADDRESS, ZeroSumSpectatorABI, signer)
+        const walletClient = await getWalletClient()
+        const contract = viemGetContract({
+          address: SPECTATOR_CONTRACT_ADDRESS as `0x${string}`,
+          abi: ZeroSumSpectatorABI,
+          client: walletClient
+        })
         
-        return await contract.claimBettingWinnings(GAME_CONTRACT_ADDRESS, gameId)
+        return await contract.write.claimBettingWinnings([GAME_CONTRACT_ADDRESS as `0x${string}`, gameId])
       },
       'Claiming winnings...',
       'Winnings claimed successfully!',
@@ -1141,10 +1293,14 @@ export function useSpectatorContract() {
   const withdrawSpectatorBalance = async () => {
     return executeSpectatorTransaction(
       async () => {
-        const signer = await getSigner()
-        const contract = new ethers.Contract(SPECTATOR_CONTRACT_ADDRESS, ZeroSumSpectatorABI, signer)
+        const walletClient = await getWalletClient()
+        const contract = viemGetContract({
+          address: SPECTATOR_CONTRACT_ADDRESS as `0x${string}`,
+          abi: ZeroSumSpectatorABI,
+          client: walletClient
+        })
         
-        return await contract.withdrawSpectatorBalance()
+        return await contract.write.withdrawSpectatorBalance()
       },
       'Withdrawing balance...',
       'Balance withdrawn successfully!',
@@ -1197,7 +1353,7 @@ export function useSpectatorData() {
         const info = await contract.getGameBettingInfo(GAME_CONTRACT_ADDRESS, gameId)
         
         return {
-          totalBetAmount: ethers.formatEther(info.totalBetAmount),
+          totalBetAmount: safeFormatEther(info.totalBetAmount),
           numberOfBets: Number(info.numberOfBets),
           bettingAllowed: info.bettingAllowed
         }
@@ -1216,7 +1372,7 @@ export function useSpectatorData() {
         const odds = await contract.getBettingOdds(GAME_CONTRACT_ADDRESS, gameId, players)
         
         return {
-          betAmounts: odds.betAmounts.map((amount: any) => ethers.formatEther(amount)),
+          betAmounts: odds.betAmounts.map((amount: any) => safeFormatEther(amount)),
           oddPercentages: odds.oddPercentages.map((percentage: any) => Number(percentage))
         }
       },
@@ -1234,7 +1390,7 @@ export function useSpectatorData() {
         if (!contract) throw new Error('Contract not available')
 
         const balance = await contract.spectatorBalances(address)
-        return ethers.formatEther(balance)
+        return safeFormatEther(balance)
       },
       "0",
       `getSpectatorBalance(${address})`

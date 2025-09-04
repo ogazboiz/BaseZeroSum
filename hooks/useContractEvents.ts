@@ -1,7 +1,7 @@
 // hooks/useContractEvents.ts - Event Listener System
 import { useEffect, useRef, useCallback } from 'react'
 import { usePublicClient } from 'wagmi'
-import { ethers } from 'ethers'
+
 
 const GAME_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_GAME_CONTRACT_ADDRESS || "0xfb40c6BACc74019E01C0dD5b434CE896806D7579"
 
@@ -156,7 +156,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAccount } from 'wagmi'
 import { useZeroSumData, useZeroSumContract, GameStatus, GameMode } from './useZeroSumContract'
 import { toast } from 'react-hot-toast'
-import { ethers } from 'ethers'
+
 import { useContractEvents } from './useContractEvents'
 
 export interface GameState {

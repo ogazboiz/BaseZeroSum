@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAccount } from 'wagmi'
 import { useZeroSumData, GameMode, GameStatus } from './useZeroSumContract'
-import { ethers } from 'ethers'
+
 
 export interface MyGame {
   gameId: number

@@ -16,33 +16,41 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { useAppKitAccount, useAppKit } from "@reown/appkit/react"
-import { useDisconnect } from "@reown/appkit/react"
-import { useAccount, useDisconnect as useWagmiDisconnect, useConfig } from "wagmi"
+import { useAccount, useDisconnect, useConfig, usePublicClient } from "wagmi"
 import { toast } from "react-hot-toast"
-import { ethers } from "ethers"
-import { getEthersProvider } from "@/config/adapter"
+import { getViemClient } from "@/config/adapter"
+import { formatEther } from "viem"
 import MyGamesDropdown from "./MyGamesDropdown"
 
 // Simple MNT Balance Hook
 const useMNTBalance = (address: string | undefined) => {
   const config = useConfig()
+  const publicClient = usePublicClient()
   const [balance, setBalance] = useState<string>("0.0000")
   const [isLoading, setIsLoading] = useState(false)
 
   const fetchBalance = async () => {
-    if (!address || !config) return
+    if (!address || !config) {
+      console.log("❌ Balance fetch skipped - missing address or config:", { address: !!address, config: !!config })
+      return
+    }
 
+    console.log("🔄 Fetching balance for address:", address)
     setIsLoading(true)
     try {
-      const provider = getEthersProvider(config)
-      if (!provider) throw new Error("Provider not available")
+      // Use publicClient directly since it's already on the correct chain
+      if (!publicClient) throw new Error("Public client not available")
 
-      const rawBalance = await provider.getBalance(address)
-      const formatted = parseFloat(ethers.formatEther(rawBalance)).toFixed(4)
+      console.log("💰 Getting balance...")
+      console.log("🌐 Public client chain:", publicClient.chain)
+      const rawBalance = await publicClient.getBalance({ address: address as `0x${string}` })
+      console.log("💰 Raw balance:", rawBalance.toString())
+      
+      const formatted = parseFloat(formatEther(rawBalance)).toFixed(4)
+      console.log("💰 Formatted balance:", formatted)
       setBalance(formatted)
     } catch (err) {
-      console.error("Error fetching MNT balance:", err)
+      console.error("❌ Error fetching MNT balance:", err)
       setBalance("0.0000")
     } finally {
       setIsLoading(false)
@@ -53,7 +61,7 @@ const useMNTBalance = (address: string | undefined) => {
     fetchBalance()
     const interval = setInterval(fetchBalance, 30000)
     return () => clearInterval(interval)
-  }, [address, config])
+  }, [address, config, publicClient])
 
   return { balance, isLoading, refetch: fetchBalance }
 }
@@ -67,18 +75,15 @@ export default function UnifiedGamingNavigation() {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
 
-  // AppKit hooks
-  const { address: appkitAddress, isConnected: appkitIsConnected } = useAppKitAccount()
-  const { open, close } = useAppKit()
-  const { disconnect: appkitDisconnect } = useDisconnect()
-
   // Wagmi hooks
-  const { address: wagmiAddress, isConnected: wagmiIsConnected } = useAccount()
-  const { disconnect: wagmiDisconnect } = useWagmiDisconnect()
-
-  // Unified state
-  const address = appkitAddress || wagmiAddress
-  const isConnected = appkitIsConnected || wagmiIsConnected
+  const { address, isConnected } = useAccount()
+  const { disconnect } = useDisconnect()
+  
+  // Debug wallet connection
+  console.log("🔗 Wallet connection state:", {
+    address,
+    isConnected
+  })
   
   // Simple balance hook
   const mntBalance = useMNTBalance(address)
@@ -105,7 +110,8 @@ export default function UnifiedGamingNavigation() {
 
   const handleConnect = async () => {
     try {
-      await open()
+      // For now, we'll show a message to connect via wallet extension
+      toast.info("Please connect your wallet using the browser extension")
     } catch (error: unknown) {
       console.error("Connection error:", error instanceof Error ? error.message : String(error))
       toast.error("Failed to connect wallet. Please try again.")
@@ -115,16 +121,11 @@ export default function UnifiedGamingNavigation() {
   const handleDisconnect = () => {
     setIsDropdownOpen(false)
     try {
-      if (appkitIsConnected) {
-        appkitDisconnect()
-      }
-      if (wagmiIsConnected) {
-        wagmiDisconnect()
-      }
-      close()
+      disconnect()
       toast.success("Wallet disconnected")
     } catch (error: unknown) {
       console.error("Disconnect error:", error instanceof Error ? error.message : String(error))
+      toast.error("Failed to disconnect wallet")
     }
   }
 

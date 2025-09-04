@@ -118,8 +118,15 @@ export default function UpdatedWaitingRoomPage() {
       console.log('👥 Players:', gamePlayers)
 
       // Check if user is the creator
+      console.log('🔍 Creator check:')
+      console.log('👤 User address:', address)
+      console.log('👥 Game players:', gamePlayers)
+      console.log('🎯 First player (creator):', gamePlayers[0])
+      
       const isUserCreator = gamePlayers.length > 0 && 
                            gamePlayers[0].toLowerCase() === address.toLowerCase()
+      
+      console.log('✅ Is user creator?', isUserCreator)
 
       if (!isUserCreator) {
         // User is not the creator, redirect to battle page
@@ -143,24 +150,38 @@ export default function UpdatedWaitingRoomPage() {
 
     } catch (error) {
       console.error('❌ Error fetching game data:', error)
-      setError(error instanceof Error ? error.message : 'Failed to load game data')
+      
+      // Check if it's a RangeError (user not in game) - redirect to browse page
+      if (error instanceof Error && error.message.includes('out of result range')) {
+        console.log('🔄 RangeError detected in waiting room - redirecting to browse page with game ID')
+        router.push(`/browse?highlight=${gameId}`)
+        return
+      } else {
+        setError(error instanceof Error ? error.message : 'Failed to load game data')
+      }
     } finally {
       setIsPolling(false)
     }
   }, [gameId, isConnected, address, contractsReady, getGame, getPlayers, getPlayerBalance, router])
 
-  // Initial data fetch
+  // Initial data fetch with delay for new games
   useEffect(() => {
-    if (providerReady) {
-      setIsLoading(true)
-      fetchGameData().finally(() => setIsLoading(false))
+    if (gameId && isConnected && address && providerReady) {
+      // Add a small delay for newly created games to be indexed
+      const timer = setTimeout(() => {
+        console.log(`🕐 Fetching game data after delay for game ${gameId}`)
+        setIsLoading(true)
+        fetchGameData().finally(() => setIsLoading(false))
+      }, 2000) // 2 second delay
+      
+      return () => clearTimeout(timer)
     }
-  }, [providerReady, fetchGameData])
+  }, [gameId, isConnected, address, providerReady, fetchGameData])
 
-  // Set share URL
+  // Set share URL - redirect to browse page with highlighting
   useEffect(() => {
     if (typeof window !== 'undefined' && gameId) {
-      const url = `${window.location.origin}/battle/${gameId}`
+      const url = `${window.location.origin}/browse?highlight=${gameId}`
       setShareUrl(url)
     }
   }, [gameId])

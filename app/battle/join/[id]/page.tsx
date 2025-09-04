@@ -21,7 +21,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useAccount } from "wagmi"
 import { toast } from "react-hot-toast"
 import { useZeroSumContract, useZeroSumData } from "@/hooks/useZeroSumContract"
-import { ethers } from "ethers"
+import { formatEther } from "viem"
 import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
 
 export default function JoinBattlePage() {
@@ -113,8 +113,8 @@ export default function JoinBattlePage() {
           ...prev,
           creator: players[0] || "",
           creatorAddress: players[0] || "",
-          entryFee: gameData.entryFee ? (typeof gameData.entryFee === 'bigint' ? ethers.formatEther(gameData.entryFee) : gameData.entryFee.toString()) : "0",
-          prizePool: gameData.prizePool ? (typeof gameData.prizePool === 'bigint' ? ethers.formatEther(gameData.prizePool) : gameData.prizePool.toString()) : "0",
+          entryFee: gameData.entryFee ? (typeof gameData.entryFee === 'bigint' ? formatEther(gameData.entryFee) : gameData.entryFee.toString()) : "0",
+          prizePool: gameData.prizePool ? (typeof gameData.prizePool === 'bigint' ? formatEther(gameData.prizePool) : gameData.prizePool.toString()) : "0",
         }))
       }
     } catch (error) {

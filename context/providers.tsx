@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WagmiProvider } from 'wagmi';
 import { ReactNode } from 'react';
-import { config } from '@/config';
+import { config } from '@/config/wagmiConfigSimple';
 import { Toaster } from 'react-hot-toast';
 import { GameProvider } from './GameContext';
 const queryClient = new QueryClient({

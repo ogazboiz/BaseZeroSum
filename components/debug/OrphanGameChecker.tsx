@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useConfig } from 'wagmi'
-import { ethers } from 'ethers'
+
 import { getEthersProvider } from '@/config/adapter'
 import { Search, AlertTriangle } from 'lucide-react'
 

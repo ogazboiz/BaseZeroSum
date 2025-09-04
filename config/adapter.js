@@ -1,50 +1,83 @@
+import { ethers } from "ethers";
 import { getClient, getConnectorClient } from "@wagmi/core";
-import {
-    FallbackProvider,
-    JsonRpcProvider,
-    BrowserProvider,
-    JsonRpcSigner,
-} from "ethers";
+import { createPublicClient, http } from "viem";
+import { mantle, mantleSepoliaTestnet } from "wagmi/chains";
 
-export function clientToProvider(client) {
-    const { chain, transport } = client;
-    const network = {
-        chainId: chain.id,
-        name: chain.name,
-        ensAddress: chain.contracts?.ensRegistry?.address,
-    };
-    if (transport.type === "fallback") {
-        const providers = transport.transports.map(
-            ({ value }) => new JsonRpcProvider(value?.url, network)
-        );
-        if (providers.length === 1) return providers[0];
-        return new FallbackProvider(providers);
+/** Get ethers.js provider for contract interactions - Your Original Simple Pattern! */
+export function getProvider({ chainId } = {}) {
+    const targetChainId = chainId || 5003; // Default to Mantle Sepolia
+    const rpcUrl = targetChainId === 5000 
+        ? "https://rpc.mantle.xyz" 
+        : "https://rpc.sepolia.mantle.xyz";
+    
+    console.log(`🔗 Creating ethers provider for chain ${targetChainId}`);
+    console.log(`🔗 RPC URL: ${rpcUrl}`);
+    
+    try {
+        const provider = new ethers.JsonRpcProvider(rpcUrl);
+        console.log("✅ Ethers provider created successfully");
+        return provider;
+    } catch (error) {
+        console.error("❌ Failed to create ethers provider:", error);
+        throw error;
     }
-    return new JsonRpcProvider(transport.url, network);
 }
 
-/** Action to convert a viem Client to an ethers.js Provider. */
+/** Get ethers.js provider for contract interactions - Alias for compatibility */
 export function getEthersProvider(config, { chainId } = {}) {
-    const client = getClient(config, { chainId });
-    if (!client) return;
-    return clientToProvider(client);
+    return getProvider({ chainId });
 }
 
-export function clientToSigner(client) {
-    const { account, chain, transport } = client;
-
-    const network = {
-        chainId: chain.id,
-        name: chain.name,
-        ensAddress: chain.contracts?.ensRegistry?.address,
-    };
-    const provider = new BrowserProvider(transport, network);
-    const signer = new JsonRpcSigner(provider, account.address);
-    return signer;
+/** Create ethers contract instance - Your Original Pattern! */
+export function getContract(address, abi, { chainId } = {}) {
+    const provider = getProvider({ chainId });
+    console.log(`📄 Creating contract at ${address}`);
+    
+    try {
+        const contract = new ethers.Contract(address, abi, provider);
+        console.log("✅ Contract created successfully");
+        return contract;
+    } catch (error) {
+        console.error("❌ Failed to create contract:", error);
+        throw error;
+    }
 }
 
-/** Action to convert a viem Wallet Client to an ethers.js Signer. */
-export async function getEthersSigner(config, { chainId } = {}) {
-    const client = await getConnectorClient(config, { chainId });
-    return clientToSigner(client);
+/** Get viem client for write operations */
+export function getViemClient(wagmiConfig = null, { chainId } = {}) {
+    console.log("🔧 getViemClient called with:", { chainId, hasConfig: !!wagmiConfig });
+    
+    const targetChainId = chainId || 5003; // Default to Mantle Sepolia
+    const chain = targetChainId === 5000 ? mantle : mantleSepoliaTestnet;
+    const rpcUrl = targetChainId === 5000 
+        ? "https://rpc.mantle.xyz" 
+        : "https://rpc.sepolia.mantle.xyz";
+    
+    console.log(`🔗 Creating viem client for chain ${targetChainId} (${chain.name})`);
+    console.log(`🔗 RPC URL: ${rpcUrl}`);
+    
+    try {
+        const client = createPublicClient({
+            chain: chain,
+            transport: http(rpcUrl),
+        });
+        console.log("✅ Viem client created successfully");
+        return client;
+    } catch (error) {
+        console.error("❌ Failed to create viem client:", error);
+        throw error;
+    }
+}
+
+/** Get viem wallet client for write operations */
+export async function getViemWalletClient(wagmiConfig, { chainId } = {}) {
+    try {
+        console.log("🔧 Getting viem wallet client for write operations...");
+        const walletClient = await getConnectorClient(wagmiConfig, { chainId });
+        console.log("✅ Viem wallet client obtained");
+        return walletClient;
+    } catch (error) {
+        console.error("❌ Failed to get viem wallet client:", error);
+        throw error;
+    }
 }

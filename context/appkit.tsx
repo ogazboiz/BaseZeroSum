@@ -1,9 +1,10 @@
 "use client";
 import { createAppKit } from "@reown/appkit/react";
-import { EthersAdapter } from "@reown/appkit-adapter-ethers";
+import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import {  mantleSepoliaTestnet, mantle } from "@reown/appkit/networks";
 import type { AppKitNetwork } from "@reown/appkit/networks";
 import { ReactNode } from "react";
+import { config } from "@/config/wagmiConfigSimple";
 
 // Environment detection
 const isMainnet = process.env.NEXT_PUBLIC_ENVIRONMENT === 'mainnet';
@@ -40,7 +41,7 @@ console.log(`⚔️ ZeroSum Arena on Mantle Network ready!`);
 
 // 3. Create the AppKit instance
 createAppKit({
-  adapters: [new EthersAdapter()],
+  adapters: [new WagmiAdapter({ config })],
   metadata,
   networks: supportedNetworks,
   projectId,

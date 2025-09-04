@@ -4,7 +4,6 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 
 import { headers } from 'next/headers'
-import { AppKit } from "@/context/appkit"
 import { Providers } from "@/context/providers"
 import NetworkStatus from "@/components/shared/NetworkStatus"
 
@@ -27,12 +26,10 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AppKit>
-          <Providers>
-            {children}
-            <NetworkStatus />
-          </Providers>
-        </AppKit>
+        <Providers>
+          {children}
+          <NetworkStatus />
+        </Providers>
       </body>
     </html>
   )

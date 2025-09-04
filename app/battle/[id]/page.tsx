@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -65,7 +66,7 @@ interface EnhancedGameState {
   opponentTimeouts: number
 }
 
-export default function FixedBattlePage() {
+function BattlePage() {
   const params = useParams()
   const router = useRouter()
   const { address, isConnected } = useAccount()
@@ -95,20 +96,18 @@ export default function FixedBattlePage() {
 
   // State management
   const [gameState, setGameState] = useState<EnhancedGameState | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [userBalance, setUserBalance] = useState("0")
   const [moveAmount, setMoveAmount] = useState("")
   const [localTimeLeft, setLocalTimeLeft] = useState<number | null>(null)
-  const [showDebugInfo, setShowDebugInfo] = useState(false)
+  const [autoReloadCountdown, setAutoReloadCountdown] = useState(90)
   
   // Fetch game data function
   const fetchGameData = useCallback(async () => {
-    if (!gameId || !isConnected || !address || !contractsReady) {
+    if (!gameId || !contractsReady) {
       console.log('⏸️ Skipping fetch - requirements not met:', {
         gameId: !!gameId,
-        isConnected,
-        address: !!address,
         contractsReady
       })
       return
@@ -119,27 +118,41 @@ export default function FixedBattlePage() {
     setError(null)
 
     try {
-      // Parallel fetch for better performance
-      const [gameData, players, balance] = await Promise.all([
+      // Fetch basic game data (works for spectators)
+      const [gameData, players] = await Promise.allSettled([
         getGame(gameId),
-        getPlayers(gameId),
-        getPlayerBalance(address)
+        getPlayers(gameId)
       ])
 
-      if (!gameData) {
+      // Extract results with error handling
+      const gameDataResult = gameData.status === 'fulfilled' ? gameData.value : null
+      const playersResult = players.status === 'fulfilled' ? players.value : []
+
+      // Only fetch balance if user is connected
+      let balanceResult = "0"
+      if (isConnected && address) {
+        try {
+          balanceResult = await getPlayerBalance(address)
+        } catch (error) {
+          console.warn('⚠️ Could not get user balance (spectator mode):', error)
+          balanceResult = "0"
+        }
+      }
+
+      if (!gameDataResult) {
         throw new Error(`Game #${gameId} not found on blockchain`)
       }
 
-      console.log('📊 Raw game data:', gameData)
-      console.log('👥 Players:', players)
+      console.log('📊 Raw game data:', gameDataResult)
+      console.log('👥 Players:', playersResult)
 
       // Update user balance
-      setUserBalance(balance)
+      setUserBalance(balanceResult)
 
       // Determine user relationship to game
-      const isUserInGame = players.some(p => p.toLowerCase() === address.toLowerCase())
-      const isUserCreator = players.length > 0 && players[0].toLowerCase() === address.toLowerCase()
-      const canJoin = !isUserInGame && players.length < 2 && gameData.status === GameStatus.WAITING
+      const isUserInGame = playersResult.some(p => p.toLowerCase() === address.toLowerCase())
+      const isUserCreator = playersResult.length > 0 && playersResult[0].toLowerCase() === address.toLowerCase()
+      const canJoin = !isUserInGame && playersResult.length < 2 && gameDataResult.status === GameStatus.WAITING
 
       // Initialize player view data
       let playerViewData: PlayerView | null = null
@@ -150,8 +163,8 @@ export default function FixedBattlePage() {
       let yourTimeouts = 0
       let opponentTimeouts = 0
 
-      // Get enhanced player view for active games
-      if (gameData.status === GameStatus.ACTIVE) {
+      // Get enhanced player view for active games (only if user is in the game and connected)
+      if (gameDataResult.status === GameStatus.ACTIVE && isUserInGame && isConnected && address) {
         try {
           playerViewData = await getPlayerView(gameId)
           if (playerViewData) {
@@ -175,34 +188,43 @@ export default function FixedBattlePage() {
           console.warn('⚠️ Could not get player view (might be spectator):', error)
           
           // Fallback: Basic turn detection for spectators
-          isMyTurn = isUserInGame && gameData.currentPlayer.toLowerCase() === address.toLowerCase()
+          isMyTurn = isUserInGame && gameDataResult.currentPlayer.toLowerCase() === address.toLowerCase()
           timeLeft = 0 // Can't get time left without player view
         }
+      } else {
+        // For spectators or disconnected users, just set basic values
+        console.log('👁️ Spectator/disconnected mode - skipping player view data')
+        isMyTurn = false
+        timeLeft = 0
+        gameStuck = false
+        stuckPlayer = ""
+        yourTimeouts = 0
+        opponentTimeouts = 0
       }
 
       // Double-check turn logic for consistency
-      const currentPlayerIsMe = gameData.currentPlayer.toLowerCase() === address.toLowerCase()
+      const currentPlayerIsMe = gameDataResult.currentPlayer.toLowerCase() === address.toLowerCase()
       console.log('🔍 Turn logic verification:', {
         contractSaysMyTurn: isMyTurn,
         currentPlayerIsMe,
         isUserInGame,
-        gameStatus: gameData.status,
-        currentPlayer: gameData.currentPlayer
+        gameStatus: gameDataResult.status,
+        currentPlayer: gameDataResult.currentPlayer
       })
 
       // Build enhanced game state
       const enhancedState: EnhancedGameState = {
         gameId,
-        mode: gameData.mode === GameMode.QUICK_DRAW ? "Quick Draw" : "Strategic",
-        status: gameData.status === GameStatus.WAITING ? "waiting" : 
-                gameData.status === GameStatus.ACTIVE ? "active" : "completed",
-        currentNumber: gameData.currentNumber,
-        currentPlayer: gameData.currentPlayer,
-        winner: gameData.winner && gameData.winner !== "0x0000000000000000000000000000000000000000" 
-                ? gameData.winner : null,
-        entryFee: gameData.entryFee,
-        prizePool: gameData.prizePool,
-        players,
+        mode: gameDataResult.mode === GameMode.QUICK_DRAW ? "Quick Draw" : "Strategic",
+        status: gameDataResult.status === GameStatus.WAITING ? "waiting" : 
+                gameDataResult.status === GameStatus.ACTIVE ? "active" : "completed",
+        currentNumber: gameDataResult.currentNumber,
+        currentPlayer: gameDataResult.currentPlayer,
+        winner: gameDataResult.winner && gameDataResult.winner !== "0x0000000000000000000000000000000000000000" 
+                ? gameDataResult.winner : null,
+        entryFee: gameDataResult.entryFee,
+        prizePool: gameDataResult.prizePool,
+        players: playersResult,
         
         isUserInGame,
         isUserCreator,
@@ -210,7 +232,7 @@ export default function FixedBattlePage() {
         canJoin,
         timeLeft,
         
-        numberGenerated: gameData.numberGenerated,
+        numberGenerated: gameDataResult.numberGenerated,
         gameStuck,
         stuckPlayer,
         yourTimeouts,
@@ -222,11 +244,19 @@ export default function FixedBattlePage() {
 
     } catch (error) {
       console.error('❌ Error fetching game:', error)
-      setError(error instanceof Error ? error.message : 'Failed to load game data')
+      
+      // Check if it's a RangeError (user not in game) - redirect to browse page
+      if (error instanceof Error && error.message.includes('out of result range')) {
+        console.log('🔄 RangeError detected - redirecting to browse page with game ID')
+        router.push(`/browse?highlight=${gameId}`)
+        return
+      } else {
+        setError(error instanceof Error ? error.message : 'Failed to load game data')
+      }
     } finally {
       setIsLoading(false)
     }
-  }, [gameId, isConnected, address, contractsReady, getGame, getPlayers, getPlayerView, getPlayerBalance])
+  }, [gameId, contractsReady, getGame, getPlayers, getPlayerView, getPlayerBalance, isConnected, address])
 
   // Initial data fetch
   useEffect(() => {
@@ -252,6 +282,25 @@ export default function FixedBattlePage() {
       setLocalTimeLeft(null)
     }
   }, [gameState?.status, gameState?.timeLeft])
+
+  // Auto-reload timer (90 seconds)
+  useEffect(() => {
+    if (gameState?.status === "active") {
+      const interval = setInterval(() => {
+        setAutoReloadCountdown((prev) => {
+          if (prev <= 1) {
+            window.location.reload()
+            return 90
+          }
+          return prev - 1
+        })
+      }, 1000)
+
+      return () => clearInterval(interval)
+    } else {
+      setAutoReloadCountdown(90)
+    }
+  }, [gameState?.status])
 
   // Helper functions
   const formatTime = (seconds: number) => {
@@ -485,31 +534,62 @@ export default function FixedBattlePage() {
           
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
-              <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-red-500" />
-              <h2 className="text-2xl font-bold text-white mb-2">
-                {error || `Battle #${battleId} Not Found`}
-              </h2>
-              <p className="text-slate-400 mb-4">
-                {error || `Battle #${battleId} doesn't exist or couldn't be loaded`}
-              </p>
-              <div className="space-x-3">
-                <Button
-                  onClick={fetchGameData}
-                  className="bg-cyan-600 hover:bg-cyan-700 text-white"
-                  disabled={isLoading}
-                >
-                  <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                  {isLoading ? "Retrying..." : "Try Again"}
-                </Button>
-                <Button
-                  onClick={() => router.push('/my-games')}
-                  variant="outline"
-                  className="border-slate-600 text-white hover:bg-slate-800/50"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to My Games
-                </Button>
-              </div>
+              {error && error.includes('join this game first') ? (
+                <>
+                  <Wallet className="w-16 h-16 mx-auto mb-4 text-amber-500" />
+                  <h2 className="text-2xl font-bold text-white mb-2">
+                    Join Game to View
+                  </h2>
+                  <p className="text-slate-300 mb-6 max-w-md">
+                    You need to join this game first to view it. Connect your wallet and join the battle to see the game details.
+                  </p>
+                  <div className="space-x-3">
+                    <Button
+                      onClick={() => router.push("/browse")}
+                      className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold px-6 py-3"
+                    >
+                      <Swords className="w-4 h-4 mr-2" />
+                      Browse Games
+                    </Button>
+                    <Button
+                      onClick={() => router.push("/create")}
+                      variant="outline"
+                      className="border-emerald-600 text-emerald-400 hover:bg-emerald-500/10 px-6 py-3"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Game
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-red-500" />
+                  <h2 className="text-2xl font-bold text-white mb-2">
+                    {error || `Battle #${battleId} Not Found`}
+                  </h2>
+                  <p className="text-slate-400 mb-4">
+                    {error || `Battle #${battleId} doesn't exist or couldn't be loaded`}
+                  </p>
+                  <div className="space-x-3">
+                    <Button
+                      onClick={fetchGameData}
+                      className="bg-cyan-600 hover:bg-cyan-700 text-white"
+                      disabled={isLoading}
+                    >
+                      <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                      {isLoading ? "Retrying..." : "Try Again"}
+                    </Button>
+                    <Button
+                      onClick={() => router.push('/my-games')}
+                      variant="outline"
+                      className="border-slate-600 text-white hover:bg-slate-800/50"
+                    >
+                      <ArrowLeft className="w-4 h-4 mr-2" />
+                      Back to My Games
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -578,6 +658,32 @@ export default function FixedBattlePage() {
               </CardHeader>
             </Card>
 
+            {/* Reload Notification */}
+            <Card className="bg-amber-500/10 border border-amber-500/30 shadow-lg rounded-2xl">
+              <CardContent className="py-4">
+                <div className="flex items-center space-x-3">
+                  <RefreshCw className="w-5 h-5 text-amber-400 animate-pulse" />
+                  <div className="flex-1">
+                    <p className="text-amber-400 font-semibold text-sm">
+                      ⚠️ 90s Timer + Auto-Reload Needed
+                    </p>
+                    <p className="text-amber-300/80 text-xs mt-1">
+                      Each player has 90 seconds. You won't see opponent moves until refresh. 
+                      Page auto-reloads after each move! (Real-time updates coming in next version)
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => window.location.reload()}
+                    size="sm"
+                    className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border-amber-500/50"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Reload Now
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Connection Info */}
             <Card className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 shadow-2xl rounded-2xl">
               <CardContent className="py-4">
@@ -605,50 +711,6 @@ export default function FixedBattlePage() {
               </CardContent>
             </Card>
 
-            {/* Debug Info Toggle */}
-            {process.env.NODE_ENV === 'development' && (
-              <Card className="bg-yellow-900/20 border border-yellow-500/30">
-                <CardContent className="py-3">
-                  <Button
-                    onClick={() => setShowDebugInfo(!showDebugInfo)}
-                    variant="outline"
-                    size="sm"
-                    className="border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10"
-                  >
-                    {showDebugInfo ? "Hide" : "Show"} Debug Info
-                  </Button>
-                  
-                  {showDebugInfo && (
-                    <div className="mt-4 text-xs space-y-2">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <div>isUserInGame: <span className={gameState.isUserInGame ? "text-green-400" : "text-red-400"}>{gameState.isUserInGame ? "YES" : "NO"}</span></div>
-                          <div>isMyTurn: <span className={gameState.isMyTurn ? "text-green-400" : "text-red-400"}>{gameState.isMyTurn ? "YES" : "NO"}</span></div>
-                          <div>timeLeft: <span className="text-cyan-400">{getCurrentTimeLeft()}s</span></div>
-                          <div>gameStuck: <span className={gameState.gameStuck ? "text-red-400" : "text-green-400"}>{gameState.gameStuck ? "YES" : "NO"}</span></div>
-                        </div>
-                        <div>
-                          <div>currentPlayer: <span className="text-white">{gameState.currentPlayer?.slice(0, 8)}...</span></div>
-                          <div>yourAddress: <span className="text-white">{address?.slice(0, 8)}...</span></div>
-                          <div>yourTimeouts: <span className="text-yellow-400">{gameState.yourTimeouts}/2</span></div>
-                          <div>oppTimeouts: <span className="text-yellow-400">{gameState.opponentTimeouts}/2</span></div>
-                        </div>
-                      </div>
-                      
-                      <div className="mt-3 p-2 bg-slate-800/40 rounded">
-                        <div className="font-bold text-yellow-400 mb-1">TURN ANALYSIS:</div>
-                        <div>currentPlayer === yourAddress: <span className={gameState.currentPlayer?.toLowerCase() === address?.toLowerCase() ? "text-green-400" : "text-red-400"}>
-                          {gameState.currentPlayer?.toLowerCase() === address?.toLowerCase() ? "YES" : "NO"}
-                        </span></div>
-                        <div>actionAllowed: <span className={isActionAllowed() ? "text-green-400" : "text-red-400"}>
-                          {isActionAllowed() ? "YES" : "NO"}
-                        </span></div>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
 
             {/* Game Status Cards */}
             {gameState.status === "waiting" && (
@@ -683,8 +745,44 @@ export default function FixedBattlePage() {
                     <p className="text-slate-300 mb-4">
                       {gameState.isUserCreator 
                         ? "Your battle is waiting for an opponent to join." 
-                        : "This battle is waiting for a second player."}
+                        : gameState.isUserInGame
+                        ? "You're in this game, waiting for the second player to join."
+                        : "This battle is waiting for a second player to join."}
                     </p>
+                    
+                    {/* Player Status */}
+                    <div className="bg-slate-700/50 rounded-lg p-4 mb-4">
+                      <div className="text-sm text-slate-300 mb-2">Players ({gameState.players.length}/2):</div>
+                      <div className="space-y-2">
+                        {gameState.players.map((player, index) => (
+                          <div key={player} className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold mr-3">
+                                {index + 1}
+                              </div>
+                              <span className="text-slate-200 font-mono text-sm">
+                                {player.slice(0, 6)}...{player.slice(-4)}
+                                {player.toLowerCase() === address?.toLowerCase() && (
+                                  <span className="ml-2 text-cyan-400 text-xs">(You)</span>
+                                )}
+                                {index === 0 && (
+                                  <span className="ml-2 text-amber-400 text-xs">(Creator)</span>
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                        {gameState.players.length === 1 && (
+                          <div className="flex items-center text-slate-400 text-sm">
+                            <div className="w-8 h-8 bg-slate-600 rounded-full flex items-center justify-center text-slate-400 text-sm font-bold mr-3">
+                              ?
+                            </div>
+                            <span>Waiting for second player...</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
                     <p className="text-slate-400 text-sm">
                       Entry Fee: {parseFloat(gameState.entryFee).toFixed(4)} MNT • Prize Pool: {parseFloat(gameState.prizePool).toFixed(4)} MNT
                     </p>
@@ -703,6 +801,21 @@ export default function FixedBattlePage() {
                           )}
                           {transactionLoading ? "JOINING..." : `JOIN BATTLE (${parseFloat(gameState.entryFee).toFixed(4)} MNT)`}
                         </Button>
+                      </div>
+                    )}
+                    
+                    {!gameState.canJoin && !gameState.isUserInGame && (
+                      <div className="mt-6 p-4 bg-slate-700/50 rounded-lg">
+                        <div className="text-slate-300 text-sm">
+                          {gameState.players.length >= 2 ? (
+                            <span>This game is full and cannot be joined.</span>
+                          ) : (
+                            <span>You cannot join this game. Make sure you have enough MNT for the entry fee.</span>
+                          )}
+                        </div>
+                        <div className="text-slate-400 text-xs mt-2">
+                          Required: {parseFloat(gameState.entryFee).toFixed(4)} MNT
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1245,3 +1358,19 @@ export default function FixedBattlePage() {
     </div>
   )
 }
+
+// Export with dynamic import to prevent SSR hydration issues
+export default dynamic(() => Promise.resolve(BattlePage), {
+  ssr: false,
+  loading: () => (
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 text-white">
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="w-16 h-16 animate-spin mx-auto mb-4 text-cyan-400 border-4 border-cyan-400 border-t-transparent rounded-full"></div>
+          <p className="text-xl font-bold text-white">Loading Battle...</p>
+          <p className="text-slate-400">Preparing game interface</p>
+        </div>
+      </div>
+    </div>
+  )
+})

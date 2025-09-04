@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAccount } from 'wagmi'
 import { useZeroSumData, useZeroSumContract, GameStatus, GameMode } from './useZeroSumContract'
 import { toast } from 'react-hot-toast'
-import { ethers } from 'ethers'
+
 
 export interface GameState {
   // Core game data

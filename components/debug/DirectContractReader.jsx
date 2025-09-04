@@ -5,8 +5,8 @@ import { useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useConfig } from 'wagmi'
-import { ethers } from 'ethers'
-import { getEthersProvider } from '../../ethers-adapter'
+import { getViemClient } from '../../config/adapter'
+import { getContract, formatEther } from 'viem'
 import { Search, CheckCircle, XCircle } from 'lucide-react'
 
 const CONTRACT_ADDRESS = "0x3b4B128d79cC2e0d9Af4f429A9bc74cD01bE6B7a"
@@ -31,19 +31,23 @@ export default function DirectContractReader() {
     try {
       console.log('📡 Creating direct contract connection...')
       
-      const provider = getEthersProvider(config)
-      if (!provider) {
-        throw new Error('No provider available')
+      const client = getViemClient(config)
+      if (!client) {
+        throw new Error('No client available')
       }
 
-      console.log('📡 Provider network:', await provider.getNetwork())
+      console.log('📡 Client network:', client.chain)
       
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, MINIMAL_ABI, provider)
+      const contract = getContract({
+        address: CONTRACT_ADDRESS,
+        abi: MINIMAL_ABI,
+        client: client
+      })
       console.log('📡 Contract created successfully')
 
       // Step 1: Read game counter
       console.log('📊 Reading gameCounter...')
-      const gameCounter = await contract.gameCounter()
+      const gameCounter = await contract.read.gameCounter()
       console.log('📊 gameCounter result:', gameCounter.toString())
 
       const results: any = {
@@ -58,19 +62,19 @@ export default function DirectContractReader() {
         
         try {
           // Read game data directly
-          const gameData = await contract.games(i)
+          const gameData = await contract.read.games([BigInt(i)])
           console.log(`🎮 Game ${i} raw data:`, gameData)
 
           // Read players
           let players = []
           try {
-            const player0 = await contract.gamePlayers(i, 0)
-            if (player0 !== ethers.ZeroAddress) {
+            const player0 = await contract.read.gamePlayers([BigInt(i), BigInt(0)])
+            if (player0 !== '0x0000000000000000000000000000000000000000') {
               players.push(player0)
               
               try {
-                const player1 = await contract.gamePlayers(i, 1)
-                if (player1 !== ethers.ZeroAddress) {
+                const player1 = await contract.read.gamePlayers([BigInt(i), BigInt(1)])
+                if (player1 !== '0x0000000000000000000000000000000000000000') {
                   players.push(player1)
                 }
               } catch (e) {
@@ -84,7 +88,7 @@ export default function DirectContractReader() {
           // Check if bettable
           let bettable = false
           try {
-            bettable = await contract.isGameBettable(i)
+            bettable = await contract.read.isGameBettable([BigInt(i)])
           } catch (e) {
             console.log(`Could not check bettable status for game ${i}`)
           }
@@ -96,8 +100,8 @@ export default function DirectContractReader() {
             currentNumber: gameData[2].toString(),
             currentPlayer: gameData[3],
             status: parseInt(gameData[4].toString()),
-            entryFee: ethers.formatEther(gameData[5]),
-            prizePool: ethers.formatEther(gameData[6]),
+            entryFee: formatEther(gameData[5]),
+            prizePool: formatEther(gameData[6]),
             winner: gameData[7],
             numberGenerated: gameData[8],
             players: players,

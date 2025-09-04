@@ -39,12 +39,13 @@ import {
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import Image from "next/image"
-import { useAppKitAccount, useAppKit } from "@reown/appkit/react"
-import { useDisconnect } from "@reown/appkit/react"
-import { useWalletInfo } from "@reown/appkit/react"
-import { useAccount, useDisconnect as useWagmiDisconnect } from "wagmi"
+import { useAccount, useDisconnect } from "wagmi"
 import { toast } from "react-hot-toast"
 import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
+import BalanceTest from "@/components/debug/BalanceTest"
+import ContractDebug from "@/components/debug/ContractDebug"
+import AdapterTest from "@/components/debug/AdapterTest"
+import ProviderTest from "@/components/debug/ProviderTest"
 
 // Mock balance hooks - replace with your actual balance hooks
 const useMNTBalance = (address: string | undefined) => {
@@ -146,19 +147,9 @@ export default function HomePage() {
     }
   ]
 
-  // AppKit hooks (same pattern as AgriChain)
-  const { address: appkitAddress, isConnected: appkitIsConnected } = useAppKitAccount()
-  const { open, close } = useAppKit()
-  const { walletInfo } = useWalletInfo()
-  const { disconnect: appkitDisconnect } = useDisconnect()
-
-  // Wagmi hooks (same pattern as AgriChain)
-  const { address: wagmiAddress, isConnected: wagmiIsConnected, connector } = useAccount()
-  const { disconnect: wagmiDisconnect } = useWagmiDisconnect()
-
-  // Unified state (exact same pattern as AgriChain)
-  const address = appkitAddress || wagmiAddress
-  const isConnected = appkitIsConnected || wagmiIsConnected
+  // Wagmi hooks
+  const { address, isConnected, connector } = useAccount()
+  const { disconnect } = useDisconnect()
 
   // Balance and stats hooks
   const mntBalance = useMNTBalance(address)
@@ -276,25 +267,8 @@ export default function HomePage() {
       }
     }
 
-    if (walletInfo?.icon) {
-      const sanitizedUrl = sanitizeImageUrl(walletInfo.icon)
-      if (sanitizedUrl) {
-        return (
-          <Image
-            src={sanitizedUrl}
-            alt={walletInfo.name || "Wallet"}
-            width={20}
-            height={20}
-            className="w-4 h-4 rounded-full sm:w-5 sm:h-5"
-            onError={(e) => {
-              (e.currentTarget.style.display = "none")
-              console.warn('Failed to load wallet icon:', sanitizedUrl)
-            }}
-            unoptimized
-          />
-        )
-      }
-    }
+    // For now, just return the default wallet icon
+    // In the future, you can get wallet icon from connector
 
     if (connector?.icon) {
       const sanitizedUrl = sanitizeImageUrl(connector.icon)
@@ -319,11 +293,12 @@ export default function HomePage() {
     return <Wallet className="w-4 h-4 text-cyan-400 sm:w-5 sm:h-5" />
   }
 
-  const getWalletName = () => walletInfo?.name || connector?.name || "Battle Wallet"
+  const getWalletName = () => connector?.name || "Battle Wallet"
 
   const handleConnect = async () => {
     try {
-      await open()
+      // For now, show a message to connect via wallet extension
+      toast.info("Please connect your wallet using the browser extension")
     } catch (error: unknown) {
       console.error("Connection error:", error instanceof Error ? error.message : String(error))
       toast.error("Failed to connect wallet. Please try again.")
@@ -334,15 +309,7 @@ export default function HomePage() {
     console.log("Disconnect initiated")
     setIsDropdownOpen(false)
     try {
-      if (appkitIsConnected) {
-        console.log("Disconnecting AppKit")
-        appkitDisconnect()
-      }
-      if (wagmiIsConnected) {
-        console.log("Disconnecting Wagmi")
-        wagmiDisconnect()
-      }
-      close()
+      disconnect()
       toast.success("Wallet disconnected")
     } catch (error: unknown) {
       console.error("Disconnect error:", error instanceof Error ? error.message : String(error))
@@ -475,6 +442,14 @@ export default function HomePage() {
                             
       {/* Unified Gaming Navigation */}
       <UnifiedGamingNavigation />
+
+      {/* Debug Components */}
+      <div className="fixed top-20 right-4 z-50 space-y-4">
+        <BalanceTest />
+        <ContractDebug />
+        <AdapterTest />
+        <ProviderTest />
+      </div>
 
       {/* Hidden Audio Element - Infinite Loop */}
       <audio

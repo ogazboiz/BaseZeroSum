@@ -26,7 +26,7 @@ import {
   AlertTriangle
 } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useAccount } from "wagmi"
 import { toast } from "react-hot-toast"
 import {
@@ -65,7 +65,11 @@ interface BrowseStats {
 
 export default function UpdatedBrowseGamesPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { address, isConnected } = useAccount()
+  
+  // Get highlight game ID from URL params
+  const highlightGameId = searchParams.get('highlight')
   
   // Blockchain hooks
   const {
@@ -281,6 +285,21 @@ export default function UpdatedBrowseGamesPage() {
     }
   })
 
+  // Scroll to highlighted game when it loads
+  useEffect(() => {
+    if (highlightGameId && filteredGames.length > 0) {
+      const gameExists = filteredGames.some(game => game.gameId === Number(highlightGameId))
+      if (gameExists) {
+        setTimeout(() => {
+          const element = document.getElementById(`game-${highlightGameId}`)
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+        }, 500) // Small delay to ensure rendering
+      }
+    }
+  }, [highlightGameId, filteredGames])
+
   // Action handlers
   const handleJoinBattle = async (gameId: number) => {
     if (!isConnected) {
@@ -302,7 +321,7 @@ export default function UpdatedBrowseGamesPage() {
     setJoiningBattle(gameId)
     
     try {
-      console.log(`🎮 Joining game ${gameId} with entry fee ${game.entryFee} ETH`)
+      console.log(`🎮 Joining game ${gameId} with entry fee ${game.entryFee} MNT`)
       const result = await joinGame(gameId, game.entryFee)
       
       if (result.success) {
@@ -473,7 +492,11 @@ export default function UpdatedBrowseGamesPage() {
               const StatusIcon = getStatusIcon(game.status)
               
               return (
-                <Card key={game.gameId} className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 hover:border-slate-600/50 transition-colors">
+                <Card id={`game-${game.gameId}`} key={game.gameId} className={`bg-slate-800/60 backdrop-blur-sm border transition-colors ${
+                  highlightGameId && Number(highlightGameId) === game.gameId
+                    ? "border-amber-500/70 shadow-lg shadow-amber-500/20 ring-2 ring-amber-500/30"
+                    : "border-slate-700/50 hover:border-slate-600/50"
+                }`}>
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
@@ -498,6 +521,18 @@ export default function UpdatedBrowseGamesPage() {
                     </div>
                   </CardHeader>
                   
+                  {/* Highlight Message */}
+                  {highlightGameId && Number(highlightGameId) === game.gameId && (
+                    <div className="px-6 py-2 bg-amber-500/10 border-t border-amber-500/30">
+                      <div className="flex items-center space-x-2">
+                        <Eye className="w-4 h-4 text-amber-400" />
+                        <p className="text-amber-400 text-sm font-medium">
+                          This is the game you were looking for! Connect your wallet to join.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
                   <CardContent className="space-y-4">
                     {/* Game Details */}
                     <div className="grid grid-cols-2 gap-4">
@@ -507,7 +542,7 @@ export default function UpdatedBrowseGamesPage() {
                           <span className="text-xs text-slate-400">Entry Fee</span>
                         </div>
                         <div className="font-bold text-emerald-400">
-                          {parseFloat(game.entryFee).toFixed(4)} ETH
+                          {parseFloat(game.entryFee).toFixed(4)} MNT
                         </div>
                       </div>
                       
@@ -517,7 +552,7 @@ export default function UpdatedBrowseGamesPage() {
                           <span className="text-xs text-slate-400">Prize Pool</span>
                         </div>
                         <div className="font-bold text-cyan-400">
-                          {parseFloat(game.prizePool).toFixed(4)} ETH
+                          {parseFloat(game.prizePool).toFixed(4)} MNT
                         </div>
                       </div>
                     </div>
@@ -688,7 +723,7 @@ export default function UpdatedBrowseGamesPage() {
                 <div className="text-sm text-slate-400">Strategic</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-amber-400">{browseStats.totalPrizePool} ETH</div>
+                <div className="text-2xl font-bold text-amber-400">{browseStats.totalPrizePool} MNT</div>
                 <div className="text-sm text-slate-400">Total Prize Pool</div>
               </div>
             </div>

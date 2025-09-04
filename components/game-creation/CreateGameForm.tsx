@@ -124,13 +124,23 @@ export default function CreateGameForm() {
         return
       }
 
+      console.log('🎮 Create game result:', result)
+      
       if (result.success) {
+        console.log('✅ Game created successfully!')
+        console.log('🎯 Game ID:', result.gameId)
+        console.log('🔗 Transaction hash:', result.txHash)
+        
         // Redirect to waiting room or browse page with the created game
         if (result.gameId) {
+          console.log(`🚀 Redirecting to waiting room for game ${result.gameId}`)
           router.push(`/battle/waiting/${result.gameId}?mode=${selectedMode}&entryFee=${entryFeeValue}`)
         } else {
+          console.log('⚠️ No gameId found, redirecting to browse page')
           router.push(`/browse?created=true&mode=${selectedMode}`)
         }
+      } else {
+        console.log('❌ Game creation failed:', result.error)
       }
     } catch (error: any) {
       console.error("Failed to create battle:", error)

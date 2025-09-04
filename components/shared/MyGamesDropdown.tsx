@@ -19,7 +19,7 @@ import Link from "next/link"
 import { useAccount } from "wagmi"
 import { useZeroSumData } from "@/hooks/useZeroSumContract"
 import { toast } from "react-hot-toast"
-import { ethers } from "ethers"
+import { formatEther } from "viem"
 
 interface MyGame {
   gameId: number
@@ -77,8 +77,8 @@ export default function MyGamesDropdown() {
                 status: gameData.status === 0 ? "waiting" : 
                        gameData.status === 1 ? "active" : "completed",
                 mode: gameData.mode === 0 ? "Quick Draw" : "Strategic",
-                               entryFee: gameData.entryFee ? (typeof gameData.entryFee === 'bigint' ? ethers.formatEther(gameData.entryFee) : gameData.entryFee.toString()) : "0",
-               prizePool: gameData.prizePool ? (typeof gameData.prizePool === 'bigint' ? ethers.formatEther(gameData.prizePool) : gameData.prizePool.toString()) : "0",
+                               entryFee: gameData.entryFee ? (typeof gameData.entryFee === 'bigint' ? formatEther(gameData.entryFee) : gameData.entryFee.toString()) : "0",
+               prizePool: gameData.prizePool ? (typeof gameData.prizePool === 'bigint' ? formatEther(gameData.prizePool) : gameData.prizePool.toString()) : "0",
                 isCreator,
                 isPlayer,
                 currentPlayer: gameData.currentPlayer,
