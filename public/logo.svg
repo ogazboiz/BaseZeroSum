@@ -1,8 +1,45 @@
-<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="512" height="512" rx="128" fill="#0f172a"/>
-  <rect x="64" y="64" width="384" height="384" rx="96" fill="#06b6d4" fill-opacity="0.1"/>
-  <circle cx="256" cy="256" r="128" fill="#06b6d4" fill-opacity="0.2"/>
-  <text x="256" y="280" text-anchor="middle" fill="#06b6d4" font-family="Arial, sans-serif" font-size="120" font-weight="bold">0</text>
-  <text x="256" y="180" text-anchor="middle" fill="#06b6d4" font-family="Arial, sans-serif" font-size="60" font-weight="bold">ZERO</text>
-  <text x="256" y="340" text-anchor="middle" fill="#06b6d4" font-family="Arial, sans-serif" font-size="60" font-weight="bold">SUM</text>
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e293b;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <circle cx="32" cy="32" r="32" fill="url(#bgGradient)"/>
+  
+  <!-- Game controller -->
+  <g transform="translate(32, 32)">
+    <!-- Controller body -->
+    <rect x="-12" y="-6" width="24" height="12" rx="6" fill="#374151" stroke="#6b7280" stroke-width="1"/>
+    <rect x="-10" y="-4" width="20" height="8" rx="4" fill="#1f2937"/>
+    
+    <!-- D-pad -->
+    <rect x="-8" y="-2" width="4" height="3" rx="1" fill="#9ca3af"/>
+    <rect x="-9" y="-3" width="6" height="5" rx="1.5" fill="#6b7280"/>
+    
+    <!-- Action buttons -->
+    <circle cx="8" cy="-2" r="2" fill="#ef4444"/>
+    <circle cx="10" cy="-4" r="2" fill="#3b82f6"/>
+    <circle cx="10" cy="0" r="2" fill="#10b981"/>
+    <circle cx="12" cy="-2" r="2" fill="#f59e0b"/>
+    
+    <!-- Mathematical symbols -->
+    <text x="-20" y="-12" font-family="Arial, sans-serif" font-size="8" font-weight="bold" fill="#06b6d4">x-1</text>
+    <text x="15" y="-12" font-family="Arial, sans-serif" font-size="8" font-weight="bold" fill="#8b5cf6">=0</text>
+  </g>
+  
+  <!-- Glow effect -->
+  <circle cx="32" cy="32" r="28" fill="none" stroke="url(#logoGradient)" stroke-width="1" opacity="0.5">
+    <animate attributeName="r" values="28;32;28" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.5;0.8;0.5" dur="2s" repeatCount="indefinite"/>
+  </circle>
 </svg>

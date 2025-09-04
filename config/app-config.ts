@@ -6,7 +6,7 @@ export const APP_CONFIG = {
   tagline: "Enter the arena where strategy beats luck. Mathematical warfare with hidden numbers and true fairness.",
   
   // URLs and assets
-  url: "https://zerosum.arena",
+  url: process.env.NEXT_PUBLIC_URL || "https://zerosum-arena.vercel.app",
   icon: "/logo.svg",
   ogImage: "/og.svg",
   splashImage: "/splash.svg",

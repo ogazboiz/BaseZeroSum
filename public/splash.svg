@@ -1,9 +1,76 @@
-<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="1280" height="720" fill="#0f172a"/>
-  <rect x="320" y="160" width="640" height="400" rx="80" fill="#06b6d4" fill-opacity="0.1"/>
-  <circle cx="640" cy="360" r="200" fill="#06b6d4" fill-opacity="0.2"/>
-  <text x="640" y="400" text-anchor="middle" fill="#06b6d4" font-family="Arial, sans-serif" font-size="200" font-weight="bold">0</text>
-  <text x="640" y="280" text-anchor="middle" fill="#06b6d4" font-family="Arial, sans-serif" font-size="100" font-weight="bold">ZERO</text>
-  <text x="640" y="520" text-anchor="middle" fill="#06b6d4" font-family="Arial, sans-serif" font-size="100" font-weight="bold">SUM</text>
-  <text x="640" y="600" text-anchor="middle" fill="#94a3b8" font-family="Arial, sans-serif" font-size="32" font-weight="normal">Mathematical Warfare</text>
+<svg width="400" height="400" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e293b;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+    
+    <radialGradient id="glowGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:0" />
+    </radialGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="400" height="400" fill="url(#bgGradient)"/>
+  
+  <!-- Glow effect -->
+  <circle cx="200" cy="200" r="150" fill="url(#glowGradient)">
+    <animate attributeName="r" values="150;180;150" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.3;0.6;0.3" dur="3s" repeatCount="indefinite"/>
+  </circle>
+  
+  <!-- Main logo -->
+  <g transform="translate(200, 200)">
+    <!-- Game controller -->
+    <rect x="-30" y="-15" width="60" height="30" rx="15" fill="#374151" stroke="#6b7280" stroke-width="3"/>
+    <rect x="-25" y="-10" width="50" height="20" rx="10" fill="#1f2937"/>
+    
+    <!-- D-pad -->
+    <rect x="-20" y="-5" width="10" height="8" rx="2" fill="#9ca3af"/>
+    <rect x="-22" y="-7" width="14" height="12" rx="3" fill="#6b7280"/>
+    
+    <!-- Action buttons -->
+    <circle cx="20" cy="-5" r="4" fill="#ef4444"/>
+    <circle cx="25" cy="-10" r="4" fill="#3b82f6"/>
+    <circle cx="25" cy="0" r="4" fill="#10b981"/>
+    <circle cx="30" cy="-5" r="4" fill="#f59e0b"/>
+    
+    <!-- Mathematical symbols around controller -->
+    <text x="-50" y="-30" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#06b6d4">x-1=0</text>
+    <text x="35" y="-30" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#8b5cf6">x-0.1x=0</text>
+    <text x="-50" y="25" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#f59e0b">Strategy</text>
+    <text x="30" y="25" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#ef4444">Luck</text>
+  </g>
+  
+  <!-- App title -->
+  <text x="200" y="320" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="900" fill="url(#logoGradient)">
+    ZEROSUM
+  </text>
+  
+  <!-- Subtitle -->
+  <text x="200" y="350" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#e2e8f0">
+    GAMING ARENA
+  </text>
+  
+  <!-- Decorative elements -->
+  <g transform="translate(50, 50)" opacity="0.4">
+    <polygon points="0,0 15,8 0,16 8,8" fill="#06b6d4"/>
+  </g>
+  
+  <g transform="translate(335, 335)" opacity="0.4">
+    <polygon points="0,0 15,8 0,16 8,8" fill="#8b5cf6"/>
+  </g>
+  
+  <!-- Loading indicator -->
+  <circle cx="200" cy="380" r="3" fill="#06b6d4">
+    <animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite"/>
+  </circle>
 </svg>

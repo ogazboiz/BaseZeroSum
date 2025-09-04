@@ -76,12 +76,7 @@ const usePlayerStats = (address: string | undefined) => {
 }
 
 export default function HomePage() {
-  // Initialize MiniKit for Farcaster
-  const { setFrameReady, isFrameReady } = useMiniKit();
-
-  useEffect(() => {
-    if (!isFrameReady) setFrameReady();
-  }, [isFrameReady, setFrameReady]);
+  // AppKit handles Farcaster integration automatically
 
   // Add custom CSS for volume slider
   useEffect(() => {

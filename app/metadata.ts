@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { APP_CONFIG } from "@/config/app-config";
 
 export const metadata: Metadata = {
@@ -6,8 +6,6 @@ export const metadata: Metadata = {
   description: APP_CONFIG.tagline,
   generator: 'v0.dev',
   manifest: '/manifest.json',
-  themeColor: APP_CONFIG.themeColor,
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -29,6 +27,14 @@ export const metadata: Metadata = {
       },
     }),
   },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: APP_CONFIG.themeColor,
 };
 
 // Re-export the centralized config
