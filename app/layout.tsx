@@ -4,6 +4,7 @@ import "./globals.css"
 
 import { headers } from 'next/headers'
 import { Providers } from "@/context/providers"
+import { AppKit } from "@/context/appkit"
 import NetworkStatus from "@/components/shared/NetworkStatus"
 import { metadata } from "./metadata"
 
@@ -34,10 +35,12 @@ export default async function RootLayout({
         <meta name="apple-mobile-web-app-title" content="ZeroSum Gaming Arena" />
       </head>
       <body className={inter.className}>
-        <Providers>
-          {children}
-          <NetworkStatus />
-        </Providers>
+        <AppKit>
+          <Providers>
+            {children}
+            <NetworkStatus />
+          </Providers>
+        </AppKit>
       </body>
     </html>
   )
