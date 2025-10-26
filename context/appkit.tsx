@@ -1,29 +1,39 @@
 "use client";
 import { createAppKit } from "@reown/appkit/react";
 import { EthersAdapter } from "@reown/appkit-adapter-ethers";
-import { base, baseSepolia } from "@reown/appkit/networks";
+import { 
+  base, 
+  baseSepolia, 
+  arbitrum, 
+  arbitrumSepolia, 
+  mainnet, 
+  sepolia,
+  lisk,
+  liskSepolia,
+  bsc,
+  bscTestnet,
+  avalanche,
+  avalancheFuji,
+  polygon,
+  polygonMumbai,
+  optimism,
+  optimismSepolia
+} from "@reown/appkit/networks";
 import type { AppKitNetwork } from "@reown/appkit/networks";
 import { ReactNode } from "react";
 
-// Environment detection
+// Environment detection (Billoq-style)
 const isMainnet = process.env.NEXT_PUBLIC_ENVIRONMENT === 'mainnet';
 
-// Network configurations for ZeroSum
-const mainnetNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [
-  base,
-  // Add other mainnet networks if needed
-];
+// Dynamic network configuration based on environment (Billoq-style)
+const mainnetNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [lisk, arbitrum, base, bsc, avalanche, polygon, optimism, mainnet];
+const testnetNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [liskSepolia, arbitrumSepolia, baseSepolia, bscTestnet, avalancheFuji, sepolia, polygonMumbai, optimismSepolia];
 
-const testnetNetworks: [AppKitNetwork, ...AppKitNetwork[]] = [
-  baseSepolia,
-  // sepolia, // Keep Sepolia for testing fallback
-];
-
-// Use appropriate networks based on environment
+// Use appropriate networks based on environment (always ensure at least one network)
 const supportedNetworks = isMainnet ? mainnetNetworks : testnetNetworks;
 
-// 1. Get projectId at https://cloud.reown.com
-const projectId = "8387f0bbb57a265cd4dd96c3e658ac55";
+// 1. Get projectId at https://cloud.reown.com (using Billoq's project ID)
+const projectId = "a9fbadc760baa309220363ec867b732e";
 
 // 2. Create metadata for ZeroSum
 const metadata = {
@@ -33,27 +43,29 @@ const metadata = {
   icons: ["https://zerosum.arena/logo.png"], // Your ZeroSum logo
 };
 
-// Log environment info for debugging
-console.log(`🌍 ZeroSum Environment: ${isMainnet ? 'Base Mainnet' : 'Base Sepolia Testnet'}`);
+// Log environment info for debugging (Billoq-style)
+console.log(`🌍 ZeroSum Environment: ${isMainnet ? 'Mainnet' : 'Testnet'}`);
 console.log(`📡 Supported Networks:`, supportedNetworks.map(n => n.name));
-console.log(`⚔️ ZeroSum Arena on Base Network ready!`);
+console.log(`⚔️ ZeroSum Arena ready with multi-chain support!`);
 
-// 3. Create the AppKit instance
+// 3. Create the AppKit instance (Billoq-style configuration)
 createAppKit({
   adapters: [new EthersAdapter()],
   metadata,
   networks: supportedNetworks,
   projectId,
   features: {
-    analytics: true,
+    email: false,
+    socials: false,
+    analytics: true, // Optional - defaults to your Cloud configuration
+    onramp: isMainnet, // Enable onramp only for mainnet
   },
-  // Base-specific configurations
+  // Optional: Add environment-specific features (Billoq-style)
   ...(isMainnet ? {
     // Mainnet specific configurations
     enableExplorer: true,
-    enableOnramp: true, // Enable for real ETH purchases
   } : {
-    // Testnet specific configurations  
+    // Testnet specific configurations
     enableExplorer: true,
     enableOnramp: false, // Disable on-ramp for testnets
   })
