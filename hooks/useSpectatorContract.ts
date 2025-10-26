@@ -8,7 +8,14 @@ import { ZeroSumSpectatorABI } from '../config/abis/ZeroSumSpectatorABI'
 
 // Contract addresses
 const SPECTATOR_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_SPECTATOR_CONTRACT_ADDRESS || "0x1620024163b8C9CE917b82932093A6De22Ba89d8"
-const ZEROSUM_SIMPLIFIED_ADDRESS = process.env.NEXT_PUBLIC_GAME_CONTRACT_ADDRESS || "0xfb40c6BACc74019E01C0dD5b434CE896806D7579"
+// Use the same contract address as wagmi hook
+import { getContractAddresses } from '@/context/wagmi-config'
+
+// Helper function to get game contract address
+const getZeroSumSimplifiedAddress = () => {
+  const { ZERO_SUM_SIMPLIFIED } = getContractAddresses()
+  return ZERO_SUM_SIMPLIFIED
+}
 const HARDCORE_MYSTERY_ADDRESS = process.env.NEXT_PUBLIC_HARDCORE_MYSTERY_CONTRACT_ADDRESS || "0x2E56044dB3be726772D6E5afFD7BD813C6895025"
 
 // Game Contract Types
@@ -48,7 +55,7 @@ export interface BettingSettings {
 const getGameContractAddress = (gameContract: GameContract): string => {
   switch (gameContract) {
     case GameContract.ZEROSUM_SIMPLIFIED:
-      return ZEROSUM_SIMPLIFIED_ADDRESS
+      return getZeroSumSimplifiedAddress()
     case GameContract.HARDCORE_MYSTERY:
       return HARDCORE_MYSTERY_ADDRESS
     default:
@@ -475,7 +482,7 @@ export function useSpectatorData() {
   // Get contract addresses
   const getContractAddresses = () => ({
     spectator: SPECTATOR_CONTRACT_ADDRESS,
-    zeroSumSimplified: ZEROSUM_SIMPLIFIED_ADDRESS,
+    zeroSumSimplified: getZeroSumSimplifiedAddress(),
     hardcoreMystery: HARDCORE_MYSTERY_ADDRESS
   })
 

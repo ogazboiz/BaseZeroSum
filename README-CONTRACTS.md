@@ -1,11 +1,11 @@
-# ZeroSum Contract Integration
+# Number Slayer Gaming Contract Integration
 
-This project has been updated to integrate with the ZeroSum smart contracts on the Mantle network.
+This project has been updated to integrate with the Number Slayer Gaming smart contracts on the Sonic network.
 
 ## Contract Addresses
 
-- **ZeroSum Simplified**: `0x3b4B128d79cC2e0d9Af4f429A9bc74cD01bE6B7a`
-- **ZeroSum Spectator**: `0x1bE77b80eE1729e4ad52243f0A5d109a2F266F89`
+- **Number Slayer Gaming**: `0x0000000000000000000000000000000000000000` (TODO: Deploy to Sonic)
+- **Number Slayer Spectator**: `0x0000000000000000000000000000000000000000` (TODO: Deploy to Sonic)
 
 ## Available Functions
 

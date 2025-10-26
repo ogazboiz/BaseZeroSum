@@ -39,6 +39,7 @@ import {
   GameStatus, 
   GameMode 
 } from "@/hooks/useZeroSumContract"
+import { useWagmiZeroSumContract } from "@/hooks/useWagmiZeroSumContract"
 import { useSpectatorContract, GameContract, useSpectatorData } from "@/hooks/useSpectatorContract"
 import UnifiedGamingNavigation from "@/components/shared/GamingNavigation"
 
@@ -101,8 +102,9 @@ export default function FixedBattlePage() {
     cancelWaitingGame,
     forceFinishInactiveGame,
     withdraw,
-    loading: transactionLoading
-  } = useZeroSumContract()
+    isConnected: wagmiContractConnected,
+    address: wagmiContractAddress
+  } = useWagmiZeroSumContract()
 
   // Spectator betting hooks
   const {
@@ -112,16 +114,16 @@ export default function FixedBattlePage() {
     loading: bettingLoading
   } = useSpectatorContract()
 
-  // ✅ NEW: Enhanced spectator data hooks for real contract data
-  const {
-    hasUserBetOnGame,
-    getUserBetInfo,
-    getBettingInfo,
-    isBettingAllowed,
-    getUserBettingHistory,
-    getUserBettingHistoryDetailed,
-    getGameBettingStats
-  } = useSpectatorData()
+  // ✅ TEMPORARILY DISABLED: Enhanced spectator data hooks for debugging
+  // const {
+  //   hasUserBetOnGame,
+  //   getUserBetInfo,
+  //   getBettingInfo,
+  //   isBettingAllowed,
+  //   getUserBettingHistory,
+  //   getUserBettingHistoryDetailed,
+  //   getGameBettingStats
+  // } = useSpectatorData()
 
   // State management
   const [gameState, setGameState] = useState<EnhancedGameState | null>(null)
@@ -132,6 +134,7 @@ export default function FixedBattlePage() {
   const [localTimeLeft, setLocalTimeLeft] = useState<number | null>(null)
   const [showDebugInfo, setShowDebugInfo] = useState(false)
   const [showBettingHistory, setShowBettingHistory] = useState(false)
+  const [transactionLoading, setTransactionLoading] = useState(false)
   
   // Betting state
   const [betAmount, setBetAmount] = useState("0.01")
@@ -191,39 +194,39 @@ export default function FixedBattlePage() {
     playerBetCounts: number[]
   } | null>(null)
 
-  // ✅ NEW: Fetch betting history and enhanced stats
-  const fetchBettingHistory = useCallback(async () => {
-    if (!address || !contractsReady) return
+  // ✅ TEMPORARILY DISABLED: Fetch betting history and enhanced stats
+  // const fetchBettingHistory = useCallback(async () => {
+  //   if (!address || !contractsReady) return
 
-    try {
-      console.log('📚 Fetching betting history for user:', address)
+  //   try {
+  //     console.log('📚 Fetching betting history for user:', address)
       
-      // Get user's detailed betting history
-      const history = await getUserBettingHistoryDetailed(address, 20) // Last 20 bets
-      setBettingHistory(history)
-      console.log('📚 Betting history fetched:', history)
+  //     // Get user's detailed betting history
+  //     const history = await getUserBettingHistoryDetailed(address, 20) // Last 20 bets
+  //     setBettingHistory(history)
+  //     console.log('📚 Betting history fetched:', history)
       
-    } catch (error) {
-      console.error('Failed to fetch betting history:', error)
-    }
-  }, [address, contractsReady, getUserBettingHistoryDetailed])
+  //   } catch (error) {
+  //     console.error('Failed to fetch betting history:', error)
+  //   }
+  // }, [address, contractsReady, getUserBettingHistoryDetailed])
 
-  // ✅ NEW: Fetch enhanced betting stats for current game
-  const fetchEnhancedBettingStats = useCallback(async () => {
-    if (!gameId || !contractsReady) return
+  // ✅ TEMPORARILY DISABLED: Fetch enhanced betting stats for current game
+  // const fetchEnhancedBettingStats = useCallback(async () => {
+  //   if (!gameId || !contractsReady) return
 
-    try {
-      console.log('📊 Fetching enhanced betting stats for game:', gameId)
+  //   try {
+  //     console.log('📊 Fetching enhanced betting stats for game:', gameId)
       
-      // Get comprehensive betting stats for this game
-      const stats = await getGameBettingStats(GameContract.ZEROSUM_SIMPLIFIED, gameId)
-      setEnhancedBettingInfo(stats)
-      console.log('📊 Enhanced betting stats fetched:', stats)
+  //     // Get comprehensive betting stats for this game
+  //     const stats = await getGameBettingStats(GameContract.ZEROSUM_SIMPLIFIED, gameId)
+  //     setEnhancedBettingInfo(stats)
+  //     console.log('📊 Enhanced betting stats fetched:', stats)
       
-    } catch (error) {
-      console.error('Failed to fetch enhanced betting stats:', error)
-    }
-  }, [gameId, contractsReady, getGameBettingStats])
+  //   } catch (error) {
+  //     console.error('Failed to fetch enhanced betting stats:', error)
+  //   }
+  // }, [gameId, contractsReady, getGameBettingStats])
 
   // Fetch game data function
   const fetchGameData = useCallback(async () => {
@@ -249,57 +252,16 @@ export default function FixedBattlePage() {
         getPlayerBalance(address)
       ])
       
-      // Also fetch user's betting info from smart contract
-      try {
-        // ✅ NEW: Use real smart contract functions instead of localStorage
-        if (isConnected && address) {
-          // Check if user has bet on this game
-          const hasBet = await hasUserBetOnGame(GameContract.ZEROSUM_SIMPLIFIED, gameId, address)
-          
-          if (hasBet) {
-            // Get detailed bet information
-            const betInfo = await getUserBetInfo(GameContract.ZEROSUM_SIMPLIFIED, gameId, address)
-            if (betInfo) {
-              setUserBet({
-                amount: betInfo.amount,
-                player: betInfo.predictedWinner,
-                placed: true,
-                predictedWinner: betInfo.predictedWinner,
-                claimed: betInfo.claimed,
-                timestamp: betInfo.timestamp
-              })
-            }
-          } else {
-            setUserBet(null)
-          }
-          
-          // Check if user can bet on this game
-          const canBet = await isBettingAllowed(GameContract.ZEROSUM_SIMPLIFIED, gameId)
-          const isUserInGame = players.some(p => p.toLowerCase() === address.toLowerCase())
-          
-          setUserBetStatus({
-            hasBet,
-            canBet: canBet && !isUserInGame,
-            bettingAllowed: canBet
-          })
-        }
-        
-        // Get general betting info for the game
-        const gameBettingInfo = await getBettingInfo(GameContract.ZEROSUM_SIMPLIFIED, gameId)
-        if (gameBettingInfo) {
-          setBettingInfo(gameBettingInfo)
-        }
-        
-        // ✅ NEW: Fetch enhanced betting stats and history
-        await Promise.all([
-          fetchEnhancedBettingStats(),
-          fetchBettingHistory()
-        ])
-      } catch (error) {
-        console.log('Could not fetch betting info from contract:', error)
-        // Fallback to old method
-        await fetchUserBet()
-      }
+      // ✅ TEMPORARILY DISABLED: Betting functionality to isolate the error
+      console.log('⚠️ Betting functionality temporarily disabled for debugging')
+      
+      // Set default betting values
+      setUserBet(null)
+      setUserBetStatus({
+        hasBet: false,
+        canBet: false,
+        bettingAllowed: false
+      })
 
       if (!gameData) {
         throw new Error(`Game #${gameId} not found on blockchain`)
@@ -792,6 +754,7 @@ export default function FixedBattlePage() {
       return
     }
     
+    setTransactionLoading(true)
     try {
       const result = await joinGame(gameId!, gameState.entryFee)
       if (result.success) {
@@ -804,6 +767,8 @@ export default function FixedBattlePage() {
     } catch (error) {
       console.error('Failed to join game:', error)
       toast.error("Failed to join game")
+    } finally {
+      setTransactionLoading(false)
     }
   }
 
@@ -819,6 +784,7 @@ export default function FixedBattlePage() {
       return
     }
 
+    setTransactionLoading(true)
     try {
       const result = await makeMove(gameId!, move)
       if (result.success) {
@@ -833,12 +799,15 @@ export default function FixedBattlePage() {
     } catch (error) {
       console.error('Failed to make move:', error)
       toast.error("Failed to submit move")
+    } finally {
+      setTransactionLoading(false)
     }
   }
 
   const handleTimeoutAction = async () => {
     if (!gameState) return
     
+    setTransactionLoading(true)
     try {
       const result = await handleTimeout(gameId!)
       if (result.success) {
@@ -850,6 +819,8 @@ export default function FixedBattlePage() {
     } catch (error) {
       console.error('Failed to handle timeout:', error)
       toast.error("Failed to process timeout")
+    } finally {
+      setTransactionLoading(false)
     }
   }
 
@@ -859,6 +830,7 @@ export default function FixedBattlePage() {
       return
     }
     
+    setTransactionLoading(true)
     try {
       const result = await cancelWaitingGame(gameId!)
       if (result.success) {
@@ -870,6 +842,8 @@ export default function FixedBattlePage() {
     } catch (error) {
       console.error('Failed to cancel game:', error)
       toast.error("Failed to cancel game")
+    } finally {
+      setTransactionLoading(false)
     }
   }
 
@@ -879,6 +853,7 @@ export default function FixedBattlePage() {
       return
     }
     
+    setTransactionLoading(true)
     try {
       const result = await forceFinishInactiveGame(gameId!)
       if (result.success) {
@@ -890,10 +865,13 @@ export default function FixedBattlePage() {
     } catch (error) {
       console.error('Failed to force finish game:', error)
       toast.error("Failed to force finish game")
+    } finally {
+      setTransactionLoading(false)
     }
   }
 
   const handleWithdraw = async () => {
+    setTransactionLoading(true)
     try {
       const result = await withdraw()
       if (result.success) {
@@ -905,6 +883,8 @@ export default function FixedBattlePage() {
     } catch (error) {
       console.error('Failed to withdraw:', error)
       toast.error("Failed to withdraw balance")
+    } finally {
+      setTransactionLoading(false)
     }
   }
 

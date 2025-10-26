@@ -3,7 +3,14 @@ import { useEffect, useRef, useCallback } from 'react'
 import { usePublicClient } from 'wagmi'
 import { ethers } from 'ethers'
 
-const GAME_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_GAME_CONTRACT_ADDRESS || "0xfb40c6BACc74019E01C0dD5b434CE896806D7579"
+// Use the same contract address as wagmi hook
+import { getContractAddresses } from '@/context/wagmi-config'
+
+// Helper function to get game contract address
+const getGameContractAddress = () => {
+  const { ZERO_SUM_SIMPLIFIED } = getContractAddresses()
+  return ZERO_SUM_SIMPLIFIED
+}
 
 // Event signatures for the game contract
 const EVENT_SIGNATURES = {
@@ -75,7 +82,7 @@ class GameEventManager {
 
     // Listen to all contract events
     this.unsubscribe = this.publicClient.watchContractEvent({
-      address: GAME_CONTRACT_ADDRESS,
+      address: getGameContractAddress(),
       abi: [
         'event GameCreated(uint256 indexed gameId, uint8 mode, address creator, uint256 entryFee)',
         'event PlayerJoined(uint256 indexed gameId, address player)',

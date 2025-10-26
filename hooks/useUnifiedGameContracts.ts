@@ -11,7 +11,14 @@ import { ZeroSumHardcoreMysteryABI } from '../config/abis/ZeroSumHardcoreMystery
 import { ZeroSumTournamentABI } from '../config/abis/ZeroSumTournamentABI'
 
 // Contract addresses
-const GAME_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_GAME_CONTRACT_ADDRESS || "0xfb40c6BACc74019E01C0dD5b434CE896806D7579"
+// Use the same contract address as wagmi hook
+import { getContractAddresses } from '@/context/wagmi-config'
+
+// Helper function to get game contract address
+const getGameContractAddress = () => {
+  const { ZERO_SUM_SIMPLIFIED } = getContractAddresses()
+  return ZERO_SUM_SIMPLIFIED
+}
 const HARDCORE_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_HARDCORE_MYSTERY_CONTRACT_ADDRESS || "0x2E56044dB3be726772D6E5afFD7BD813C6895025"
 const TOURNAMENT_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_TOURNAMENT_CONTRACT_ADDRESS || "0x39fdd70dc8A2C85A23A65B4775ecC3bBEa373db7"
 
@@ -78,13 +85,13 @@ export interface TournamentGame {
 // Contract mapping for different game modes
 const CONTRACT_CONFIG = {
   [UnifiedGameMode.QUICK_DRAW]: {
-    address: GAME_CONTRACT_ADDRESS,
+    address: getGameContractAddress(),
     abi: ZeroSumSimplifiedABI,
     createFunction: 'createQuickDraw',
     contractMode: 0
   },
   [UnifiedGameMode.STRATEGIC]: {
-    address: GAME_CONTRACT_ADDRESS,
+    address: getGameContractAddress(),
     abi: ZeroSumSimplifiedABI,
     createFunction: 'createStrategic',
     contractMode: 1
@@ -357,7 +364,7 @@ export function useUnifiedGameData() {
     if (!provider) return null
 
     return {
-      simplified: new ethers.Contract(GAME_CONTRACT_ADDRESS, ZeroSumSimplifiedABI, provider),
+      simplified: new ethers.Contract(getGameContractAddress(), ZeroSumSimplifiedABI, provider),
       hardcore: new ethers.Contract(HARDCORE_CONTRACT_ADDRESS, ZeroSumHardcoreMysteryABI, provider),
       tournament: new ethers.Contract(TOURNAMENT_CONTRACT_ADDRESS, ZeroSumTournamentABI, provider)
     }
@@ -370,11 +377,11 @@ export function useUnifiedGameData() {
       if (!contracts) return null
 
       const contractConfig = CONTRACT_CONFIG[mode]
-      const contract = contractConfig.address === GAME_CONTRACT_ADDRESS ? 
+      const contract = contractConfig.address === getGameContractAddress() ? 
         contracts.simplified : contracts.hardcore
 
       // Get game data based on contract type
-      if (contractConfig.address === GAME_CONTRACT_ADDRESS) {
+      if (contractConfig.address === getGameContractAddress()) {
         // ZeroSumSimplified
         const game = await contract.getGame(gameId)
         const players = await contract.getPlayers(gameId)
@@ -626,7 +633,7 @@ export function useUnifiedGameData() {
           games.push({
             gameId,
             mode: Number(game.mode) as UnifiedGameMode,
-            contractAddress: GAME_CONTRACT_ADDRESS,
+            contractAddress: getGameContractAddress(),
             currentNumber: Number(game.currentNumber),
             currentPlayer: game.currentPlayer,
             status: Number(game.status) as GameStatus,

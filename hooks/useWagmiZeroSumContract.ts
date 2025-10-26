@@ -5,8 +5,11 @@ import { toast } from 'react-hot-toast';
 import { ZeroSumSimplifiedABI } from '@/config/abis/ZeroSumSimplifiedABI';
 import { getContractAddresses } from '@/context/wagmi-config';
 
-// Contract addresses
-const { ZERO_SUM_SIMPLIFIED } = getContractAddresses();
+// Helper function to get contract address
+const getContractAddress = () => {
+  const { ZERO_SUM_SIMPLIFIED } = getContractAddresses();
+  return ZERO_SUM_SIMPLIFIED;
+};
 
 export function useWagmiZeroSumContract() {
   // Use wagmi's connection state directly (like mintmymood does)
@@ -56,7 +59,7 @@ export function useWagmiZeroSumContract() {
       console.log('📤 Transaction result:', result);
       
       toast.success(successMessage);
-      return { success: true, result };
+      return { success: true, txHash: result, result };
     } catch (err) {
       console.error('❌ Transaction error:', err);
       
@@ -71,7 +74,12 @@ export function useWagmiZeroSumContract() {
         return { success: false, error: 'User cancelled' };
       } else {
         const errorMessage = err instanceof Error ? err.message : "Unknown error occurred";
-        toast.error(`${errorMessage}: ${errorMessage}`);
+        console.error('❌ Detailed error:', {
+          message: errorMessage,
+          error: err,
+          stack: err instanceof Error ? err.stack : undefined
+        });
+        toast.error(`Transaction failed: ${errorMessage}`);
         return { success: false, error: errorMessage };
       }
     }
@@ -82,7 +90,7 @@ export function useWagmiZeroSumContract() {
     return executeTransaction(
       async () => {
         return await writeContractAsync({
-          address: ZERO_SUM_SIMPLIFIED as `0x${string}`,
+          address: getContractAddress() as `0x${string}`,
           abi: ZeroSumSimplifiedABI,
           functionName: "createQuickDraw",
           value: BigInt(parseFloat(entryFee) * 1e18), // Convert to wei
@@ -99,7 +107,7 @@ export function useWagmiZeroSumContract() {
     return executeTransaction(
       async () => {
         return await writeContractAsync({
-          address: ZERO_SUM_SIMPLIFIED as `0x${string}`,
+          address: getContractAddress() as `0x${string}`,
           abi: ZeroSumSimplifiedABI,
           functionName: "createStrategic",
           value: BigInt(parseFloat(entryFee) * 1e18), // Convert to wei
@@ -113,20 +121,28 @@ export function useWagmiZeroSumContract() {
 
   // Join Game
   const joinGame = async (gameId: number, entryFee: string) => {
-    return executeTransaction(
-      async () => {
-        return await writeContractAsync({
-          address: ZERO_SUM_SIMPLIFIED as `0x${string}`,
-          abi: ZeroSumSimplifiedABI,
-          functionName: "joinGame",
-          args: [BigInt(gameId)],
-          value: BigInt(parseFloat(entryFee) * 1e18), // Convert to wei
-        });
-      },
-      'Joining game...',
-      'Successfully joined the game!',
-      'Failed to join game'
-    );
+    try {
+      console.log('🎮 Attempting to join game:', { gameId, entryFee, address, isConnected, chainId });
+      
+      return await executeTransaction(
+        async () => {
+          return await writeContractAsync({
+            address: getContractAddress() as `0x${string}`,
+            abi: ZeroSumSimplifiedABI,
+            functionName: "joinGame",
+            args: [BigInt(gameId)],
+            value: BigInt(parseFloat(entryFee) * 1e18), // Convert to wei
+          });
+        },
+        'Joining game...',
+        'Successfully joined the game!',
+        'Failed to join game'
+      );
+    } catch (error) {
+      console.error('❌ Unhandled error in joinGame:', error);
+      toast.error('An unexpected error occurred while joining the game');
+      return { success: false, error: 'Unhandled error' };
+    }
   };
 
   // Make Move
@@ -134,7 +150,7 @@ export function useWagmiZeroSumContract() {
     return executeTransaction(
       async () => {
         return await writeContractAsync({
-          address: ZERO_SUM_SIMPLIFIED as `0x${string}`,
+          address: getContractAddress() as `0x${string}`,
           abi: ZeroSumSimplifiedABI,
           functionName: "makeMove",
           args: [BigInt(gameId), BigInt(subtraction)],
@@ -151,7 +167,7 @@ export function useWagmiZeroSumContract() {
     return executeTransaction(
       async () => {
         return await writeContractAsync({
-          address: ZERO_SUM_SIMPLIFIED as `0x${string}`,
+          address: getContractAddress() as `0x${string}`,
           abi: ZeroSumSimplifiedABI,
           functionName: "handleTimeout",
           args: [BigInt(gameId)],
@@ -168,7 +184,7 @@ export function useWagmiZeroSumContract() {
     return executeTransaction(
       async () => {
         return await writeContractAsync({
-          address: ZERO_SUM_SIMPLIFIED as `0x${string}`,
+          address: getContractAddress() as `0x${string}`,
           abi: ZeroSumSimplifiedABI,
           functionName: "cancelWaitingGame",
           args: [BigInt(gameId)],
@@ -185,7 +201,7 @@ export function useWagmiZeroSumContract() {
     return executeTransaction(
       async () => {
         return await writeContractAsync({
-          address: ZERO_SUM_SIMPLIFIED as `0x${string}`,
+          address: getContractAddress() as `0x${string}`,
           abi: ZeroSumSimplifiedABI,
           functionName: "forceFinishInactiveGame",
           args: [BigInt(gameId)],
@@ -202,7 +218,7 @@ export function useWagmiZeroSumContract() {
     return executeTransaction(
       async () => {
         return await writeContractAsync({
-          address: ZERO_SUM_SIMPLIFIED as `0x${string}`,
+          address: getContractAddress() as `0x${string}`,
           abi: ZeroSumSimplifiedABI,
           functionName: "withdraw",
         });
@@ -218,7 +234,7 @@ export function useWagmiZeroSumContract() {
     return executeTransaction(
       async () => {
         return await writeContractAsync({
-          address: ZERO_SUM_SIMPLIFIED as `0x${string}`,
+          address: getContractAddress() as `0x${string}`,
           abi: ZeroSumSimplifiedABI,
           functionName: "stake",
           value: BigInt(parseFloat(amount) * 1e18), // Convert to wei
@@ -235,7 +251,7 @@ export function useWagmiZeroSumContract() {
     return executeTransaction(
       async () => {
         return await writeContractAsync({
-          address: ZERO_SUM_SIMPLIFIED as `0x${string}`,
+          address: getContractAddress() as `0x${string}`,
           abi: ZeroSumSimplifiedABI,
           functionName: "unstake",
           args: [BigInt(parseFloat(amount) * 1e18)], // Convert to wei
@@ -252,7 +268,7 @@ export function useWagmiZeroSumContract() {
     return executeTransaction(
       async () => {
         return await writeContractAsync({
-          address: ZERO_SUM_SIMPLIFIED as `0x${string}`,
+          address: getContractAddress() as `0x${string}`,
           abi: ZeroSumSimplifiedABI,
           functionName: "claimRewards",
         });

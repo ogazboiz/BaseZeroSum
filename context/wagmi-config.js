@@ -1,5 +1,5 @@
 import { createConfig, http } from 'wagmi';
-import { base, baseSepolia } from 'wagmi/chains';
+import { defineChain } from 'viem';
 import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector';
 import {
   injected,
@@ -7,46 +7,94 @@ import {
   metaMask,
   coinbaseWallet,
 } from 'wagmi/connectors';
+
+// Define Sonic chains
+export const sonic = defineChain({
+  id: 146,
+  name: 'Sonic',
+  network: 'sonic',
+  nativeCurrency: {
+    decimals: 18,
+    name: 'Sonic',
+    symbol: 'S',
+  },
+  rpcUrls: {
+    default: {
+      http: ['https://rpc.soniclabs.com'],
+    },
+    public: {
+      http: ['https://rpc.soniclabs.com'],
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: 'SonicScan',
+      url: 'https://sonicscan.org',
+    },
+  },
+});
+
+export const sonicTestnet = defineChain({
+  id: 14601,
+  name: 'Sonic Testnet',
+  network: 'sonic-testnet',
+  nativeCurrency: {
+    decimals: 18,
+    name: 'Sonic',
+    symbol: 'S',
+  },
+  rpcUrls: {
+    default: {
+      http: ['https://rpc.testnet.soniclabs.com'],
+    },
+    public: {
+      http: ['https://rpc.testnet.soniclabs.com'],
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: 'SonicScan Testnet',
+      url: 'https://testnet.sonicscan.org',
+    },
+  },
+  testnet: true,
+});
  
-// ZeroSum Contract Addresses - Updated to Base Sepolia
-export const ZEROSUM_CONTRACT_ADDRESSES = {
-  ZERO_SUM_SIMPLIFIED: '0x11bb298bbde9ffa6747ea104c2c39b3e59a399b4',
-  ZERO_SUM_SPECTATOR: '0x214124ae23b415b3aea3bb9e260a56dc022baf04',
+// Number Slayer Gaming Contract Addresses - Updated for Sonic
+export const NUMBER_SLAYER_CONTRACT_ADDRESSES = {
+  NUMBER_SLAYER_GAMING: '0x0000000000000000000000000000000000000000', // TODO: Deploy to Sonic
+  NUMBER_SLAYER_SPECTATOR: '0x0000000000000000000000000000000000000000', // TODO: Deploy to Sonic
 };
 
-// Environment-based contract selection - Updated to use .env variables
+// Environment-based contract selection - Updated for Sonic
 export const getContractAddresses = () => {
   const isMainnet = process.env.NEXT_PUBLIC_ENVIRONMENT === 'mainnet';
   
   if (isMainnet) {
     return {
-      ZERO_SUM_SIMPLIFIED: process.env.NEXT_PUBLIC_ZEROSUM_SIMPLIFIED_ADDRESS || ZEROSUM_CONTRACT_ADDRESSES.ZERO_SUM_SIMPLIFIED,
-      ZERO_SUM_SPECTATOR: process.env.NEXT_PUBLIC_ZEROSUM_SPECTATOR_ADDRESS || ZEROSUM_CONTRACT_ADDRESSES.ZERO_SUM_SPECTATOR,
+      NUMBER_SLAYER_GAMING: process.env.NEXT_PUBLIC_NUMBER_SLAYER_GAMING_ADDRESS || NUMBER_SLAYER_CONTRACT_ADDRESSES.NUMBER_SLAYER_GAMING,
+      NUMBER_SLAYER_SPECTATOR: process.env.NEXT_PUBLIC_NUMBER_SLAYER_SPECTATOR_ADDRESS || NUMBER_SLAYER_CONTRACT_ADDRESSES.NUMBER_SLAYER_SPECTATOR,
     };
   } else {
     return {
-      ZERO_SUM_SIMPLIFIED: process.env.NEXT_PUBLIC_ZEROSUM_SIMPLIFIED_ADDRESS || ZEROSUM_CONTRACT_ADDRESSES.ZERO_SUM_SIMPLIFIED,
-      ZERO_SUM_SPECTATOR: process.env.NEXT_PUBLIC_ZEROSUM_SPECTATOR_ADDRESS || ZEROSUM_CONTRACT_ADDRESSES.ZERO_SUM_SPECTATOR,
+      NUMBER_SLAYER_GAMING: process.env.NEXT_PUBLIC_NUMBER_SLAYER_GAMING_ADDRESS || NUMBER_SLAYER_CONTRACT_ADDRESSES.NUMBER_SLAYER_GAMING,
+      NUMBER_SLAYER_SPECTATOR: process.env.NEXT_PUBLIC_NUMBER_SLAYER_SPECTATOR_ADDRESS || NUMBER_SLAYER_CONTRACT_ADDRESSES.NUMBER_SLAYER_SPECTATOR,
     };
   }
 };
 
 export const WAGMI_CHAINS = {
-  base,
-  baseSepolia,
+  sonic,
+  sonicTestnet,
 };
 
 // Multiple RPC endpoints for better reliability
-const BASE_SEPOLIA_RPCS = [
-  process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC || 'https://sepolia.base.org',
-  'https://base-sepolia.g.alchemy.com/v2/demo',
-  'https://base-sepolia.public.blastapi.io',
+const SONIC_TESTNET_RPCS = [
+  process.env.NEXT_PUBLIC_SONIC_TESTNET_RPC || 'https://rpc.testnet.soniclabs.com',
 ];
 
-const BASE_RPCS = [
-  process.env.NEXT_PUBLIC_BASE_RPC || 'https://mainnet.base.org',
-  'https://base.g.alchemy.com/v2/demo',
-  'https://base.public.blastapi.io',
+const SONIC_RPCS = [
+  process.env.NEXT_PUBLIC_SONIC_RPC || 'https://rpc.soniclabs.com',
 ];
 
 // Get timeout and retry settings from environment or use defaults
@@ -62,10 +110,10 @@ const getWalletConnectConnector = () => {
     walletConnectConnector = walletConnect({
       projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "",
       metadata: {
-        name: "ZeroSum Arena",
-        description: "Battle in the ZeroSum Arena on Base Sepolia",
-        url: "https://zerosum-arena.vercel.app",
-        icons: ["https://zerosum-arena.vercel.app/favicon.ico"],
+        name: "Number Slayer Gaming Arena",
+        description: "Battle in the Number Slayer Gaming Arena on Sonic",
+        url: "https://number-slayer-gaming.vercel.app",
+        icons: ["https://number-slayer-gaming.vercel.app/favicon.ico"],
       },
     });
   }
@@ -73,9 +121,9 @@ const getWalletConnectConnector = () => {
 };
 
 export const wagmiConfig = createConfig({
-  chains: [baseSepolia], // Only Base Sepolia for testing
+  chains: [sonicTestnet], // Only Sonic Testnet for testing
   transports: {
-    [baseSepolia.id]: http(BASE_SEPOLIA_RPCS[0], {
+    [sonicTestnet.id]: http(SONIC_TESTNET_RPCS[0], {
       // Add timeout and retry configuration
       timeout: RPC_TIMEOUT,
       retryCount: RPC_RETRY_COUNT,
@@ -90,7 +138,7 @@ export const wagmiConfig = createConfig({
     }),
     metaMask(),
     coinbaseWallet({
-      appName: "ZeroSum Arena",
+      appName: "Number Slayer Gaming Arena",
     }),
     getWalletConnectConnector(),
   ],
